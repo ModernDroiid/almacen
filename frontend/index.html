@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Occidente — Almacen</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<script>
+    (function() {
+        const hayToken = localStorage.getItem('authToken');
+        const estilo = document.createElement('style');
+        estilo.id = 'estilo-anti-parpadeo';
+        estilo.textContent = hayToken
+            ? '#pantalla-login { display: none !important; }'
+            : '#app-principal { display: none !important; }';
+        document.head.appendChild(estilo);
+    })();
+</script>
+
+<!-- ══ PANTALLA DE LOGIN ══════════════════════════════════════ -->
+<div id="pantalla-login">
+    <div class="login-card">
+        <div class="login-logo">
+            <img src="img/occidente.png" alt="Occidente Seguridad Privada"
+                 style="width:140px;object-fit:contain;filter:brightness(0) invert(1);">
+        </div>
+        <h2 class="login-titulo">Almacen</h2>
+        <p class="login-subtitulo">Inicia sesion para continuar</p>
+        <div id="login-error" class="login-error" style="display:none"></div>
+        <div class="campo">
+            <label>Correo electronico</label>
+            <input type="email" id="login-email" placeholder="usuario@occidente.com" autocomplete="username">
+        </div>
+        <div class="campo">
+            <label>Contrasena</label>
+            <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="btn-primario" style="width:100%;margin-top:0.5rem" onclick="iniciarSesion()">
+            Ingresar
+        </button>
+    </div>
+</div>
+
+<!-- ══ APP PRINCIPAL (oculta hasta login) ════════════════════ -->
+<div id="app-principal" style="display:none;height:100vh;display:none">
+
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="img/occidente.png" alt="Occidente Seguridad Privada"
+             style="width: 160px; object-fit: contain; filter: brightness(0) invert(1);">
+    </div>
+    <nav>
+        <button class="nav-btn active" onclick="mostrarSeccion('productos', this)">
+            <span class="icono">🗂️</span> Productos
+        </button>
+        <button class="nav-btn" onclick="mostrarSeccion('entradas', this)">
+            <span class="icono">📥</span> Entradas
+        </button>
+        <button class="nav-btn" onclick="mostrarSeccion('salidas', this)">
+            <span class="icono">📤</span> Salidas
+        </button>
+        <button class="nav-btn" onclick="mostrarSeccion('devoluciones', this)">
+            <span class="icono">🔄</span> Devoluciones
+        </button>
+        <button class="nav-btn admin-only" onclick="mostrarSeccion('modelos', this)">
+            <span class="icono">🏷️</span> Modelos
+        </button>
+        <button class="nav-btn admin-only" onclick="mostrarSeccion('marcas', this)">
+            <span class="icono">⭐</span> Marcas
+        </button>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="avatar" id="sidebar-avatar">—</div>
+        <div class="info-usuario">
+            <div class="nombre" id="sidebar-nombre">—</div>
+            <div class="ciudad" id="sidebar-rol">—</div>
+        </div>
+        <button onclick="cerrarSesion()" title="Cerrar sesion"
+                style="margin-left:auto;background:none;border:none;color:#4a7fa5;cursor:pointer;font-size:16px">
+            ⏻
+        </button>
+    </div>
+</aside>
+
+<div class="contenido">
+
+    <!-- Productos -->
+    <section id="sec-productos" class="seccion activa">
+        <div class="topbar">
+            <div class="topbar-titulo">
+                <h2>Productos y stock</h2>
+                <p id="subtitulo-productos">Cargando...</p>
+            </div>
+            <button class="btn-primario admin-only" onclick="abrirModal('modal-producto')">+ Nuevo producto</button>
+        </div>
+        <div class="stats-row">
+            <div class="stat-card"><div class="label">Total productos</div><div class="valor azul" id="stat-total">—</div></div>
+            <div class="stat-card"><div class="label">En stock</div><div class="valor verde" id="stat-enstock">—</div></div>
+            <div class="stat-card"><div class="label">Stock bajo</div><div class="valor naranja" id="stat-bajo">—</div></div>
+            <div class="stat-card"><div class="label">Agotados</div><div class="valor rojo" id="stat-agotados">—</div></div>
+        </div>
+        <div class="tabla-wrap">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>Codigo</th>
+                        <th>Descripcion del articulo</th>
+                        <th>Unidad</th>
+                        <th>Stock</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-productos"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Entradas -->
+    <section id="sec-entradas" class="seccion">
+    <div class="topbar">
+        <div class="topbar-titulo">
+            <h2>Entradas</h2>
+            <p id="subtitulo-entradas">Cargando...</p>
+        </div>
+        <button class="btn-primario admin-only" onclick="abrirModal('modal-entrada')">+ Nueva entrada</button>
+    </div>
+    <div style="padding:0 24px 12px">
+        <input type="text" id="buscar-entradas" placeholder="Buscar por N° documento, origen o destino..."
+               oninput="filtrarEntradas()"
+               style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 12px;font-size:13px;width:320px;outline:none">
+    </div>
+    <div class="tabla-wrap">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>N° Documento</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Productos</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-entradas"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Salidas -->
+    <section id="sec-salidas" class="seccion">
+    <div class="topbar">
+        <div class="topbar-titulo">
+            <h2>Salidas</h2>
+            <p id="subtitulo-salidas">Cargando...</p>
+        </div>
+        <button class="btn-primario admin-only" onclick="abrirModal('modal-salida')">+ Nueva salida</button>
+    </div>
+    <div style="padding:0 24px 12px">
+        <input type="text" id="buscar-salidas" placeholder="Buscar por N° documento, origen o destino..."
+               oninput="filtrarSalidas()"
+               style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 12px;font-size:13px;width:320px;outline:none">
+    </div>
+    <div class="tabla-wrap">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>N° Documento</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Productos</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-salidas"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Devoluciones -->
+    <section id="sec-devoluciones" class="seccion">
+        <div class="topbar">
+            <div class="topbar-titulo">
+                <h2>Devoluciones</h2>
+                <p id="subtitulo-devoluciones">Cargando...</p>
+            </div>
+            <button class="btn-primario admin-only" onclick="abrirModal('modal-devolucion')">+ Nueva devolucion</button>
+        </div>
+        <div class="tabla-wrap">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>N° Documento</th>
+                        <th>Salida origen</th>
+                        <th>Procede de</th>
+                        <th>Motivo</th>
+                        <th>Productos</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-devoluciones"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Modelos -->
+    <section id="sec-modelos" class="seccion">
+        <div class="topbar">
+            <div class="topbar-titulo">
+                <h2>Modelos</h2>
+                <p id="subtitulo-modelos">Cargando...</p>
+            </div>
+            <button class="btn-primario admin-only" onclick="abrirModal('modal-modelo')">+ Nuevo modelo</button>
+        </div>
+        <div class="tabla-wrap">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>Modelo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-modelos"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Marcas -->
+    <section id="sec-marcas" class="seccion">
+        <div class="topbar">
+            <div class="topbar-titulo">
+                <h2>Marcas</h2>
+                <p id="subtitulo-marcas">Cargando...</p>
+            </div>
+            <button class="btn-primario admin-only" onclick="abrirModal('modal-marca')">+ Nueva marca</button>
+        </div>
+        <div class="tabla-wrap">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>Marca</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-marcas"></tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+</div><!-- fin #app-principal -->
+
+<!-- MODAL: Producto -->
+<div id="modal-producto" class="modal-fondo">
+    <div class="modal" style="width:480px">
+        <div class="modal-header">
+            <h3 id="modal-producto-titulo">Nuevo producto</h3>
+            <button onclick="cerrarModal('modal-producto')">✕</button>
+        </div>
+        <form onsubmit="guardarProducto(event)">
+            <input type="hidden" id="prod-id">
+            <div class="fila-campos">
+                <div class="campo">
+                    <label>Codigo *</label>
+                    <input type="text" id="prod-codigo" required placeholder="Ej: CAM-001">
+                </div>
+                <div class="campo">
+                    <label>Unidad</label>
+                    <select id="prod-unidad">
+                        <option value="UND">UND</option>
+                        <option value="MTS">MTS</option>
+                        <option value="KG">KG</option>
+                        <option value="CAJA">CAJA</option>
+                        <option value="ROLLO">ROLLO</option>
+                        <option value="LITRO">LITRO</option>
+                    </select>
+                </div>
+            </div>
+            <div class="campo">
+                <label>Descripcion del articulo *</label>
+                <input type="text" id="prod-nombre" required placeholder="Ej: Camara IP, Cable UTP">
+            </div>
+            <div class="campo">
+                <label>Descripcion adicional</label>
+                <input type="text" id="prod-descripcion" placeholder="Opcional">
+            </div>
+            <div class="campo">
+                <label>Stock inicial</label>
+                <input type="number" id="prod-stock-minimo" value="0" min="0">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secundario" onclick="cerrarModal('modal-producto')">Cancelar</button>
+                <button type="submit" class="btn-primario">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: Nueva entrada -->
+<div id="modal-entrada" class="modal-fondo">
+    <div class="modal" style="width:660px; max-width:96vw; max-height:90vh; overflow-y:auto">
+        <div class="modal-header">
+            <h3>Nueva entrada</h3>
+            <button onclick="cerrarModal('modal-entrada')">✕</button>
+        </div>
+        <form onsubmit="guardarEntrada(event)">
+            <div class="fila-campos">
+                <div class="campo">
+                    <label>N° Documento</label>
+                    <input type="text" id="ent-numero" readonly
+                           style="background:#f7f9fc;color:#6b8aab;cursor:not-allowed">
+                </div>
+                <div class="campo">
+                    <label>Fecha</label>
+                    <input type="date" id="ent-fecha" onchange="generarNumeroEntrada()">
+                </div>
+            </div>
+            <div class="fila-campos">
+                <div class="campo">
+                    <label>De la seccion (Origen) *</label>
+                    <input type="text" id="ent-obra" required
+                           placeholder="Ej: Obra Norte, Sede Cali"
+                           oninput="generarNumeroEntrada()">
+                </div>
+                <div class="campo">
+                    <label>Con destino a</label>
+                    <input type="text" id="ent-destino" value="Almacen">
+                </div>
+            </div>
+            <div class="campo">
+                <label>Observaciones</label>
+                <input type="text" id="ent-observaciones" placeholder="Opcional">
+            </div>
+            <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr 70px 55px 30px;gap:6px;margin:10px 0 4px">
+                <span style="font-size:11px;color:#4a6080;font-weight:600">Articulo</span>
+                <span style="font-size:11px;color:#4a6080;font-weight:600">Modelo</span>
+                <span style="font-size:11px;color:#4a6080;font-weight:600">Marca</span>
+                <span style="font-size:11px;color:#4a6080;font-weight:600">N° Serial</span>
+                <span style="font-size:11px;color:#4a6080;font-weight:600">Unidad</span>
+                <span style="font-size:11px;color:#4a6080;font-weight:600">Cant.</span>
+                <span></span>
+            </div>
+            <div id="ent-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
+            <button type="button" class="btn-secundario" style="width:100%;margin-bottom:1rem"
+                    onclick="agregarItemEntrada()">+ Agregar producto</button>
+            <div class="modal-footer">
+                <button type="button" class="btn-secundario" onclick="cerrarModal('modal-entrada')">Cancelar</button>
+                <button type="submit" class="btn-primario">Registrar entrada</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: Nueva salida -->
+<div id="modal-salida" class="modal-fondo">
+    <div class="modal" style="width:660px; max-width:96vw; max-height:90vh; overflow-y:auto">
+        <div class="modal-header">
+            <h3>Nueva salida</h3>
+            <button onclick="cerrarModal('modal-salida')">✕</button>
+        </div>
+        <form onsubmit="guardarSalida(event)">
+            <div class="fila-campos">
+                <div class="campo">
+                    <label>N° Documento</label>
+                    <input type="text" id="sal-numero" readonly
+                           style="background:#f7f9fc;color:#6b8aab;cursor:not-allowed">
+                </div>
+                <div class="campo">
+                    <label>Fecha</label>
+                    <input type="date" id="sal-fecha" onchange="generarNumeroSalida()">
+                </div>
+            </div>
+            <div class="fila-campos">
+                <div class="campo">
+                    <label>De la seccion (Origen)</label>
+                    <input type="text" id="sal-obra" value="Almacen">
+                </div>
+                <div class="campo">
+                    <label>Con destino a *</label>
+                    <input type="text" id="sal-destino" required
+                           placeholder="Ej: Obra Norte, Sede Cali"
+                           oninput="generarNumeroSalida()">
+                </div>
+            </div>
+            <div class="campo">
+                <label>Observaciones</label>
+                <input type="text" id="sal-observaciones" placeholder="Opcional">
+            </div>
+            <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr 70px 55px 30px;gap:6px;margin:10px 0 4px">
+                <span style="font-size:11px;color:#4a6080;font-weight:600">Articulo</span>
+                <span style="font-size:11px;color:#4a6080;font-weight:600">Modelo</span>
+                <span style="font-size:11px;color:#4a6080;font-weight:600">Marca</span>
+                <span style="font-size:11px;color:#4a6080;font-weight:600">N° Serial</span>
+                <span style="font-size:11px;color:#4a6080;font-weight:600">Unidad</span>
+                <span style="font-size:11px;color:#4a6080;font-weight:600">Cant.</span>
+                <span></span>
+            </div>
+            <div id="sal-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
+            <button type="button" class="btn-secundario" style="width:100%;margin-bottom:1rem"
+                    onclick="agregarItemSalida()">+ Agregar producto</button>
+            <div class="modal-footer">
+                <button type="button" class="btn-secundario" onclick="cerrarModal('modal-salida')">Cancelar</button>
+                <button type="submit" class="btn-primario">Registrar salida</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: Nuevo/Editar modelo -->
+<div id="modal-modelo" class="modal-fondo">
+    <div class="modal" style="width:400px">
+        <div class="modal-header">
+            <h3 id="modal-modelo-titulo">Nuevo modelo</h3>
+            <button onclick="cerrarModal('modal-modelo')">✕</button>
+        </div>
+        <form onsubmit="guardarModelo(event)">
+            <input type="hidden" id="modelo-id">
+            <div class="campo">
+                <label>Nombre del modelo *</label>
+                <input type="text" id="modelo-nombre" required placeholder="Ej: DS-IP-4K">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secundario" onclick="cerrarModal('modal-modelo')">Cancelar</button>
+                <button type="submit" class="btn-primario">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: Nueva/Editar marca -->
+<div id="modal-marca" class="modal-fondo">
+    <div class="modal" style="width:400px">
+        <div class="modal-header">
+            <h3 id="modal-marca-titulo">Nueva marca</h3>
+            <button onclick="cerrarModal('modal-marca')">✕</button>
+        </div>
+        <form onsubmit="guardarMarca(event)">
+            <input type="hidden" id="marca-id">
+            <div class="campo">
+                <label>Nombre de la marca *</label>
+                <input type="text" id="marca-nombre" required placeholder="Ej: Dahua">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secundario" onclick="cerrarModal('modal-marca')">Cancelar</button>
+                <button type="submit" class="btn-primario">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: Nueva devolucion -->
+<div id="modal-devolucion" class="modal-fondo">
+    <div class="modal" style="width:680px; max-width:96vw; max-height:90vh; overflow-y:auto; position:relative; z-index:101">
+        <div class="modal-header">
+            <h3>Nueva devolucion</h3>
+            <button onclick="cerrarModal('modal-devolucion')">✕</button>
+        </div>
+        <form onsubmit="guardarDevolucion(event)">
+            <div class="fila-campos">
+                <div class="campo">
+                    <label>N° Documento</label>
+                    <input type="text" id="dev-numero" readonly
+                           style="background:#f7f9fc;color:#6b8aab;cursor:not-allowed">
+                </div>
+                <div class="campo">
+                    <label>Fecha</label>
+                    <input type="date" id="dev-fecha" onchange="generarNumeroDevolucion()">
+                </div>
+            </div>
+            <div class="campo">
+                <label>Salida original (de donde regresa) *</label>
+                <select id="dev-salida" required onchange="cargarItemsDeSalida()"
+                        style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 10px;
+                               font-size:13px;color:#0d2137;width:100%;position:relative;z-index:102">
+                    <option value="">— Selecciona la salida —</option>
+                </select>
+            </div>
+            <div class="fila-campos">
+                <div class="campo">
+                    <label>Procede de</label>
+                    <input type="text" id="dev-origen" readonly
+                           style="background:#f7f9fc;color:#6b8aab;cursor:not-allowed">
+                </div>
+                <div class="campo">
+                    <label>Motivo</label>
+                    <select id="dev-motivo"
+                            style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 10px;font-size:13px;color:#0d2137">
+                        <option value="No se uso">No se uso</option>
+                        <option value="Sobrante">Sobrante</option>
+                        <option value="Dañado">Dañado</option>
+                        <option value="Cambio de equipo">Cambio de equipo</option>
+                        <option value="Fin de obra">Fin de obra</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+            </div>
+            <div class="campo">
+                <label>Observaciones</label>
+                <input type="text" id="dev-observaciones" placeholder="Opcional">
+            </div>
+            <div style="margin:10px 0 4px">
+                <label style="font-size:12px;color:#4a6080;font-weight:600">
+                    Productos de la salida (marca los que regresan)
+                </label>
+            </div>
+            <div id="dev-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:200px;overflow-y:auto">
+                <p style="font-size:12px;color:#6b8aab">Selecciona primero una salida arriba.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secundario" onclick="cerrarModal('modal-devolucion')">Cancelar</button>
+                <button type="submit" class="btn-primario">Registrar devolucion</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

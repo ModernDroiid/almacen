@@ -42,3 +42,24 @@ def login():
         'nombre': usuario['nombre'],
         'rol': usuario['rol']
     })
+
+@auth_bp.route('/crear-admin-temporal', methods=['GET'])
+def crear_admin_temporal():
+    from werkzeug.security import generate_password_hash
+    correo = "andres.brinez@occidentesp.com.co"
+    nombre = "Andres Briñez"
+    password = "andres@2002"
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'INSERT INTO usuarios (correo, nombre, password_hash, rol) VALUES (?, ?, ?, ?)',
+            (correo, nombre, generate_password_hash(password), 'admin')
+        )
+        conn.commit()
+        return {'mensaje': f'Usuario {correo} creado correctamente'}
+    except Exception as e:
+        return {'error': str(e)}
+    finally:
+        conn.close()

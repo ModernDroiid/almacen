@@ -43,6 +43,7 @@ def login():
         'rol': usuario['rol']
     })
 
+
 @auth_bp.route('/crear-admin-temporal', methods=['GET'])
 def crear_admin_temporal():
     from werkzeug.security import generate_password_hash
@@ -53,12 +54,24 @@ def crear_admin_temporal():
     conn = get_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute(
-            'INSERT INTO usuarios (correo, nombre, password_hash, rol) VALUES (?, ?, ?, ?)',
-            (correo, nombre, generate_password_hash(password), 'admin')
-        )
+        cursor.execute('SELECT id FROM usuarios WHERE correo = ?', (correo,))
+        existe = cursor.fetchone()
+
+        if existe:
+            cursor.execute(
+                'UPDATE usuarios SET password_hash = ?, nombre = ? WHERE correo = ?',
+                (generate_password_hash(password), nombre, correo)
+            )
+            mensaje = f'Contraseña actualizada para {correo}'
+        else:
+            cursor.execute(
+                'INSERT INTO usuarios (correo, nombre, password_hash, rol) VALUES (?, ?, ?, ?)',
+                (correo, nombre, generate_password_hash(password), 'admin')
+            )
+            mensaje = f'Usuario {correo} creado correctamente'
+
         conn.commit()
-        return {'mensaje': f'Usuario {correo} creado correctamente'}
+        return {'mensaje': mensaje}
     except Exception as e:
         return {'error': str(e)}
     finally:

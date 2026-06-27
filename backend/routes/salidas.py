@@ -1,38 +1,64 @@
 # ============================================================
 # salidas.py — Registro de mercancía que sale del almacén
-# Al registrar una salida, el stock de cada producto baja
 # ============================================================
 
 from flask import Blueprint, request, jsonify
-import sys
-import os
+from flask_jwt_extended import jwt_required, get_jwt
+import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
 from database import get_connection
 
 salidas_bp = Blueprint("salidas", __name__)
 
 
+def obtener_sede_actual():
+    claims = get_jwt()
+    if claims.get('rol') == 'admin':
+        return request.args.get('sede_id', type=int)  # None = todas
+    return claims.get('sede_id')
+
+
 @salidas_bp.route("/", methods=["GET"])
+@jwt_required()
 def listar_salidas():
+    sede_id = obtener_sede_actual()
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT s.id, s.numero_documento, s.obra, s.destino,
-               s.observaciones, s.fecha,
-               COUNT(d.id) AS total_items
-        FROM salidas s
-        LEFT JOIN detalle_salidas d ON d.salida_id = s.id
-        GROUP BY s.id
-        ORDER BY s.fecha DESC
-    """)
+
+    if sede_id is None:
+        cursor.execute("""
+            SELECT s.id, s.numero_documento, s.obra, s.destino,
+                   s.observaciones, s.fecha, s.sede_id,
+                   se.nombre as sede_nombre,
+                   COUNT(d.id) AS total_items
+            FROM salidas s
+            LEFT JOIN detalle_salidas d ON d.salida_id = s.id
+            LEFT JOIN sedes se ON se.id = s.sede_id
+            GROUP BY s.id
+            ORDER BY s.fecha DESC
+        """)
+    else:
+        cursor.execute("""
+            SELECT s.id, s.numero_documento, s.obra, s.destino,
+                   s.observaciones, s.fecha, s.sede_id,
+                   se.nombre as sede_nombre,
+                   COUNT(d.id) AS total_items
+            FROM salidas s
+            LEFT JOIN detalle_salidas d ON d.salida_id = s.id
+            LEFT JOIN sedes se ON se.id = s.sede_id
+            WHERE s.sede_id = ?
+            GROUP BY s.id
+            ORDER BY s.fecha DESC
+        """, (sede_id,))
+
     filas = cursor.fetchall()
     conn.close()
     return jsonify([dict(f) for f in filas])
 
 
 @salidas_bp.route("/<int:id>", methods=["GET"])
+@jwt_required()
 def obtener_salida(id):
     conn = get_connection()
     cursor = conn.cursor()
@@ -54,7 +80,9 @@ def obtener_salida(id):
 
 
 @salidas_bp.route("/", methods=["POST"])
+@jwt_required()
 def crear_salida():
+    claims = get_jwt()
     datos = request.json
 
     if not datos.get("numero_documento"):
@@ -62,45 +90,42 @@ def crear_salida():
     if not datos.get("detalle") or len(datos["detalle"]) == 0:
         return jsonify({"error": "Debe agregar al menos un producto"}), 400
 
+    if claims.get('rol') == 'admin':
+        sede_id = datos.get('sede_id') or claims.get('sede_id')
+    else:
+        sede_id = claims.get('sede_id')
+
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
-        # Validar stock disponible
         for item in datos["detalle"]:
-            cursor.execute("""
-                SELECT nombre, stock
-                FROM productos
-                WHERE id=?
-            """, (item["producto_id"],))
+            cursor.execute("SELECT nombre, stock FROM productos WHERE id=?",
+                         (item["producto_id"],))
             producto = cursor.fetchone()
-
             if not producto:
                 conn.close()
                 return jsonify({"error": "Producto no encontrado"}), 400
-
             if item["cantidad"] > producto["stock"]:
                 conn.close()
                 return jsonify({
-                    "error":
-                    f'Stock insuficiente para "{producto["nombre"]}". '
-                    f'Disponible: {producto["stock"]} '
-                    f'Solicitado: {item["cantidad"]}'
+                    "error": f'Stock insuficiente para "{producto["nombre"]}". '
+                             f'Disponible: {producto["stock"]} '
+                             f'Solicitado: {item["cantidad"]}'
                 }), 400
 
-        # Crear encabezado de salida
         cursor.execute("""
-            INSERT INTO salidas (numero_documento, obra, destino, observaciones)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO salidas (numero_documento, obra, destino, observaciones, sede_id)
+            VALUES (?, ?, ?, ?, ?)
         """, (
             datos["numero_documento"],
             datos.get("obra", ""),
             datos.get("destino", ""),
-            datos.get("observaciones", "")
+            datos.get("observaciones", ""),
+            sede_id
         ))
         salida_id = cursor.lastrowid
 
-        # Guardar detalle y descontar stock
         for item in datos["detalle"]:
             cursor.execute("""
                 INSERT INTO detalle_salidas
@@ -115,12 +140,8 @@ def crear_salida():
                 item.get("marca", ""),
                 item.get("unidad", "UND")
             ))
-
-            # Descontar stock real
             cursor.execute("""
-                UPDATE productos
-                SET stock = stock - ?
-                WHERE id = ?
+                UPDATE productos SET stock = stock - ? WHERE id = ?
             """, (item["cantidad"], item["producto_id"]))
 
         conn.commit()
@@ -134,24 +155,18 @@ def crear_salida():
 
 
 @salidas_bp.route("/<int:id>", methods=["DELETE"])
+@jwt_required()
 def eliminar_salida(id):
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
-        cursor.execute("""
-            SELECT producto_id, cantidad
-            FROM detalle_salidas
-            WHERE salida_id=?
-        """, (id,))
+        cursor.execute("SELECT producto_id, cantidad FROM detalle_salidas WHERE salida_id=?", (id,))
         items = cursor.fetchall()
 
         for item in items:
-            cursor.execute("""
-                UPDATE productos
-                SET stock = stock + ?
-                WHERE id = ?
-            """, (item["cantidad"], item["producto_id"]))
+            cursor.execute("UPDATE productos SET stock = stock + ? WHERE id = ?",
+                         (item["cantidad"], item["producto_id"]))
 
         cursor.execute("DELETE FROM detalle_salidas WHERE salida_id=?", (id,))
         cursor.execute("DELETE FROM salidas WHERE id=?", (id,))

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Occidente — Iniciar sesión</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', sans-serif; }
+
+        body {
+            background: #0d2137;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            width: 400px;
+            max-width: 95vw;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-logo img {
+            width: 180px;
+            object-fit: contain;
+        }
+
+        .login-titulo {
+            font-size: 14px;
+            font-weight: 600;
+            color: #0d2137;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .campo {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 1rem;
+        }
+
+        .campo label {
+            font-size: 12px;
+            color: #4a6080;
+            font-weight: 500;
+        }
+
+        .campo input {
+            border: 0.5px solid #c8d8ea;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: #0d2137;
+            outline: none;
+            transition: border 0.15s;
+        }
+
+        .campo input:focus {
+            border-color: #1a6fc4;
+        }
+
+        .btn-login {
+            width: 100%;
+            background: #1a6fc4;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            transition: background 0.15s;
+        }
+
+        .btn-login:hover { background: #155fa8; }
+
+        .error-msg {
+            background: #fdecea;
+            color: #c0392b;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12.5px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .error-msg.visible { display: block; }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 11px;
+            color: #6b8aab;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <div class="login-logo">
+        <img src="img/occidente.png" alt="Occidente Seguridad Privada">
+    </div>
+
+    <p class="login-titulo">Gestión de Almacén — Iniciar sesión</p>
+
+    <div class="error-msg" id="error-msg">
+        Email o contraseña incorrectos
+    </div>
+
+    <form onsubmit="iniciarSesion(event)">
+        <div class="campo">
+            <label>Email</label>
+            <input type="email" id="login-email" required
+                   placeholder="usuario@occidente.com" autocomplete="email">
+        </div>
+        <div class="campo">
+            <label>Contraseña</label>
+            <input type="password" id="login-password" required
+                   placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-login" id="btn-login">
+            Iniciar sesión
+        </button>
+    </form>
+
+    <div class="login-footer">
+        Occidente Seguridad Privada © 2026
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+
+    // Si ya hay sesion activa, redirigimos directo al app
+    if (localStorage.getItem('token')) {
+        window.location.href = 'index.html';
+    }
+
+    async function iniciarSesion(event) {
+        event.preventDefault();
+
+        const email    = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const btn      = document.getElementById('btn-login');
+        const errorMsg = document.getElementById('error-msg');
+
+        btn.textContent = 'Iniciando...';
+        btn.disabled    = true;
+        errorMsg.classList.remove('visible');
+
+        try {
+            const res = await fetch(`${API}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                // Guardamos el token y datos del usuario en localStorage
+                // localStorage persiste aunque cierres el navegador
+                localStorage.setItem('token',       data.token);
+                localStorage.setItem('usuario',     JSON.stringify({
+                    nombre:      data.nombre,
+                    rol:         data.rol,
+                    sede_id:     data.sede_id,
+                    sede_nombre: data.sede_nombre,
+                    ciudad:      data.ciudad
+                }));
+                // Redirigimos al app principal
+                window.location.href = 'index.html';
+            } else {
+                errorMsg.textContent = data.error || 'Error al iniciar sesion';
+                errorMsg.classList.add('visible');
+                btn.textContent = 'Iniciar sesión';
+                btn.disabled    = false;
+            }
+        } catch (e) {
+            errorMsg.textContent = 'No se pudo conectar al servidor';
+            errorMsg.classList.add('visible');
+            btn.textContent = 'Iniciar sesión';
+            btn.disabled    = false;
+        }
+    }
+</script>
+</body>
+</html>

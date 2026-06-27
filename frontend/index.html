@@ -8,44 +8,7 @@
 </head>
 <body>
 
-<script>
-    (function() {
-        const hayToken = localStorage.getItem('authToken');
-        const estilo = document.createElement('style');
-        estilo.id = 'estilo-anti-parpadeo';
-        estilo.textContent = hayToken
-            ? '#pantalla-login { display: none !important; }'
-            : '#app-principal { display: none !important; }';
-        document.head.appendChild(estilo);
-    })();
-</script>
-
-<!-- ══ PANTALLA DE LOGIN ══════════════════════════════════════ -->
-<div id="pantalla-login">
-    <div class="login-card">
-        <div class="login-logo">
-            <img src="img/occidente.png" alt="Occidente Seguridad Privada"
-                 style="width:140px;object-fit:contain;filter:brightness(0) invert(1);">
-        </div>
-        <h2 class="login-titulo">Almacen</h2>
-        <p class="login-subtitulo">Inicia sesion para continuar</p>
-        <div id="login-error" class="login-error" style="display:none"></div>
-        <div class="campo">
-            <label>Correo electronico</label>
-            <input type="email" id="login-email" placeholder="usuario@occidente.com" autocomplete="username">
-        </div>
-        <div class="campo">
-            <label>Contrasena</label>
-            <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
-        </div>
-        <button class="btn-primario" style="width:100%;margin-top:0.5rem" onclick="iniciarSesion()">
-            Ingresar
-        </button>
-    </div>
-</div>
-
-<!-- ══ APP PRINCIPAL (oculta hasta login) ════════════════════ -->
-<div id="app-principal" style="display:none;height:100vh;display:none">
+<div id="app-principal" style="height:100vh;display:flex">
 
 <aside class="sidebar">
     <div class="sidebar-logo">
@@ -65,23 +28,28 @@
         <button class="nav-btn" onclick="mostrarSeccion('devoluciones', this)">
             <span class="icono">🔄</span> Devoluciones
         </button>
-        <button class="nav-btn admin-only" onclick="mostrarSeccion('modelos', this)">
+                <button class="nav-btn" onclick="mostrarSeccion('consolidado', this)">
+            <span class="icono">📍</span> Puntos
+        </button>
+        <button class="nav-btn" onclick="mostrarSeccion('modelos', this)">
             <span class="icono">🏷️</span> Modelos
         </button>
-        <button class="nav-btn admin-only" onclick="mostrarSeccion('marcas', this)">
+        <button class="nav-btn" onclick="mostrarSeccion('marcas', this)">
             <span class="icono">⭐</span> Marcas
+        </button>
+        <button class="nav-btn admin-only" onclick="mostrarSeccion('usuarios', this)">
+            <span class="icono">👥</span> Usuarios
         </button>
     </nav>
     <div class="sidebar-footer">
-        <div class="avatar" id="sidebar-avatar">—</div>
+        <div class="avatar" id="avatar-usuario">AD</div>
         <div class="info-usuario">
-            <div class="nombre" id="sidebar-nombre">—</div>
-            <div class="ciudad" id="sidebar-rol">—</div>
+            <div class="nombre" id="nombre-usuario">Cargando...</div>
+            <div class="ciudad" id="sede-usuario">...</div>
         </div>
-        <button onclick="cerrarSesion()" title="Cerrar sesion"
-                style="margin-left:auto;background:none;border:none;color:#4a7fa5;cursor:pointer;font-size:16px">
-            ⏻
-        </button>
+        <button onclick="cerrarSesion()"
+                style="background:none;border:none;color:#4a7fa5;cursor:pointer;font-size:16px;margin-left:auto"
+                title="Cerrar sesion">⏻</button>
     </div>
 </aside>
 
@@ -94,7 +62,12 @@
                 <h2>Productos y stock</h2>
                 <p id="subtitulo-productos">Cargando...</p>
             </div>
-            <button class="btn-primario admin-only" onclick="abrirModal('modal-producto')">+ Nuevo producto</button>
+            <div style="display:flex;align-items:center;gap:10px">
+                <select id="selector-sede" style="display:none;border:0.5px solid #c8d8ea;border-radius:8px;padding:7px 10px;font-size:12.5px;color:#0d2137"
+                        onchange="cambiarSedeActual()">
+                </select>
+                <button class="btn-primario" onclick="abrirModal('modal-producto')">+ Nuevo producto</button>
+            </div>
         </div>
         <div class="stats-row">
             <div class="stat-card"><div class="label">Total productos</div><div class="valor azul" id="stat-total">—</div></div>
@@ -108,6 +81,7 @@
                     <tr>
                         <th>Codigo</th>
                         <th>Descripcion del articulo</th>
+                        <th>Sede</th>
                         <th>Unidad</th>
                         <th>Stock</th>
                         <th>Estado</th>
@@ -121,25 +95,30 @@
 
     <!-- Entradas -->
     <section id="sec-entradas" class="seccion">
-    <div class="topbar">
-        <div class="topbar-titulo">
-            <h2>Entradas</h2>
-            <p id="subtitulo-entradas">Cargando...</p>
+        <div class="topbar">
+            <div class="topbar-titulo">
+                <h2>Entradas</h2>
+                <p id="subtitulo-entradas">Cargando...</p>
+            </div>
+            <button class="btn-primario" onclick="abrirModal('modal-entrada')">+ Nueva entrada</button>
         </div>
-        <button class="btn-primario admin-only" onclick="abrirModal('modal-entrada')">+ Nueva entrada</button>
-    </div>
-    <div style="padding:0 24px 12px">
-        <input type="text" id="buscar-entradas" placeholder="Buscar por N° documento, origen o destino..."
-               oninput="filtrarEntradas()"
-               style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 12px;font-size:13px;width:320px;outline:none">
-    </div>
-    <div class="tabla-wrap">
+        <div style="padding:0 24px 12px;display:flex;gap:10px;align-items:center">
+            <input type="text" id="buscar-entradas" placeholder="Buscar por N° documento, origen o destino..."
+                   oninput="filtrarEntradas()"
+                   style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 12px;font-size:13px;width:320px;outline:none">
+            <select id="filtro-sede-entradas" onchange="filtrarEntradas()"
+                    style="display:none;border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 10px;font-size:12.5px;color:#0d2137">
+                <option value="">— Todas las sedes —</option>
+            </select>
+        </div>
+        <div class="tabla-wrap">
             <table class="tabla">
                 <thead>
                     <tr>
                         <th>N° Documento</th>
                         <th>Origen</th>
                         <th>Destino</th>
+                        <th>Sede</th>
                         <th>Productos</th>
                         <th>Fecha</th>
                         <th>Acciones</th>
@@ -152,25 +131,30 @@
 
     <!-- Salidas -->
     <section id="sec-salidas" class="seccion">
-    <div class="topbar">
-        <div class="topbar-titulo">
-            <h2>Salidas</h2>
-            <p id="subtitulo-salidas">Cargando...</p>
+        <div class="topbar">
+            <div class="topbar-titulo">
+                <h2>Salidas</h2>
+                <p id="subtitulo-salidas">Cargando...</p>
+            </div>
+            <button class="btn-primario" onclick="abrirModal('modal-salida')">+ Nueva salida</button>
         </div>
-        <button class="btn-primario admin-only" onclick="abrirModal('modal-salida')">+ Nueva salida</button>
-    </div>
-    <div style="padding:0 24px 12px">
-        <input type="text" id="buscar-salidas" placeholder="Buscar por N° documento, origen o destino..."
-               oninput="filtrarSalidas()"
-               style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 12px;font-size:13px;width:320px;outline:none">
-    </div>
-    <div class="tabla-wrap">
+        <div style="padding:0 24px 12px;display:flex;gap:10px;align-items:center">
+            <input type="text" id="buscar-salidas" placeholder="Buscar por N° documento, origen o destino..."
+                   oninput="filtrarSalidas()"
+                   style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 12px;font-size:13px;width:320px;outline:none">
+            <select id="filtro-sede-salidas" onchange="filtrarSalidas()"
+                    style="display:none;border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 10px;font-size:12.5px;color:#0d2137">
+                <option value="">— Todas las sedes —</option>
+            </select>
+        </div>
+        <div class="tabla-wrap">
             <table class="tabla">
                 <thead>
                     <tr>
                         <th>N° Documento</th>
                         <th>Origen</th>
                         <th>Destino</th>
+                        <th>Sede</th>
                         <th>Productos</th>
                         <th>Fecha</th>
                         <th>Acciones</th>
@@ -188,8 +172,19 @@
                 <h2>Devoluciones</h2>
                 <p id="subtitulo-devoluciones">Cargando...</p>
             </div>
-            <button class="btn-primario admin-only" onclick="abrirModal('modal-devolucion')">+ Nueva devolucion</button>
+            <button class="btn-primario" onclick="abrirModal('modal-devolucion')">+ Nueva devolucion</button>
         </div>
+
+        <div style="padding:0 24px 12px;display:flex;gap:10px;align-items:center">
+            <input type="text" id="buscar-devoluciones" placeholder="Buscar por N° documento, origen o motivo..."
+                   oninput="filtrarDevoluciones()"
+                   style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 12px;font-size:13px;width:320px;outline:none">
+            <select id="filtro-sede-devoluciones" onchange="filtrarDevoluciones()"
+                    style="display:none;border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 10px;font-size:12.5px;color:#0d2137">
+                <option value="">— Todas las sedes —</option>
+            </select>
+        </div>
+
         <div class="tabla-wrap">
             <table class="tabla">
                 <thead>
@@ -199,12 +194,36 @@
                         <th>Procede de</th>
                         <th>Motivo</th>
                         <th>Productos</th>
+                        <th>Sede</th>
                         <th>Fecha</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="tabla-devoluciones"></tbody>
             </table>
+        </div>
+    </section>
+
+    <!-- Consolidado por punto -->
+    <section id="sec-consolidado" class="seccion">
+        <div class="topbar">
+            <div class="topbar-titulo">
+                <h2>Consolidado por punto</h2>
+                <p id="subtitulo-consolidado">Selecciona un punto para ver su historial</p>
+            </div>
+        </div>
+        <div style="padding:0 24px 12px;display:flex;gap:10px;align-items:center">
+            <select id="selector-punto" onchange="cargarHistorialPunto()"
+                    style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 12px;font-size:13px;color:#0d2137;width:320px;outline:none">
+                <option value="">— Selecciona un punto —</option>
+            </select>
+            <select id="filtro-sede-consolidado" onchange="cargarPuntos()"
+                    style="display:none;border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 10px;font-size:12.5px;color:#0d2137">
+                <option value="">— Todas las sedes —</option>
+            </select>
+        </div>
+        <div id="consolidado-contenido" class="tabla-wrap" style="padding:0 24px 20px">
+            <p style="color:#6b8aab;font-size:13px;padding:2rem 0">Selecciona un punto arriba para ver su historial.</p>
         </div>
     </section>
 
@@ -252,8 +271,34 @@
         </div>
     </section>
 
+    <!-- Usuarios -->
+    <section id="sec-usuarios" class="seccion">
+        <div class="topbar">
+            <div class="topbar-titulo">
+                <h2>Usuarios</h2>
+                <p id="subtitulo-usuarios">Cargando...</p>
+            </div>
+            <button class="btn-primario" onclick="abrirModal('modal-usuario')">+ Nuevo usuario</button>
+        </div>
+        <div class="tabla-wrap">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Correo</th>
+                        <th>Rol</th>
+                        <th>Sede</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-usuarios"></tbody>
+            </table>
+        </div>
+    </section>
+
 </div>
-</div><!-- fin #app-principal -->
+</div>
 
 <!-- MODAL: Producto -->
 <div id="modal-producto" class="modal-fondo">
@@ -289,6 +334,14 @@
                 <label>Descripcion adicional</label>
                 <input type="text" id="prod-descripcion" placeholder="Opcional">
             </div>
+
+            <div class="campo" id="campo-sede-producto">
+                <label>Sede *</label>
+                <select id="prod-sede">
+                    <option value="">— Selecciona la sede —</option>
+                </select>
+            </div>
+
             <div class="campo">
                 <label>Stock inicial</label>
                 <input type="number" id="prod-stock-minimo" value="0" min="0">
@@ -319,6 +372,15 @@
                     <label>Fecha</label>
                     <input type="date" id="ent-fecha" onchange="generarNumeroEntrada()">
                 </div>
+
+                <div class="campo" id="campo-sede-entrada" style="display:none">
+                    <label>Sede destino *</label>
+                    <select id="ent-sede"
+                            style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 10px;font-size:13px;color:#0d2137;width:100%">
+                        <option value="">— Selecciona la sede —</option>
+                    </select>
+                </div>
+
             </div>
             <div class="fila-campos">
                 <div class="campo">
@@ -374,6 +436,15 @@
                     <label>Fecha</label>
                     <input type="date" id="sal-fecha" onchange="generarNumeroSalida()">
                 </div>
+
+                <div class="campo" id="campo-sede-salida" style="display:none">
+                    <label>Sede origen *</label>
+                    <select id="sal-sede"
+                            style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 10px;font-size:13px;color:#0d2137;width:100%">
+                        <option value="">— Selecciona la sede —</option>
+                    </select>
+                </div>
+
             </div>
             <div class="fila-campos">
                 <div class="campo">
@@ -471,6 +542,15 @@
                     <label>Fecha</label>
                     <input type="date" id="dev-fecha" onchange="generarNumeroDevolucion()">
                 </div>
+
+                <div class="campo" id="campo-sede-devolucion" style="display:none">
+                    <label>Sede *</label>
+                    <select id="dev-sede"
+                            style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 10px;font-size:13px;color:#0d2137;width:100%">
+                        <option value="">— Selecciona la sede —</option>
+                    </select>
+                </div>
+
             </div>
             <div class="campo">
                 <label>Salida original (de donde regresa) *</label>
@@ -519,7 +599,55 @@
     </div>
 </div>
 
-<script src="js/auth.js"></script>
+<!-- MODAL: Nuevo/Editar usuario -->
+<div id="modal-usuario" class="modal-fondo">
+    <div class="modal" style="width:460px">
+        <div class="modal-header">
+            <h3 id="modal-usuario-titulo">Nuevo usuario</h3>
+            <button onclick="cerrarModal('modal-usuario')">✕</button>
+        </div>
+        <form onsubmit="guardarUsuario(event)">
+            <input type="hidden" id="usr-id">
+            <div class="campo">
+                <label>Nombre completo *</label>
+                <input type="text" id="usr-nombre" required placeholder="Ej: Juan Perez">
+            </div>
+            <div class="campo">
+                <label>Correo *</label>
+                <input type="email" id="usr-correo" required placeholder="usuario@occidente.com">
+            </div>
+            <div class="fila-campos">
+                <div class="campo">
+                    <label>Rol *</label>
+                    <select id="usr-rol">
+                        <option value="sede">Almacenista</option>
+                        <option value="admin">Administrador</option>
+                        <option value="consulta">Consulta</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label>Sede</label>
+                    <select id="usr-sede">
+                        <option value="">— Sin sede —</option>
+                    </select>
+                </div>
+            </div>
+            <div class="campo" id="campo-password">
+                <label>Contrasena *</label>
+                <input type="password" id="usr-password" placeholder="Minimo 6 caracteres">
+            </div>
+            <div class="campo" id="campo-password-editar" style="display:none">
+                <label>Nueva contrasena <span style="color:#6b8aab;font-weight:400">(dejar vacio para no cambiar)</span></label>
+                <input type="password" id="usr-password-nuevo" placeholder="Minimo 6 caracteres">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secundario" onclick="cerrarModal('modal-usuario')">Cancelar</button>
+                <button type="submit" class="btn-primario">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script src="js/app.js"></script>
 </body>
 </html>

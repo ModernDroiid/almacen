@@ -4,6 +4,7 @@
 # ============================================================
 
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from database import get_connection
@@ -11,41 +12,84 @@ from database import get_connection
 devoluciones_bp = Blueprint('devoluciones', __name__)
 
 
+def obtener_sede_actual():
+    claims = get_jwt()
+    if claims.get('rol') == 'admin':
+        return request.args.get('sede_id', type=int)  # None = todas
+    return claims.get('sede_id')
+
+
 @devoluciones_bp.route('/', methods=['GET'])
+@jwt_required()
 def listar_devoluciones():
+    sede_id = obtener_sede_actual()
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT dv.id, dv.numero_documento, dv.salida_id, dv.origen,
-               dv.destino, dv.motivo, dv.observaciones, dv.fecha,
-               s.numero_documento AS salida_numero,
-               COUNT(d.id) as total_items
-        FROM devoluciones dv
-        LEFT JOIN detalle_devoluciones d ON d.devolucion_id = dv.id
-        LEFT JOIN salidas s ON s.id = dv.salida_id
-        GROUP BY dv.id
-        ORDER BY dv.fecha DESC
-    ''')
+
+    if sede_id is None:
+        cursor.execute('''
+            SELECT dv.id, dv.numero_documento, dv.salida_id, dv.origen,
+                   dv.destino, dv.motivo, dv.observaciones, dv.fecha,
+                   dv.sede_id, se.nombre as sede_nombre,
+                   s.numero_documento AS salida_numero,
+                   COUNT(d.id) as total_items
+            FROM devoluciones dv
+            LEFT JOIN detalle_devoluciones d ON d.devolucion_id = dv.id
+            LEFT JOIN salidas s ON s.id = dv.salida_id
+            LEFT JOIN sedes se ON se.id = dv.sede_id
+            GROUP BY dv.id
+            ORDER BY dv.fecha DESC
+        ''')
+    else:
+        cursor.execute('''
+            SELECT dv.id, dv.numero_documento, dv.salida_id, dv.origen,
+                   dv.destino, dv.motivo, dv.observaciones, dv.fecha,
+                   dv.sede_id, se.nombre as sede_nombre,
+                   s.numero_documento AS salida_numero,
+                   COUNT(d.id) as total_items
+            FROM devoluciones dv
+            LEFT JOIN detalle_devoluciones d ON d.devolucion_id = dv.id
+            LEFT JOIN salidas s ON s.id = dv.salida_id
+            LEFT JOIN sedes se ON se.id = dv.sede_id
+            WHERE dv.sede_id = ?
+            GROUP BY dv.id
+            ORDER BY dv.fecha DESC
+        ''', (sede_id,))
+
     filas = cursor.fetchall()
     conn.close()
     return jsonify([dict(f) for f in filas])
 
 
 @devoluciones_bp.route('/salidas-disponibles', methods=['GET'])
+@jwt_required()
 def salidas_disponibles():
+    claims = get_jwt()
+    sede_id = obtener_sede_actual()
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT id, numero_documento, obra, destino, fecha
-        FROM salidas
-        ORDER BY fecha DESC
-    ''')
+
+    if sede_id is None:
+        cursor.execute('''
+            SELECT id, numero_documento, obra, destino, fecha
+            FROM salidas
+            ORDER BY fecha DESC
+        ''')
+    else:
+        cursor.execute('''
+            SELECT id, numero_documento, obra, destino, fecha
+            FROM salidas
+            WHERE sede_id = ?
+            ORDER BY fecha DESC
+        ''', (sede_id,))
+
     salidas = [dict(s) for s in cursor.fetchall()]
     conn.close()
     return jsonify(salidas)
 
 
 @devoluciones_bp.route('/salida/<int:id>/items', methods=['GET'])
+@jwt_required()
 def items_de_salida(id):
     conn = get_connection()
     cursor = conn.cursor()
@@ -76,7 +120,9 @@ def items_de_salida(id):
 
 
 @devoluciones_bp.route('/', methods=['POST'])
+@jwt_required()
 def crear_devolucion():
+    claims = get_jwt()
     datos = request.json
 
     if not datos.get('numero_documento'):
@@ -84,13 +130,19 @@ def crear_devolucion():
     if not datos.get('detalle') or len(datos['detalle']) == 0:
         return jsonify({'error': 'Debe agregar al menos un producto'}), 400
 
+    if claims.get('rol') == 'admin':
+        sede_id = datos.get('sede_id') or claims.get('sede_id')
+    else:
+        sede_id = claims.get('sede_id')
+
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
         cursor.execute('''
-            INSERT INTO devoluciones (numero_documento, tipo, salida_id, origen, destino, motivo, observaciones)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO devoluciones
+                (numero_documento, tipo, salida_id, origen, destino, motivo, observaciones, sede_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             datos['numero_documento'],
             'DEVOLUCION',
@@ -98,7 +150,8 @@ def crear_devolucion():
             datos.get('origen', ''),
             datos.get('destino', 'Almacen'),
             datos.get('motivo', ''),
-            datos.get('observaciones', '')
+            datos.get('observaciones', ''),
+            sede_id
         ))
         devolucion_id = cursor.lastrowid
 
@@ -117,11 +170,8 @@ def crear_devolucion():
                 item.get('unidad', 'UND')
             ))
 
-            # Suma stock real de vuelta
             cursor.execute('''
-                UPDATE productos
-                SET stock = stock + ?
-                WHERE id = ?
+                UPDATE productos SET stock = stock + ? WHERE id = ?
             ''', (item['cantidad'], item['producto_id']))
 
         conn.commit()
@@ -135,6 +185,7 @@ def crear_devolucion():
 
 
 @devoluciones_bp.route('/<int:id>', methods=['DELETE'])
+@jwt_required()
 def eliminar_devolucion(id):
     conn = get_connection()
     cursor = conn.cursor()
@@ -145,9 +196,7 @@ def eliminar_devolucion(id):
 
         for item in items:
             cursor.execute('''
-                UPDATE productos
-                SET stock = stock - ?
-                WHERE id = ?
+                UPDATE productos SET stock = stock - ? WHERE id = ?
             ''', (item['cantidad'], item['producto_id']))
 
         cursor.execute('DELETE FROM detalle_devoluciones WHERE devolucion_id=?', (id,))

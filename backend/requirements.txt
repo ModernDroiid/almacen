@@ -1,5 +1,6 @@
 Flask
 flask-cors
+flask-jwt-extended
 PyJWT
 Werkzeug
 gunicorn

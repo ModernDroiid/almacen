@@ -1,5 +1,6 @@
 from flask import Flask, send_from_directory
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager
 from database import inicializar_db
 from routes.productos import productos_bp
 from routes.entradas import entradas_bp
@@ -10,10 +11,18 @@ from routes.pdf_entradas import pdf_entradas_bp
 from routes.pdf_salidas import pdf_salidas_bp
 from routes.pdf_devoluciones import pdf_devoluciones_bp
 from routes.auth import auth_bp
+from routes.consolidado import consolidado_bp
+from routes.pdf_consolidado import pdf_consolidado_bp
 import os
 
 app = Flask(__name__)
 CORS(app)
+
+# Clave secreta para firmar los tokens JWT
+# En produccion esto deberia ser una variable de entorno
+app.config['JWT_SECRET_KEY'] = 'occidente-almacen-secreto-2026'
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 28800  # 8 horas en segundos
+jwt = JWTManager(app)
 
 app.register_blueprint(productos_bp,        url_prefix='/api/productos')
 app.register_blueprint(entradas_bp,         url_prefix='/api/entradas')
@@ -24,8 +33,9 @@ app.register_blueprint(pdf_entradas_bp,     url_prefix='/api/pdf')
 app.register_blueprint(pdf_salidas_bp,      url_prefix='/api/pdf')
 app.register_blueprint(pdf_devoluciones_bp, url_prefix='/api/pdf')
 app.register_blueprint(auth_bp,             url_prefix='/api/auth')
+app.register_blueprint(consolidado_bp, url_prefix='/api/consolidado')
+app.register_blueprint(pdf_consolidado_bp, url_prefix='/api/pdf')
 
-# ── Sirve el frontend desde Flask ───────────────────────────
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), '..', 'frontend')
 
 @app.route('/')

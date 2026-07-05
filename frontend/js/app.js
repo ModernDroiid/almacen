@@ -1259,7 +1259,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const nom = usuario.nombre || 'Usuario';
+    const rolTexto = usuario.rol === 'admin' ? 'Administrador' : 'Almacenista';
+
     document.getElementById('nombre-usuario').textContent = nom;
+    document.getElementById('rol-usuario').textContent    = rolTexto;
     document.getElementById('sede-usuario').textContent   = usuario.sede_nombre || usuario.ciudad || '';
     document.getElementById('avatar-usuario').textContent =
         nom.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
@@ -1320,7 +1323,7 @@ async function cargarUsuarios() {
         tbody.insertAdjacentHTML('beforeend', `
             <tr>
                 <td><strong>${u.nombre}</strong></td>
-                <td style="color:#6b8aab;font-size:12px">${u.correo}</td>
+                <td style="color:#6b8aab;font-size:12px">${u.email || u.correo || '—'}</td>
                 <td>
                     <span style="background:${rolBg};color:${rolColor};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500">
                         ${rolTexto}

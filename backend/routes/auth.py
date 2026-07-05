@@ -125,8 +125,8 @@ def listar_usuarios():
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT u.id, u.nombre, u.correo, u.rol, u.activo,
-               s.nombre as sede_nombre
+        SELECT u.id, u.nombre, u.correo as email, u.rol, u.activo,
+               s.nombre as sede_nombre, u.sede_id
         FROM usuarios u
         LEFT JOIN sedes s ON s.id = u.sede_id
         ORDER BY u.nombre
@@ -167,26 +167,6 @@ def crear_usuario():
         return jsonify({'error': str(e)}), 400
 
 
-# ── PUT /api/auth/usuarios/<id>/password ─────────────────────
-@auth_bp.route('/usuarios/<int:id>/password', methods=['PUT'])
-@jwt_required()
-def cambiar_password(id):
-    claims = get_jwt()
-    if claims.get('rol') != 'admin' and int(get_jwt_identity()) != id:
-        return jsonify({'error': 'No autorizado'}), 403
-
-    datos = request.json
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        'UPDATE usuarios SET password_hash=? WHERE id=?',
-        (hash_password(datos['password']), id)
-    )
-    conn.commit()
-    conn.close()
-    return jsonify({'mensaje': 'Contraseña actualizada'})
-
-
 # ── PUT /api/auth/usuarios/<id> ──────────────────────────────
 @auth_bp.route('/usuarios/<int:id>', methods=['PUT'])
 @jwt_required()
@@ -211,7 +191,6 @@ def editar_usuario(id):
             id
         ))
 
-        # Si mandan nueva contrasena la actualizamos tambien
         if datos.get('password'):
             cursor.execute(
                 'UPDATE usuarios SET password_hash=? WHERE id=?',
@@ -224,6 +203,26 @@ def editar_usuario(id):
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 400
+
+
+# ── PUT /api/auth/usuarios/<id>/password ─────────────────────
+@auth_bp.route('/usuarios/<int:id>/password', methods=['PUT'])
+@jwt_required()
+def cambiar_password(id):
+    claims = get_jwt()
+    if claims.get('rol') != 'admin' and int(get_jwt_identity()) != id:
+        return jsonify({'error': 'No autorizado'}), 403
+
+    datos = request.json
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        'UPDATE usuarios SET password_hash=? WHERE id=?',
+        (hash_password(datos['password']), id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'mensaje': 'Contraseña actualizada'})
 
 
 # ── PUT /api/auth/usuarios/<id>/toggle ───────────────────────

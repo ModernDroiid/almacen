@@ -279,7 +279,7 @@
                 <h2>Usuarios</h2>
                 <p id="subtitulo-usuarios">Cargando...</p>
             </div>
-            <button class="btn-primario" onclick="abrirModal('modal-usuario')">+ Nuevo usuario</button>
+            <button class="btn-primario admin-only" onclick="abrirModalUsuario()">+ Nuevo usuario</button>
         </div>
         <div class="tabla-wrap">
             <table class="tabla">
@@ -615,7 +615,7 @@
             </div>
             <div class="campo">
                 <label>Correo *</label>
-                <input type="email" id="usr-correo" required placeholder="usuario@occidente.com">
+                <input type="text" id="usr-correo" required placeholder="usuario@occidente.com">
             </div>
             <div class="fila-campos">
                 <div class="campo">

@@ -1,6 +1,5 @@
 # ============================================================
 # consolidado.py — Historial por punto (destino/obra)
-# Muestra salidas y devoluciones separadas por destino
 # ============================================================
 
 from flask import Blueprint, request, jsonify
@@ -13,7 +12,6 @@ consolidado_bp = Blueprint('consolidado', __name__)
 
 
 # ── GET /api/consolidado/puntos ──────────────────────────────
-# Lista todos los destinos únicos que han tenido salidas
 @consolidado_bp.route('/puntos', methods=['GET'])
 @jwt_required()
 def listar_puntos():
@@ -52,8 +50,7 @@ def listar_puntos():
     return jsonify(puntos)
 
 
-# ── GET /api/consolidado/punto/<destino> ─────────────────────
-# Historial completo de un punto: salidas y devoluciones
+# ── GET /api/consolidado/punto ───────────────────────────────
 @consolidado_bp.route('/punto', methods=['GET'])
 @jwt_required()
 def historial_punto():
@@ -69,7 +66,7 @@ def historial_punto():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Salidas hacia ese punto
+    # ── Salidas hacia ese punto ──────────────────────────────
     if sede_id:
         cursor.execute('''
             SELECT s.id, s.numero_documento, s.fecha, s.observaciones,
@@ -91,7 +88,6 @@ def historial_punto():
 
     salidas = [dict(s) for s in cursor.fetchall()]
 
-    # Para cada salida traemos el detalle
     for salida in salidas:
         cursor.execute('''
             SELECT p.nombre, p.codigo, d.cantidad, d.unidad,
@@ -102,7 +98,7 @@ def historial_punto():
         ''', (salida['id'],))
         salida['detalle'] = [dict(d) for d in cursor.fetchall()]
 
-    # Devoluciones desde ese punto
+    # ── Devoluciones desde ese punto ─────────────────────────
     if sede_id:
         cursor.execute('''
             SELECT dv.id, dv.numero_documento, dv.fecha, dv.motivo,
@@ -128,7 +124,6 @@ def historial_punto():
 
     devoluciones = [dict(d) for d in cursor.fetchall()]
 
-    # Para cada devolucion traemos el detalle
     for dev in devoluciones:
         cursor.execute('''
             SELECT p.nombre, p.codigo, d.cantidad, d.unidad,
@@ -139,9 +134,37 @@ def historial_punto():
         ''', (dev['id'],))
         dev['detalle'] = [dict(d) for d in cursor.fetchall()]
 
+    # ── Resumen neto por producto ─────────────────────────────
+    # Suma todo lo que salió y resta lo que devolvió
+    neto = {}
+    for salida in salidas:
+        for item in salida['detalle']:
+            clave = (item['nombre'], item['modelo'] or '', item['serial'] or '')
+            if clave not in neto:
+                neto[clave] = {
+                    'nombre':   item['nombre'],
+                    'codigo':   item['codigo'],
+                    'modelo':   item['modelo'] or '—',
+                    'serial':   item['serial'] or '—',
+                    'unidad':   item['unidad'],
+                    'salidas':  0,
+                    'devuelto': 0,
+                    'neto':     0
+                }
+            neto[clave]['salidas']  += item['cantidad']
+            neto[clave]['neto']     += item['cantidad']
+
+    for dev in devoluciones:
+        for item in dev['detalle']:
+            clave = (item['nombre'], item['modelo'] or '', item['serial'] or '')
+            if clave in neto:
+                neto[clave]['devuelto'] += item['cantidad']
+                neto[clave]['neto']     -= item['cantidad']
+
     conn.close()
     return jsonify({
         'destino':     destino,
         'salidas':     salidas,
-        'devoluciones': devoluciones
+        'devoluciones': devoluciones,
+        'resumen':     list(neto.values())
     })

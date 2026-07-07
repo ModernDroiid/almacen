@@ -213,7 +213,10 @@
                 <p id="subtitulo-consolidado">Selecciona un punto para ver su historial</p>
             </div>
         </div>
-        <div style="padding:0 24px 12px;display:flex;gap:10px;align-items:center">
+        <div style="padding:0 24px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="buscar-punto" placeholder="🔍 Buscar punto..."
+                   oninput="filtrarPuntos()"
+                   style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 12px;font-size:13px;width:200px;outline:none">
             <select id="selector-punto" onchange="cargarHistorialPunto()"
                     style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 12px;font-size:13px;color:#0d2137;width:320px;outline:none">
                 <option value="">— Selecciona un punto —</option>
@@ -646,6 +649,19 @@
                 <button type="submit" class="btn-primario">Guardar</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- MODAL: Confirmacion -->
+<div id="modal-confirm" class="modal-fondo">
+    <div class="modal" style="width:380px;text-align:center">
+        <div class="confirm-icono" id="confirm-icono">🗑️</div>
+        <h3 class="confirm-titulo" id="confirm-titulo">¿Eliminar?</h3>
+        <p class="confirm-mensaje" id="confirm-mensaje"></p>
+        <div class="confirm-acciones">
+            <button class="btn-secundario" onclick="resolverConfirm(false)">Cancelar</button>
+            <button id="confirm-btn-ok" class="btn-danger" onclick="resolverConfirm(true)">Eliminar</button>
+        </div>
     </div>
 </div>
 

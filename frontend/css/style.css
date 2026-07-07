@@ -538,3 +538,43 @@ nav {
 body.rol-consulta .admin-only {
     display: none !important;
 }
+
+/* ── Modal de confirmacion ────────────────────────────────── */
+.confirm-icono {
+    font-size: 36px;
+    margin-bottom: 1rem;
+}
+
+.confirm-titulo {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0d2137;
+    margin-bottom: 0.5rem;
+}
+
+.confirm-mensaje {
+    font-size: 13px;
+    color: #6b8aab;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.confirm-acciones {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.btn-danger {
+    background: #c0392b;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-danger:hover { background: #a93226; }

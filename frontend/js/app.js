@@ -309,7 +309,7 @@ async function guardarModelo(event) {
 }
 
 async function eliminarModelo(id, nombre) {
-    if (!confirm(`Eliminar el modelo "${nombre}"?`)) return;
+    if (!await mostrarConfirm(`¿Eliminar el modelo "${nombre}"?`)) return;
     await apiFetch(`${API}/catalogos/modelos/${id}`, { method: 'DELETE' });
     cargarModelos();
 }
@@ -375,7 +375,7 @@ async function guardarMarca(event) {
 }
 
 async function eliminarMarca(id, nombre) {
-    if (!confirm(`Eliminar la marca "${nombre}"?`)) return;
+    if (!await mostrarConfirm(`¿Eliminar la marca "${nombre}"?`)) return;
     await apiFetch(`${API}/catalogos/marcas/${id}`, { method: 'DELETE' });
     cargarMarcas();
 }
@@ -504,7 +504,7 @@ async function editarProducto(id) {
 }
 
 async function eliminarProducto(id, nombre) {
-    if (!confirm(`Eliminar "${nombre}"? Esta accion no se puede deshacer.`)) return;
+    if (!await mostrarConfirm(`¿Eliminar "${nombre}"? Esta accion no se puede deshacer.`)) return;
     await apiFetch(`${API}/productos/${id}`, { method: 'DELETE' });
     cargarProductos();
 }
@@ -752,7 +752,7 @@ function verPDFEntrada(id) {
 }
 
 async function eliminarEntrada(id, numero) {
-    if (!confirm(`Eliminar la entrada "${numero}"?\n\nEsto revertira el stock que se sumo con esta entrada.`)) return;
+    if (!await mostrarConfirm(`¿Eliminar la entrada "${numero}"? Esto revertira el stock.`)) return;
     await apiFetch(`${API}/entradas/${id}`, { method: 'DELETE' });
     cargarEntradas();
     cargarProductos();
@@ -990,7 +990,7 @@ function verPDFSalida(id) {
 }
 
 async function eliminarSalida(id, numero) {
-    if (!confirm(`Eliminar la salida "${numero}"?\n\nEsto devolvera el stock que se habia descontado.`)) return;
+    if (!await mostrarConfirm(`¿Eliminar la salida "${numero}"? Esto devolvera el stock descontado.`)) return;
     await apiFetch(`${API}/salidas/${id}`, { method: 'DELETE' });
     cargarSalidas();
     cargarProductos();
@@ -1019,6 +1019,25 @@ async function cargarSelectorSalidas() {
             `<option value="${s.id}" data-destino="${s.destino || ''}">${s.numero_documento} — ${s.destino || 'sin destino'} (${fecha})</option>`
         );
     });
+}
+
+function filtrarPuntos() {
+    const texto = document.getElementById('buscar-punto').value.trim().toLowerCase();
+    const select = document.getElementById('selector-punto');
+    const opciones = select.querySelectorAll('option');
+
+    opciones.forEach(op => {
+        if (op.value === '') return;
+        op.style.display = op.text.toLowerCase().includes(texto) ? '' : 'none';
+    });
+
+    // Si el punto actualmente seleccionado ya no coincide, lo reseteamos
+    const seleccionado = select.options[select.selectedIndex];
+    if (seleccionado && seleccionado.value && seleccionado.style.display === 'none') {
+        select.value = '';
+        document.getElementById('consolidado-contenido').innerHTML =
+            '<p style="color:#6b8aab;font-size:13px;padding:2rem 0">Selecciona un punto arriba para ver su historial.</p>';
+    }
 }
 
 async function cargarItemsDeSalida() {
@@ -1229,7 +1248,7 @@ function verPDFDevolucion(id) {
 }
 
 async function eliminarDevolucion(id, numero) {
-    if (!confirm(`Eliminar la devolucion "${numero}"?\n\nEsto revertira el stock que se habia sumado.`)) return;
+    if (!await mostrarConfirm(`¿Eliminar la devolucion "${numero}"? Esto revertira el stock sumado.`)) return;
     await apiFetch(`${API}/devoluciones/${id}`, { method: 'DELETE' });
     cargarDevoluciones();
     cargarProductos();
@@ -1245,6 +1264,28 @@ function limpiarFormDevolucion() {
     document.getElementById('dev-sede').value = '';
     document.getElementById('dev-items').innerHTML     =
         '<p style="font-size:12px;color:#6b8aab">Selecciona primero una salida arriba.</p>';
+}
+
+// ══ MODAL DE CONFIRMACION ════════════════════════════════════
+
+let _resolverConfirm = null;
+
+function mostrarConfirm(mensaje, titulo = '¿Eliminar?', icono = '🗑️', textoBtn = 'Eliminar') {
+    document.getElementById('confirm-mensaje').textContent = mensaje;
+    document.getElementById('confirm-titulo').textContent  = titulo;
+    document.getElementById('confirm-icono').textContent   = icono;
+    document.getElementById('confirm-btn-ok').textContent  = textoBtn;
+    document.getElementById('modal-confirm').classList.add('visible');
+
+    return new Promise(resolve => {
+        _resolverConfirm = resolve;
+    });
+}
+
+function resolverConfirm(valor) {
+    document.getElementById('modal-confirm').classList.remove('visible');
+    if (_resolverConfirm) _resolverConfirm(valor);
+    _resolverConfirm = null;
 }
 
 // ══ INICIO ══════════════════════════════════════════════════
@@ -1445,7 +1486,7 @@ async function guardarUsuario(event) {
 
 async function toggleUsuario(id, activo, nombre) {
     const accion = activo ? 'desactivar' : 'activar';
-    if (!confirm(`¿${accion.charAt(0).toUpperCase() + accion.slice(1)} al usuario "${nombre}"?`)) return;
+    if (!await mostrarConfirm(`¿${accion.charAt(0).toUpperCase() + accion.slice(1)} al usuario "${nombre}"?`, '¿Confirmar accion?', '👤', accion.charAt(0).toUpperCase() + accion.slice(1))) return;
 
     const res = await apiFetch(`${API}/auth/usuarios/${id}/toggle`, {
         method: 'PUT'
@@ -1529,46 +1570,39 @@ async function cargarHistorialPunto() {
 
     let html = '';
 
-    // SALIDAS
-    html += `<h3 style="font-size:13px;color:#0d2137;margin:1rem 0 0.5rem">📤 Salidas hacia "${destino}"</h3>`;
-
-    if (data.salidas.length === 0) {
-        html += '<p style="font-size:12px;color:#6b8aab;margin-bottom:1rem">Sin salidas registradas.</p>';
-    } else {
-        data.salidas.forEach(s => {
-            const fecha = new Date(s.fecha).toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit',year:'numeric'});
-            html += `
-                <div style="background:white;border:0.5px solid #dce6f0;border-radius:10px;padding:12px 16px;margin-bottom:10px">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-                        <strong style="font-size:13px;color:#0d2137">${s.numero_documento}</strong>
-                        <span style="font-size:11px;color:#6b8aab">${fecha}${s.sede_nombre ? ' · ' + s.sede_nombre : ''}</span>
-                    </div>
-                    <table style="width:100%;border-collapse:collapse">
-                        <thead>
-                            <tr>
-                                <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Producto</th>
-                                <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Modelo</th>
-                                <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Serial</th>
-                                <th style="font-size:10px;color:#6b8aab;text-align:right;padding:4px 8px;background:#f7f9fc">Cant.</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${s.detalle.map(d => `
-                                <tr>
-                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8">${d.nombre}</td>
-                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">${d.modelo || '—'}</td>
-                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">${d.serial || '—'}</td>
-                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right">${d.cantidad} ${d.unidad}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        });
+    // ── RESUMEN NETO ─────────────────────────────────────────
+    if (data.resumen && data.resumen.length > 0) {
+        html += `<h3 style="font-size:13px;color:#0d2137;margin:1rem 0 0.5rem">📦 Equipos en "${destino}"</h3>`;
+        html += `<div style="background:white;border:0.5px solid #dce6f0;border-radius:10px;padding:12px 16px;margin-bottom:16px">
+            <table style="width:100%;border-collapse:collapse">
+                <thead>
+                    <tr>
+                        <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Producto</th>
+                        <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Modelo</th>
+                        <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Serial</th>
+                        <th style="font-size:10px;color:#6b8aab;text-align:right;padding:4px 8px;background:#f7f9fc">Salió</th>
+                        <th style="font-size:10px;color:#c0392b;text-align:right;padding:4px 8px;background:#f7f9fc">Devuelto</th>
+                        <th style="font-size:10px;color:#1a7a4a;text-align:right;padding:4px 8px;background:#f7f9fc">En obra</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.resumen.map(r => `
+                        <tr>
+                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8">${r.nombre}</td>
+                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">${r.modelo}</td>
+                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">${r.serial}</td>
+                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right">${r.salidas} ${r.unidad}</td>
+                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right;color:#c0392b">${r.devuelto} ${r.unidad}</td>
+                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right;font-weight:600;color:#1a7a4a">${r.neto} ${r.unidad}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>`;
     }
 
-    // DEVOLUCIONES
+
+    // ── DEVOLUCIONES ─────────────────────────────────────────
     html += `<h3 style="font-size:13px;color:#0d2137;margin:1.5rem 0 0.5rem">🔄 Devoluciones desde "${destino}"</h3>`;
 
     if (data.devoluciones.length === 0) {
@@ -1609,10 +1643,6 @@ async function cargarHistorialPunto() {
             `;
         });
     }
-
-    const pdfUrl = (document.getElementById('filtro-sede-consolidado')?.value)
-    ? `${API}/pdf/consolidado?destino=${encodeURIComponent(destino)}&sede_id=${document.getElementById('filtro-sede-consolidado').value}&token=${token}`
-    : `${API}/pdf/consolidado?destino=${encodeURIComponent(destino)}&token=${token}`;
 
     html = `<div style="margin-bottom:1rem">
         <button onclick="descargarPDFConsolidado('${destino}')" class="btn-primario">📄 Exportar PDF</button>

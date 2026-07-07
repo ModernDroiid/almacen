@@ -162,7 +162,7 @@ def generar_pdf_consolidado():
     elementos.append(Spacer(1, 0.5*cm))
 
     # ── SALIDAS ───────────────────────────────────────────────
-    elementos.append(Paragraph('📤  Salidas', estilo_seccion))
+    elementos.append(Paragraph('📤  Equipos en el punto', estilo_seccion))
     elementos.append(Spacer(1, 0.3*cm))
 
     if not salidas:
@@ -213,7 +213,7 @@ def generar_pdf_consolidado():
 
     # ── DEVOLUCIONES ──────────────────────────────────────────
     elementos.append(Spacer(1, 0.2*cm))
-    elementos.append(Paragraph('🔄  Devoluciones', estilo_seccion))
+    elementos.append(Paragraph('🔄  Devoluciones al almacen', estilo_seccion))
     elementos.append(Spacer(1, 0.3*cm))
 
     if not devoluciones:

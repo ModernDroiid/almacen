@@ -1580,8 +1580,8 @@ async function cargarHistorialPunto() {
                         <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Producto</th>
                         <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Modelo</th>
                         <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Serial</th>
-                        <th style="font-size:10px;color:#6b8aab;text-align:right;padding:4px 8px;background:#f7f9fc">Salió</th>
-                        <th style="font-size:10px;color:#c0392b;text-align:right;padding:4px 8px;background:#f7f9fc">Devuelto</th>
+                        <th style="font-size:10px;color:#6b8aab;text-align:right;padding:4px 8px;background:#f7f9fc">Entro</th>
+                        <th style="font-size:10px;color:#c0392b;text-align:right;padding:4px 8px;background:#f7f9fc">Salió</th>
                         <th style="font-size:10px;color:#1a7a4a;text-align:right;padding:4px 8px;background:#f7f9fc">En obra</th>
                     </tr>
                 </thead>

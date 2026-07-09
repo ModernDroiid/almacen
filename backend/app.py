@@ -13,14 +13,23 @@ from routes.pdf_devoluciones import pdf_devoluciones_bp
 from routes.auth import auth_bp
 from routes.consolidado import consolidado_bp
 from routes.pdf_consolidado import pdf_consolidado_bp
+from dotenv import load_dotenv
 import os
+load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=[
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+    "https://almacen-backend-ae4l.onrender.com"
+])
+
+from extensions import limiter
+limiter.init_app(app)
 
 # Clave secreta para firmar los tokens JWT
 # En produccion esto deberia ser una variable de entorno
-app.config['JWT_SECRET_KEY'] = 'occidente-almacen-secreto-2026'
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'fallback-solo-desarrollo')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 28800  # 8 horas en segundos
 jwt = JWTManager(app)
 
@@ -49,4 +58,5 @@ def static_files(path):
 inicializar_db()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    debug = os.getenv('DEBUG', 'False').lower() == 'true'
+    app.run(debug=debug, port=5000, host='0.0.0.0')

@@ -5,7 +5,12 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 from database import get_connection
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import hashlib
+
+from extensions import limiter
+
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -16,6 +21,7 @@ def hash_password(password):
 
 # ── POST /api/auth/login ─────────────────────────────────────
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("5 per minute")
 def login():
     datos = request.json
     correo   = datos.get('email', '').strip().lower()

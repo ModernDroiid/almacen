@@ -195,8 +195,8 @@ def generar_pdf_consolidado():
             Paragraph('Descripcion',  estilo_encabezado),
             Paragraph('Modelo',       estilo_encabezado),
             Paragraph('N° Serial',    estilo_encabezado),
-            Paragraph('Salio',        estilo_encabezado),
-            Paragraph('Devuelto',     estilo_encabezado),
+            Paragraph('Entro',        estilo_encabezado),
+            Paragraph('Salio',     estilo_encabezado),
             Paragraph('En obra',      ParagraphStyle('enc_verde', fontSize=7,
                                       fontName='Helvetica-Bold', textColor=colors.white)),
         ]

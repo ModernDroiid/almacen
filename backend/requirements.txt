@@ -6,3 +6,4 @@ Werkzeug
 gunicorn
 reportlab
 flask-limiter
+python-dotenv

@@ -1,6 +1,5 @@
 # ============================================================
 # pdf_consolidado.py — PDF del consolidado por punto
-# Muestra salidas y devoluciones de un destino específico
 # ============================================================
 
 from flask import Blueprint, request, send_file
@@ -37,7 +36,7 @@ def generar_pdf_consolidado():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Salidas hacia ese punto
+    # ── Salidas ──────────────────────────────────────────────
     if sede_id:
         cursor.execute('''
             SELECT s.id, s.numero_documento, s.fecha, s.observaciones,
@@ -68,7 +67,7 @@ def generar_pdf_consolidado():
         ''', (salida['id'],))
         salida['detalle'] = [dict(d) for d in cursor.fetchall()]
 
-    # Devoluciones desde ese punto
+    # ── Devoluciones ─────────────────────────────────────────
     if sede_id:
         cursor.execute('''
             SELECT dv.id, dv.numero_documento, dv.fecha, dv.motivo,
@@ -105,6 +104,33 @@ def generar_pdf_consolidado():
 
     conn.close()
 
+    # ── Calcular resumen neto ─────────────────────────────────
+    neto = {}
+    for salida in salidas:
+        for item in salida['detalle']:
+            clave = (item['nombre'], item.get('modelo') or '', item.get('serial') or '')
+            if clave not in neto:
+                neto[clave] = {
+                    'nombre':   item['nombre'],
+                    'modelo':   item.get('modelo') or '—',
+                    'serial':   item.get('serial') or '—',
+                    'unidad':   item.get('unidad') or '',
+                    'salidas':  0,
+                    'devuelto': 0,
+                    'neto':     0
+                }
+            neto[clave]['salidas'] += item['cantidad']
+            neto[clave]['neto']    += item['cantidad']
+
+    for dev in devoluciones:
+        for item in dev['detalle']:
+            clave = (item['nombre'], item.get('modelo') or '', item.get('serial') or '')
+            if clave in neto:
+                neto[clave]['devuelto'] += item['cantidad']
+                neto[clave]['neto']     -= item['cantidad']
+
+    resumen = list(neto.values())
+
     # ── Construir PDF ─────────────────────────────────────────
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -120,8 +146,6 @@ def generar_pdf_consolidado():
                                        textColor=colors.HexColor('#0d2137'))
     estilo_encabezado = ParagraphStyle('enc', fontSize=7, fontName='Helvetica-Bold',
                                        textColor=colors.white)
-    estilo_label      = ParagraphStyle('label', fontSize=7, fontName='Helvetica-Bold',
-                                       textColor=colors.HexColor('#0d2137'))
     estilo_valor      = ParagraphStyle('valor', fontSize=8)
     estilo_seccion    = ParagraphStyle('sec', fontSize=11, fontName='Helvetica-Bold',
                                        textColor=colors.HexColor('#0d2137'))
@@ -153,7 +177,6 @@ def generar_pdf_consolidado():
     elementos.append(tabla_header)
     elementos.append(Spacer(1, 0.3*cm))
 
-    # Fecha de generación
     fecha_gen = datetime.now().strftime('%d/%m/%Y %H:%M')
     elementos.append(Paragraph(
         f'Generado el {fecha_gen}',
@@ -161,58 +184,54 @@ def generar_pdf_consolidado():
     ))
     elementos.append(Spacer(1, 0.5*cm))
 
-    # ── SALIDAS ───────────────────────────────────────────────
-    elementos.append(Paragraph('📤  Equipos en el punto', estilo_seccion))
+    # ── RESUMEN NETO ──────────────────────────────────────────
+    elementos.append(Paragraph('📦  Equipos en el punto (resumen actual)', estilo_seccion))
     elementos.append(Spacer(1, 0.3*cm))
 
-    if not salidas:
-        elementos.append(Paragraph('Sin salidas registradas.', estilo_valor))
+    if not resumen:
+        elementos.append(Paragraph('Sin equipos registrados.', estilo_valor))
     else:
-        for salida in salidas:
-            fecha_str = salida.get('fecha', '')[:10] if salida.get('fecha') else ''
-            sede_str  = salida.get('sede_nombre', '')
-            elementos.append(Paragraph(
-                f"{salida['numero_documento']}  ·  {fecha_str}{('  ·  ' + sede_str) if sede_str else ''}",
-                estilo_sub
-            ))
-            elementos.append(Spacer(1, 0.15*cm))
+        encabezados_resumen = [
+            Paragraph('Descripcion',  estilo_encabezado),
+            Paragraph('Modelo',       estilo_encabezado),
+            Paragraph('N° Serial',    estilo_encabezado),
+            Paragraph('Salio',        estilo_encabezado),
+            Paragraph('Devuelto',     estilo_encabezado),
+            Paragraph('En obra',      ParagraphStyle('enc_verde', fontSize=7,
+                                      fontName='Helvetica-Bold', textColor=colors.white)),
+        ]
+        filas_resumen = [encabezados_resumen]
+        for r in resumen:
+            filas_resumen.append([
+                Paragraph(r['nombre'], estilo_celda),
+                Paragraph(r['modelo'], estilo_celda),
+                Paragraph(r['serial'], estilo_celda),
+                Paragraph(f"{r['salidas']} {r['unidad']}", estilo_celda),
+                Paragraph(f"{r['devuelto']} {r['unidad']}",
+                          ParagraphStyle('dev_color', fontSize=8,
+                                         textColor=colors.HexColor('#c0392b'))),
+                Paragraph(f"{r['neto']} {r['unidad']}",
+                          ParagraphStyle('neto_color', fontSize=8, fontName='Helvetica-Bold',
+                                         textColor=colors.HexColor('#1a7a4a'))),
+            ])
 
-            encabezados = [
-                Paragraph('Descripcion', estilo_encabezado),
-                Paragraph('Modelo',      estilo_encabezado),
-                Paragraph('N° Serial',   estilo_encabezado),
-                Paragraph('Marca',       estilo_encabezado),
-                Paragraph('Cant.',       estilo_encabezado),
-                Paragraph('Unidad',      estilo_encabezado),
-            ]
-            filas = [encabezados]
-            for item in salida['detalle']:
-                filas.append([
-                    Paragraph(item.get('nombre', ''), estilo_celda),
-                    Paragraph(item.get('modelo', '') or '', estilo_celda),
-                    Paragraph(item.get('serial', '') or '', estilo_celda),
-                    Paragraph(item.get('marca',  '') or '', estilo_celda),
-                    Paragraph(str(item.get('cantidad', '')), estilo_celda),
-                    Paragraph(item.get('unidad', '') or '', estilo_celda),
-                ])
-
-            tabla = Table(filas, colWidths=[5.5*cm, 3*cm, 3*cm, 2.5*cm, 2*cm, 2*cm])
-            tabla.setStyle(TableStyle([
-                ('BACKGROUND',    (0,0), (-1,0),  colors.HexColor('#0d2137')),
-                ('TEXTCOLOR',     (0,0), (-1,0),  colors.white),
-                ('FONTNAME',      (0,0), (-1,0),  'Helvetica-Bold'),
-                ('FONTSIZE',      (0,0), (-1,0),  7),
-                ('GRID',          (0,0), (-1,-1), 0.5, colors.HexColor('#dce6f0')),
-                ('ROWBACKGROUNDS',(0,1), (-1,-1), [colors.white, colors.HexColor('#f7f9fc')]),
-                ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
-                ('PADDING',       (0,0), (-1,-1), 4),
-                ('FONTSIZE',      (0,1), (-1,-1), 7),
-            ]))
-            elementos.append(tabla)
-            elementos.append(Spacer(1, 0.4*cm))
+        tabla_resumen = Table(filas_resumen, colWidths=[5*cm, 3*cm, 3*cm, 2*cm, 2*cm, 3*cm])
+        tabla_resumen.setStyle(TableStyle([
+            ('BACKGROUND',    (0,0), (-1,0),  colors.HexColor('#0d2137')),
+            ('BACKGROUND',    (5,0), (5,0),   colors.HexColor('#1a7a4a')),
+            ('TEXTCOLOR',     (0,0), (-1,0),  colors.white),
+            ('FONTNAME',      (0,0), (-1,0),  'Helvetica-Bold'),
+            ('FONTSIZE',      (0,0), (-1,0),  7),
+            ('GRID',          (0,0), (-1,-1), 0.5, colors.HexColor('#dce6f0')),
+            ('ROWBACKGROUNDS',(0,1), (-1,-1), [colors.white, colors.HexColor('#f7f9fc')]),
+            ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
+            ('PADDING',       (0,0), (-1,-1), 4),
+            ('FONTSIZE',      (0,1), (-1,-1), 7),
+        ]))
+        elementos.append(tabla_resumen)
+        elementos.append(Spacer(1, 0.5*cm))
 
     # ── DEVOLUCIONES ──────────────────────────────────────────
-    elementos.append(Spacer(1, 0.2*cm))
     elementos.append(Paragraph('🔄  Devoluciones al almacen', estilo_seccion))
     elementos.append(Spacer(1, 0.3*cm))
 

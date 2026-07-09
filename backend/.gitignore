@@ -1,5 +1,7 @@
 __pycache__/
 *.pyc
-backend/almacen.db
+*.db
 .venv/
 venv/
+.env
+backend/pdfs/

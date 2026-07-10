@@ -1,5 +1,6 @@
 from flask import Flask, send_from_directory
 from flask_cors import CORS
+from flask_talisman import Talisman
 from flask_jwt_extended import JWTManager
 from database import inicializar_db
 from routes.productos import productos_bp
@@ -14,6 +15,7 @@ from routes.auth import auth_bp
 from routes.consolidado import consolidado_bp
 from routes.pdf_consolidado import pdf_consolidado_bp
 from dotenv import load_dotenv
+
 import os
 load_dotenv()
 
@@ -23,6 +25,8 @@ CORS(app, origins=[
     "http://127.0.0.1:5000",
     "https://almacen-backend-ae4l.onrender.com"
 ])
+
+Talisman(app, force_https=False, content_security_policy=False)  
 
 from extensions import limiter
 limiter.init_app(app)

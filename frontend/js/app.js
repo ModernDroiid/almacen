@@ -1,5 +1,15 @@
 const API = 'https://almacen-backend-ae4l.onrender.com/api';
 
+function sanitizar(texto) {
+    if (!texto) return '—';
+    return String(texto)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // ══ SESION ══════════════════════════════════════════════════
 
 const token   = localStorage.getItem('token');
@@ -427,7 +437,7 @@ async function cargarProductos() {
                 <td><span style="font-family:monospace;font-size:12px;color:#1a6fc4;font-weight:600">${p.codigo || '—'}</span></td>
                 <td>
                     <strong>${p.nombre}</strong>
-                    <div class="sub">${p.descripcion || '—'}</div>
+                    <div class="sub">${sanitizar(p.descripcion)}</div>
                 </td>
                 <td><span style="font-size:11px;color:#4a6080">${p.sede_nombre || '—'}</span></td>
                 <td>${p.unidad}</td>

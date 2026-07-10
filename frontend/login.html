@@ -124,10 +124,12 @@
             <input type="email" id="login-email" required
                    placeholder="usuario@occidente.com" autocomplete="email">
         </div>
-        <div class="campo">
+        <div class="campo" style="position:relative">
             <label>Contraseña</label>
-            <input type="password" id="login-password" required
-                   placeholder="••••••••" autocomplete="current-password">
+            <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+            <button type="button" onclick="togglePassword()"
+                    style="position:absolute;right:10px;bottom:8px;background:none;border:none;cursor:pointer;color:#6b8aab;font-size:16px"
+                    id="btn-toggle-pass">👁️</button>
         </div>
         <button type="submit" class="btn-login" id="btn-login">
             Iniciar sesión
@@ -194,6 +196,19 @@
             btn.disabled    = false;
         }
     }
+
+    function togglePassword() {
+        const passInput = document.getElementById('login-password');
+        const btn        = document.getElementById('btn-toggle-pass');
+        if (passInput.type === 'password') {
+            passInput.type = 'text';
+            btn.textContent = '🙈';
+        } else {
+            passInput.type = 'password';
+            btn.textContent = '👁️';
+        }
+    }
+
 </script>
 </body>
 </html>

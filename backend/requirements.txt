@@ -7,3 +7,4 @@ gunicorn
 reportlab
 flask-limiter
 python-dotenv
+flask-talisman

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Occidente — Iniciar sesión</title>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', sans-serif; }
 
@@ -47,6 +48,7 @@
             flex-direction: column;
             gap: 5px;
             margin-bottom: 1rem;
+            position: relative;
         }
 
         .campo label {
@@ -67,6 +69,24 @@
 
         .campo input:focus {
             border-color: #1a6fc4;
+        }
+
+        .btn-toggle-pass {
+            position: absolute;
+            right: 10px;
+            bottom: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6b8aab;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            transition: color 0.15s;
+        }
+
+        .btn-toggle-pass:hover {
+            color: #1a6fc4;
         }
 
         .btn-login {
@@ -124,12 +144,15 @@
             <input type="email" id="login-email" required
                    placeholder="usuario@occidente.com" autocomplete="email">
         </div>
-        <div class="campo" style="position:relative">
+        <div class="campo">
             <label>Contraseña</label>
-            <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
-            <button type="button" onclick="togglePassword()"
-                    style="position:absolute;right:10px;bottom:8px;background:none;border:none;cursor:pointer;color:#6b8aab;font-size:16px"
-                    id="btn-toggle-pass">👁️</button>
+            <input type="password" id="login-password" required
+                   placeholder="••••••••" autocomplete="current-password"
+                   style="padding-right: 40px">
+            <button type="button" class="btn-toggle-pass" id="btn-toggle-pass"
+                    onclick="togglePassword()" title="Mostrar/ocultar contraseña">
+                <i data-feather="eye" style="width:18px;height:18px"></i>
+            </button>
         </div>
         <button type="submit" class="btn-login" id="btn-login">
             Iniciar sesión
@@ -144,7 +167,6 @@
 <script>
     const API = '/api';
 
-    // Si ya hay sesion activa, redirigimos directo al app
     if (localStorage.getItem('token')) {
         window.location.href = 'index.html';
     }
@@ -171,17 +193,14 @@
             const data = await res.json();
 
             if (res.ok) {
-                // Guardamos el token y datos del usuario en localStorage
-                // localStorage persiste aunque cierres el navegador
-                localStorage.setItem('token',       data.token);
-                localStorage.setItem('usuario',     JSON.stringify({
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('usuario', JSON.stringify({
                     nombre:      data.nombre,
                     rol:         data.rol,
                     sede_id:     data.sede_id,
                     sede_nombre: data.sede_nombre,
                     ciudad:      data.ciudad
                 }));
-                // Redirigimos al app principal
                 window.location.href = 'index.html';
             } else {
                 errorMsg.textContent = data.error || 'Error al iniciar sesion';
@@ -198,17 +217,19 @@
     }
 
     function togglePassword() {
-        const passInput = document.getElementById('login-password');
-        const btn        = document.getElementById('btn-toggle-pass');
-        if (passInput.type === 'password') {
-            passInput.type = 'text';
-            btn.textContent = '🙈';
+        const input = document.getElementById('login-password');
+        const btn   = document.getElementById('btn-toggle-pass');
+        if (input.type === 'password') {
+            input.type    = 'text';
+            btn.innerHTML = '<i data-feather="eye-off" style="width:18px;height:18px"></i>';
         } else {
-            passInput.type = 'password';
-            btn.textContent = '👁️';
+            input.type    = 'password';
+            btn.innerHTML = '<i data-feather="eye" style="width:18px;height:18px"></i>';
         }
+        feather.replace();
     }
 
+    feather.replace();
 </script>
 </body>
 </html>

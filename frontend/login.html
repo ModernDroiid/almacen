@@ -71,6 +71,16 @@
             border-color: #1a6fc4;
         }
 
+        /* Quita el ojo nativo del navegador */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+            display: none !important;
+        }
+        input[type="password"]::-webkit-contacts-auto-fill-button,
+        input[type="password"]::-webkit-credentials-auto-fill-button {
+            display: none !important;
+        }
+
         .btn-toggle-pass {
             position: absolute;
             right: 10px;
@@ -132,7 +142,7 @@
         <img src="img/occidente.png" alt="Occidente Seguridad Privada">
     </div>
 
-    <p class="login-titulo">Gestión de Almacén — Iniciar sesión</p>
+    <p class="login-titulo">Almacén — Iniciar sesión</p>
 
     <div class="error-msg" id="error-msg">
         Email o contraseña incorrectos
@@ -141,7 +151,7 @@
     <form onsubmit="iniciarSesion(event)">
         <div class="campo">
             <label>Email</label>
-            <input type="email" id="login-email" required
+            <input type="text" id="login-email" required
                    placeholder="usuario@occidente.com" autocomplete="email">
         </div>
         <div class="campo">

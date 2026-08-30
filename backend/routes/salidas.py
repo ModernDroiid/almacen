@@ -85,6 +85,9 @@ def crear_salida():
     claims = get_jwt()
     datos = request.json
 
+    if claims.get('rol') == 'consulta':
+        return jsonify({'error': 'El usuario de consulta no puede registrar salidas'}), 403
+
     if not datos.get("numero_documento"):
         return jsonify({"error": "El número de documento es obligatorio"}), 400
     if not datos.get("detalle") or len(datos["detalle"]) == 0:
@@ -157,6 +160,11 @@ def crear_salida():
 @salidas_bp.route("/<int:id>", methods=["DELETE"])
 @jwt_required()
 def eliminar_salida(id):
+    claims = get_jwt()
+
+    if claims.get('rol') == 'consulta':
+        return jsonify({'error': 'El usuario de consulta no puede eliminar salidas'}), 403
+
     conn = get_connection()
     cursor = conn.cursor()
 

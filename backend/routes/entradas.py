@@ -72,12 +72,14 @@ def obtener_entrada(id):
     conn.close()
     return jsonify({**dict(entrada), 'detalle': [dict(d) for d in detalle]})
 
-
 @entradas_bp.route('/', methods=['POST'])
 @jwt_required()
 def crear_entrada():
     claims = get_jwt()
     datos = request.json
+
+    if claims.get('rol') == 'consulta':
+        return jsonify({'error': 'El usuario de consulta no puede registrar entradas'}), 403
 
     if not datos.get('numero_documento'):
         return jsonify({'error': 'El numero de documento es obligatorio'}), 400
@@ -138,6 +140,11 @@ def crear_entrada():
 @entradas_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 def eliminar_entrada(id):
+    claims = get_jwt()
+
+    if claims.get('rol') == 'consulta':
+        return jsonify({'error': 'El usuario de consulta no puede eliminar entradas'}), 403
+
     conn = get_connection()
     cursor = conn.cursor()
 

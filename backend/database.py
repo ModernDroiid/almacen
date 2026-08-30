@@ -14,6 +14,31 @@ def inicializar_db():
 
     cursor.executescript('''
 
+                CREATE TABLE IF NOT EXISTS traslados (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            numero_documento TEXT UNIQUE NOT NULL,
+            sede_origen_id INTEGER NOT NULL REFERENCES sedes(id),
+            sede_destino_id INTEGER NOT NULL REFERENCES sedes(id),
+            observaciones TEXT,
+            estado TEXT NOT NULL DEFAULT 'PENDIENTE',
+            creado_por INTEGER REFERENCES usuarios(id),
+            recibido_por INTEGER REFERENCES usuarios(id),
+            fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            fecha_recepcion TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS detalle_traslados (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            traslado_id INTEGER NOT NULL REFERENCES traslados(id),
+            producto_origen_id INTEGER NOT NULL REFERENCES productos(id),
+            producto_destino_id INTEGER REFERENCES productos(id),
+            cantidad INTEGER NOT NULL,
+            serial TEXT,
+            modelo TEXT,
+            marca TEXT,
+            unidad TEXT DEFAULT 'UND'
+        );
+
         CREATE TABLE IF NOT EXISTS sedes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
@@ -45,15 +70,15 @@ def inicializar_db():
             fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
-        CREATE TABLE IF NOT EXISTS catalogos_modelos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT UNIQUE NOT NULL
-        );
+        CREATE TABLE IF NOT EXISTS modelos (
+	    id INTEGER PRIMARY KEY AUTOINCREMENT,
+	    nombre TEXT UNIQUE NOT NULL
+	);
 
-        CREATE TABLE IF NOT EXISTS catalogos_marcas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT UNIQUE NOT NULL
-        );
+	CREATE TABLE IF NOT EXISTS marcas (
+	    id INTEGER PRIMARY KEY AUTOINCREMENT,
+	    nombre TEXT UNIQUE NOT NULL
+	);
 
         CREATE TABLE IF NOT EXISTS entradas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

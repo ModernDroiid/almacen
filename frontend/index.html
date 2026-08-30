@@ -28,7 +28,10 @@
         <button class="nav-btn" onclick="mostrarSeccion('devoluciones', this)">
             <span class="icono">🔄</span> Devoluciones
         </button>
-                <button class="nav-btn" onclick="mostrarSeccion('consolidado', this)">
+        <button class="nav-btn" onclick="mostrarSeccion('traslados', this)">
+            <span class="icono">🚚</span> Traslados
+        </button>
+        <button class="nav-btn" onclick="mostrarSeccion('consolidado', this)">
             <span class="icono">📍</span> Puntos
         </button>
         <button class="nav-btn" onclick="mostrarSeccion('modelos', this)">
@@ -67,7 +70,7 @@
                 <select id="selector-sede" style="display:none;border:0.5px solid #c8d8ea;border-radius:8px;padding:7px 10px;font-size:12.5px;color:#0d2137"
                         onchange="cambiarSedeActual()">
                 </select>
-                <button class="btn-primario" onclick="abrirModal('modal-producto')">+ Nuevo producto</button>
+                <button class="btn-primario admin-only" onclick="abrirModal('modal-producto')">+ Nuevo producto</button>
             </div>
         </div>
         <div class="stats-row">
@@ -101,7 +104,7 @@
                 <h2>Entradas</h2>
                 <p id="subtitulo-entradas">Cargando...</p>
             </div>
-            <button class="btn-primario" onclick="abrirModal('modal-entrada')">+ Nueva entrada</button>
+            <button class="btn-primario admin-only" onclick="abrirModal('modal-entrada')">+ Nueva entrada</button>
         </div>
         <div style="padding:0 24px 12px;display:flex;gap:10px;align-items:center">
             <input type="text" id="buscar-entradas" placeholder="Buscar por N° documento, origen o destino..."
@@ -137,7 +140,7 @@
                 <h2>Salidas</h2>
                 <p id="subtitulo-salidas">Cargando...</p>
             </div>
-            <button class="btn-primario" onclick="abrirModal('modal-salida')">+ Nueva salida</button>
+            <button class="btn-primario admin-only" onclick="abrirModal('modal-salida')">+ Nueva salida</button>
         </div>
         <div style="padding:0 24px 12px;display:flex;gap:10px;align-items:center">
             <input type="text" id="buscar-salidas" placeholder="Buscar por N° documento, origen o destino..."
@@ -173,7 +176,7 @@
                 <h2>Devoluciones</h2>
                 <p id="subtitulo-devoluciones">Cargando...</p>
             </div>
-            <button class="btn-primario" onclick="abrirModal('modal-devolucion')">+ Nueva devolucion</button>
+            <button class="btn-primario admin-only" onclick="abrirModal('modal-devolucion')">+ Nueva devolucion</button>
         </div>
 
         <div style="padding:0 24px 12px;display:flex;gap:10px;align-items:center">
@@ -201,6 +204,48 @@
                     </tr>
                 </thead>
                 <tbody id="tabla-devoluciones"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Traslados -->
+    <section id="sec-traslados" class="seccion">
+        <div class="topbar">
+            <div class="topbar-titulo">
+                <h2>Traslados entre sedes</h2>
+                <p id="subtitulo-traslados">Cargando...</p>
+            </div>
+
+            <button class="btn-primario admin-only"
+                    onclick="abrirModal('modal-traslado')">
+                + Nuevo traslado
+            </button>
+        </div>
+
+        <div style="padding:0 24px 12px;display:flex;gap:10px;align-items:center">
+            <input
+                type="text"
+                id="buscar-traslados"
+                placeholder="Buscar por documento, origen o destino..."
+                oninput="filtrarTraslados()"
+                style="border:0.5px solid #c8d8ea;border-radius:8px;padding:8px 12px;font-size:13px;width:320px;outline:none">
+        </div>
+
+        <div class="tabla-wrap">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>N° Documento</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Productos</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody id="tabla-traslados"></tbody>
             </table>
         </div>
     </section>
@@ -483,6 +528,193 @@
                 <button type="submit" class="btn-primario">Registrar salida</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- MODAL: Nuevo traslado -->
+<div id="modal-traslado" class="modal-fondo">
+    <div class="modal" style="width:720px;max-width:96vw;max-height:90vh;overflow-y:auto">
+
+        <div class="modal-header">
+            <h3>Nuevo traslado entre sedes</h3>
+            <button onclick="cerrarModal('modal-traslado')">✕</button>
+        </div>
+
+        <form onsubmit="guardarTraslado(event)">
+
+            <div class="fila-campos">
+
+                <div class="campo">
+                    <label>N° Documento</label>
+                    <input
+                        type="text"
+                        id="tras-numero"
+                        readonly
+                        placeholder="Se generará automáticamente">
+                </div>
+
+                <div class="campo">
+                    <label>Sede origen *</label>
+                    <select id="tras-sede-origen" required
+                            onchange="cargarProductosTraslado()">
+                        <option value="">— Selecciona origen —</option>
+                    </select>
+                </div>
+
+                <div class="campo">
+                    <label>Sede destino *</label>
+                    <select id="tras-sede-destino" required>
+                        <option value="">— Selecciona destino —</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="campo">
+                <label>Observaciones</label>
+                <input
+                    type="text"
+                    id="tras-observaciones"
+                    placeholder="Opcional">
+            </div>
+
+            <div style="margin:12px 0 5px">
+                <label style="font-size:12px;color:#4a6080;font-weight:600">
+                    Productos a trasladar
+                </label>
+            </div>
+
+            <div
+                id="tras-items"
+                style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+                <p style="font-size:12px;color:#6b8aab">
+                    Selecciona primero la sede de origen.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                class="btn-secundario"
+                style="width:100%;margin-bottom:1rem"
+                onclick="agregarItemTraslado()">
+                + Agregar producto
+            </button>
+
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn-secundario"
+                    onclick="cerrarModal('modal-traslado')">
+                    Cancelar
+                </button>
+
+                <button type="submit" class="btn-primario">
+                    Crear traslado
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: Ver traslado -->
+<div id="modal-ver-traslado" class="modal-fondo">
+    <div class="modal modal-detalle-traslado">
+
+        <div class="modal-header">
+            <div>
+                <h3>Detalle del traslado</h3>
+                <span id="ver-tras-numero" class="traslado-numero"></span>
+            </div>
+
+            <button onclick="cerrarModal('modal-ver-traslado')">✕</button>
+        </div>
+
+        <div class="traslado-resumen">
+
+            <div class="traslado-sede">
+                <span class="traslado-label">Origen</span>
+                <strong id="ver-tras-origen">—</strong>
+                <small id="ver-tras-origen-ciudad">—</small>
+            </div>
+
+            <div class="traslado-flecha">
+                →
+            </div>
+
+            <div class="traslado-sede">
+                <span class="traslado-label">Destino</span>
+                <strong id="ver-tras-destino">—</strong>
+                <small id="ver-tras-destino-ciudad">—</small>
+            </div>
+
+        </div>
+
+        <div class="traslado-info-grid">
+
+        <div class="traslado-info">
+            <span>Estado</span>
+            <strong id="ver-tras-estado">—</strong>
+        </div>
+    
+        <div class="traslado-info">
+            <span>Inicio del traslado</span>
+            <strong id="ver-tras-fecha">—</strong>
+        </div>
+    
+        <div class="traslado-info">
+            <span>Creado por</span>
+            <strong id="ver-tras-creado">—</strong>
+        </div>
+    
+        <div class="traslado-info">
+            <span>Recibido por</span>
+            <strong id="ver-tras-recibido">Pendiente</strong>
+        </div>
+    
+        <div class="traslado-info">
+            <span>Finalización</span>
+            <strong id="ver-tras-finalizacion">Pendiente</strong>
+        </div>
+    
+    </div>
+
+        <div class="traslado-observaciones">
+            <span>Observaciones</span>
+            <p id="ver-tras-observaciones">Sin observaciones</p>
+        </div>
+
+        <div class="traslado-productos-titulo">
+            Productos trasladados
+        </div>
+
+        <div class="traslado-tabla-contenedor">
+            <table class="tabla-traslado-detalle">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Modelo</th>
+                        <th>Marca</th>
+                        <th>Serial</th>
+                        <th>Unidad</th>
+                        <th>Cantidad</th>
+                    </tr>
+                </thead>
+
+                <tbody id="ver-tras-productos">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="modal-footer">
+            <button
+                type="button"
+                class="btn-secundario"
+                onclick="cerrarModal('modal-ver-traslado')">
+                Cerrar
+            </button>
+        </div>
+
     </div>
 </div>
 

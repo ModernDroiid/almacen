@@ -63,6 +63,9 @@ def crear_producto():
     claims = get_jwt()
     datos  = request.json
 
+    if claims.get('rol') == 'consulta':
+        return jsonify({'error': 'El usuario de consulta solo tiene permisos de visualización'}), 403
+
     if not datos.get('nombre'):
         return jsonify({'error': 'El nombre es obligatorio'}), 400
 
@@ -113,6 +116,9 @@ def editar_producto(id):
     claims = get_jwt()
     datos = request.json
 
+    if claims.get('rol') == 'consulta':
+        return jsonify({'error': 'El usuario de consulta solo tiene permisos de visualización'}), 403
+
     # Solo el almacenista verifica que el producto sea de su sede
     if claims.get('rol') != 'admin':
         sede_id = claims.get('sede_id')
@@ -139,9 +145,13 @@ def editar_producto(id):
     return jsonify({'mensaje': 'Producto actualizado'})
 
 @productos_bp.route('/<int:id>', methods=['DELETE'])
-@jwt_required()
+@jwt_required() 
 def eliminar_producto(id):
     claims = get_jwt()
+
+    # Usuario consulta no puede eliminar
+    if claims.get('rol') == 'consulta':
+        return jsonify({'error': 'El usuario de consulta solo tiene permisos de visualización'}), 403
     
     # Admin puede eliminar cualquier producto
     if claims.get('rol') != 'admin':

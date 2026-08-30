@@ -125,6 +125,9 @@ def crear_devolucion():
     claims = get_jwt()
     datos = request.json
 
+    if claims.get('rol') == 'consulta':
+        return jsonify({'error': 'El usuario de consulta no puede registrar devoluciones'}), 403
+
     if not datos.get('numero_documento'):
         return jsonify({'error': 'El numero de documento es obligatorio'}), 400
     if not datos.get('detalle') or len(datos['detalle']) == 0:
@@ -187,6 +190,11 @@ def crear_devolucion():
 @devoluciones_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 def eliminar_devolucion(id):
+    claims = get_jwt()
+
+    if claims.get('rol') == 'consulta':
+        return jsonify({'error': 'El usuario de consulta no puede eliminar devoluciones'}), 403
+
     conn = get_connection()
     cursor = conn.cursor()
 

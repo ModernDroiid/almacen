@@ -88,14 +88,27 @@ def me():
 @jwt_required()
 def listar_sedes():
     claims = get_jwt()
-    if claims.get('rol') != 'admin':
-        return jsonify({'error': 'Solo el admin puede ver las sedes'}), 403
+
+    # Admin y almacenistas pueden consultar las sedes
+    if claims.get('rol') not in ('admin', 'sede'):
+        return jsonify({
+            'error': 'No tienes permisos para consultar las sedes'
+        }), 403
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM sedes WHERE activa=1 ORDER BY nombre')
+
+    cursor.execute('''
+        SELECT *
+        FROM sedes
+        WHERE activa=1
+        ORDER BY nombre
+    ''')
+
     sedes = [dict(s) for s in cursor.fetchall()]
+
     conn.close()
+
     return jsonify(sedes)
 
 

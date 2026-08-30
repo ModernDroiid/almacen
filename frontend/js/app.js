@@ -1,4 +1,4 @@
-const API = 'https://almacen-backend-ae4l.onrender.com/api';
+const API = 'http://127.0.0.1:5000/api';
 
 function sanitizar(texto) {
     if (!texto) return '—';
@@ -10,6 +10,30 @@ function sanitizar(texto) {
         .replace(/'/g, '&#39;');
 }
 
+function mostrarNotificacion(mensaje, tipo = 'exito') {
+    let notificacion = document.getElementById('notificacion-app');
+
+    if (!notificacion) {
+        notificacion = document.createElement('div');
+        notificacion.id = 'notificacion-app';
+        document.body.appendChild(notificacion);
+    }
+
+    notificacion.className = `notificacion-app ${tipo}`;
+
+    notificacion.innerHTML = `
+        <span class="notificacion-icono">✓</span>
+        <span>${sanitizar(mensaje)}</span>
+    `;
+
+    requestAnimationFrame(() => {
+        notificacion.classList.add('visible');
+    });
+
+    setTimeout(() => {
+        notificacion.classList.remove('visible');
+    }, 3000);
+}
 // ══ SESION ══════════════════════════════════════════════════
 
 const token   = localStorage.getItem('token');
@@ -81,15 +105,19 @@ function urlConSede(base) {
 // ══ NAVEGACIÓN ══════════════════════════════════════════════
 
 function mostrarSeccion(nombre, btn) {
-    if (nombre === 'usuarios' && usuario.rol !== 'admin') return; // ✅ agrega esto
+    if (nombre === 'usuarios' && usuario.rol !== 'admin') return;
+
     document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
     document.getElementById('sec-' + nombre).classList.add('activa');
     btn.classList.add('active');
+
     if (nombre === 'productos')     cargarProductos();
     if (nombre === 'entradas')      cargarEntradas();
     if (nombre === 'salidas')       cargarSalidas();
     if (nombre === 'devoluciones')  cargarDevoluciones();
+    if (nombre === 'traslados')     cargarTraslados();
     if (nombre === 'consolidado') cargarPuntos();
     if (nombre === 'modelos')       cargarModelos();
     if (nombre === 'marcas')        cargarMarcas();
@@ -154,6 +182,25 @@ function abrirModal(id) {
         });
     } else if (id === 'modal-devolucion') {
         document.getElementById('campo-sede-devolucion').style.display = 'none';
+    }
+
+    if (id === 'modal-traslado') {
+        const ahora = new Date();
+
+        const fecha =
+            ahora.getFullYear().toString() +
+            String(ahora.getMonth() + 1).padStart(2, '0') +
+            String(ahora.getDate()).padStart(2, '0');
+
+        const hora =
+            String(ahora.getHours()).padStart(2, '0') +
+            String(ahora.getMinutes()).padStart(2, '0') +
+            String(ahora.getSeconds()).padStart(2, '0');
+
+        document.getElementById('tras-numero').value =
+            `TR-${fecha}-${hora}`;
+
+        cargarSedesTraslado();
     }
     
     if (id === 'modal-producto' && usuario.rol === 'admin') {
@@ -288,8 +335,10 @@ async function cargarModelos() {
                 <td><strong>${m.nombre}</strong></td>
                 <td>
                     <div class="acciones">
-                        <button class="btn-accion" onclick="editarModelo(${m.id}, '${m.nombre}')">✏️ Editar</button>
-                        <button class="btn-accion danger" onclick="eliminarModelo(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+                        ${usuario.rol !== 'consulta' ? `
+                            <button class="btn-accion" onclick="editarModelo(${m.id}, '${m.nombre}')">✏️ Editar</button>
+                            <button class="btn-accion danger" onclick="eliminarModelo(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+                        ` : ''}
                     </div>
                 </td>
             </tr>
@@ -354,8 +403,10 @@ async function cargarMarcas() {
                 <td><strong>${m.nombre}</strong></td>
                 <td>
                     <div class="acciones">
-                        <button class="btn-accion" onclick="editarMarca(${m.id}, '${m.nombre}')">✏️ Editar</button>
-                        <button class="btn-accion danger" onclick="eliminarMarca(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+                        ${usuario.rol !== 'consulta' ? `
+                            <button class="btn-accion" onclick="editarMarca(${m.id}, '${m.nombre}')">✏️ Editar</button>
+                            <button class="btn-accion danger" onclick="eliminarMarca(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+                        ` : ''}
                     </div>
                 </td>
             </tr>
@@ -445,8 +496,10 @@ async function cargarProductos() {
                 <td><span class="badge ${badgeClase}">${badgeTexto}</span></td>
                 <td>
                     <div class="acciones">
-                        <button class="btn-accion" onclick="editarProducto(${p.id})">✏️ Editar</button>
-                        <button class="btn-accion danger" onclick="eliminarProducto(${p.id}, '${p.nombre}')">🗑️ Eliminar</button>
+                        ${usuario.rol !== 'consulta' ? `
+                            <button class="btn-accion" onclick="editarProducto(${p.id})">✏️ Editar</button>
+                            <button class="btn-accion danger" onclick="eliminarProducto(${p.id}, '${p.nombre}')">🗑️ Eliminar</button>
+                        ` : ''}
                     </div>
                 </td>
             </tr>
@@ -600,7 +653,9 @@ function renderizarEntradas(entradas) {
                 <td>
                     <div class="acciones">
                         <button class="btn-accion" onclick="verPDFEntrada(${e.id})">📄 PDF</button>
-                        <button class="btn-accion danger" onclick="eliminarEntrada(${e.id}, '${e.numero_documento}')">🗑️ Eliminar</button>
+                        ${usuario.rol !== 'consulta' ? `
+                            <button class="btn-accion danger" onclick="eliminarEntrada(${e.id}, '${e.numero_documento}')">🗑️ Eliminar</button>
+                        ` : ''}
                     </div>
                 </td>
             </tr>
@@ -839,7 +894,9 @@ function renderizarSalidas(salidas) {
                 <td>
                     <div class="acciones">
                         <button class="btn-accion" onclick="verPDFSalida(${s.id})">📄 PDF</button>
-                        <button class="btn-accion danger" onclick="eliminarSalida(${s.id}, '${s.numero_documento}')">🗑️ Eliminar</button>
+                        ${usuario.rol !== 'consulta' ? `
+                            <button class="btn-accion danger" onclick="eliminarSalida(${s.id}, '${s.numero_documento}')">🗑️ Eliminar</button>
+                        ` : ''}
                     </div>
                 </td>
             </tr>
@@ -1159,7 +1216,9 @@ function renderizarDevoluciones(devoluciones) {
                 <td>
                     <div class="acciones">
                         <button class="btn-accion" onclick="verPDFDevolucion(${d.id})">📄 PDF</button>
-                        <button class="btn-accion danger" onclick="eliminarDevolucion(${d.id}, '${d.numero_documento}')">🗑️ Eliminar</button>
+                        ${usuario.rol !== 'consulta' ? `
+                            <button class="btn-accion danger" onclick="eliminarDevolucion(${d.id}, '${d.numero_documento}')">🗑️ Eliminar</button>
+                        ` : ''}
                     </div>
                 </td>
             </tr>
@@ -1284,7 +1343,20 @@ function mostrarConfirm(mensaje, titulo = '¿Eliminar?', icono = '🗑️', text
     document.getElementById('confirm-mensaje').textContent = mensaje;
     document.getElementById('confirm-titulo').textContent  = titulo;
     document.getElementById('confirm-icono').textContent   = icono;
-    document.getElementById('confirm-btn-ok').textContent  = textoBtn;
+
+    const boton = document.getElementById('confirm-btn-ok');
+
+    boton.textContent = textoBtn;
+
+    // Cambiar color según la acción
+    if (textoBtn === 'Confirmar') {
+        boton.style.background = '#27ae60';
+        boton.style.color = '#fff';
+    } else {
+        boton.style.background = '';
+        boton.style.color = '';
+    }
+
     document.getElementById('modal-confirm').classList.add('visible');
 
     return new Promise(resolve => {
@@ -1305,12 +1377,16 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarProductos();
     cargarCatalogos();
 
-    if (usuario.rol !== 'admin') {
+    if (usuario.rol === 'consulta') {
         document.body.classList.add('rol-consulta');
     }
 
     const nom = usuario.nombre || 'Usuario';
-    const rolTexto = usuario.rol === 'admin' ? 'Administrador' : 'Almacenista';
+    const rolTexto = usuario.rol === 'admin'
+    ? 'Administrador'
+    : usuario.rol === 'sede'
+        ? 'Almacenista'
+        : 'Consulta';
 
     document.getElementById('nombre-usuario').textContent = nom;
     document.getElementById('rol-usuario').textContent    = rolTexto;
@@ -1433,7 +1509,7 @@ async function editarUsuario(id) {
     document.getElementById('modal-usuario-titulo').textContent = 'Editar usuario';
     document.getElementById('usr-id').value     = u.id;
     document.getElementById('usr-nombre').value = u.nombre;
-    document.getElementById('usr-correo').value = u.correo;
+    document.getElementById('usr-correo').value = u.email;
     document.getElementById('usr-rol').value    = u.rol;
 
     // En edicion mostramos campo de nueva contrasena opcional
@@ -1673,4 +1749,671 @@ async function descargarPDFConsolidado(destino) {
     const blob = await res.blob();
     const blobUrl = URL.createObjectURL(blob);
     window.open(blobUrl, '_blank');
+}
+
+// CREAR TRASLADOS ENTRE SEDES
+
+let productosCacheTraslado = [];
+
+async function cargarSedesTraslado() {
+    const res = await apiFetch(`${API}/auth/sedes`);
+    if (!res) return;
+
+    const sedes = await res.json();
+
+    const origen = document.getElementById('tras-sede-origen');
+    const destino = document.getElementById('tras-sede-destino');
+
+    if (!origen || !destino) return;
+
+    origen.innerHTML = '<option value="">— Selecciona origen —</option>';
+    destino.innerHTML = '<option value="">— Selecciona destino —</option>';
+
+    // ADMIN
+    if (usuario.rol === 'admin') {
+
+        sedes.forEach(s => {
+
+            origen.insertAdjacentHTML(
+                'beforeend',
+                `<option value="${s.id}">
+                    ${sanitizar(s.nombre)} — ${sanitizar(s.ciudad)}
+                </option>`
+            );
+
+            destino.insertAdjacentHTML(
+                'beforeend',
+                `<option value="${s.id}">
+                    ${sanitizar(s.nombre)} — ${sanitizar(s.ciudad)}
+                </option>`
+            );
+
+        });
+
+    } else {
+
+        // ALMACENISTA: origen = su propia sede
+        const miSede = sedes.find(
+            s => Number(s.id) === Number(usuario.sede_id)
+        );
+
+        if (miSede) {
+
+            origen.innerHTML = `
+                <option value="${miSede.id}" selected>
+                    ${sanitizar(miSede.nombre)} — ${sanitizar(miSede.ciudad)}
+                </option>
+            `;
+
+            // El almacenista puede enviar a cualquier otra sede
+            sedes.forEach(s => {
+
+                if (Number(s.id) !== Number(usuario.sede_id)) {
+
+                    destino.insertAdjacentHTML(
+                        'beforeend',
+                        `<option value="${s.id}">
+                            ${sanitizar(s.nombre)} — ${sanitizar(s.ciudad)}
+                        </option>`
+                    );
+
+                }
+
+            });
+
+            // Cargar productos automáticamente de su sede
+            cargarProductosTraslado();
+        }
+    }
+}
+
+
+async function cargarProductosTraslado() {
+
+    const sedeOrigen = parseInt(
+        document.getElementById('tras-sede-origen').value
+    );
+
+    const contenedor = document.getElementById('tras-items');
+
+    if (!sedeOrigen) {
+        productosCacheTraslado = [];
+
+        contenedor.innerHTML = `
+            <p style="font-size:12px;color:#6b8aab">
+                Selecciona primero la sede de origen.
+            </p>
+        `;
+
+        return;
+    }
+
+    const res = await apiFetch(
+        `${API}/productos/?sede_id=${sedeOrigen}`
+    );
+
+    if (!res) return;
+
+    productosCacheTraslado = await res.json();
+
+    contenedor.innerHTML = '';
+
+    if (productosCacheTraslado.length === 0) {
+        contenedor.innerHTML = `
+            <p style="font-size:12px;color:#6b8aab">
+                No hay productos disponibles en esta sede.
+            </p>
+        `;
+        return;
+    }
+
+    agregarItemTraslado();
+}
+
+
+function agregarItemTraslado() {
+
+    const contenedor = document.getElementById('tras-items');
+
+    if (!productosCacheTraslado.length) {
+        alert('Primero selecciona una sede de origen.');
+        return;
+    }
+
+    const opciones = productosCacheTraslado
+        .map(p => `
+            <option
+                value="${p.id}"
+                data-stock="${p.stock || 0}"
+                data-unidad="${p.unidad || 'UND'}">
+                [${p.codigo || '—'}] ${sanitizar(p.nombre)}
+                (disp: ${p.stock || 0})
+            </option>
+        `)
+        .join('');
+
+    const item = document.createElement('div');
+
+    item.style.cssText = `
+        display:grid;
+        grid-template-columns:2fr 1fr 1fr 1fr 70px 55px 30px;
+        gap:6px;
+        align-items:start;
+    `;
+
+    item.innerHTML = `
+        <select
+            class="tras-producto"
+            style="border:0.5px solid #c8d8ea;border-radius:8px;
+                   padding:6px 8px;font-size:12px;color:#0d2137;
+                   width:100%;height:32px">
+            ${opciones}
+        </select>
+
+        <input
+            type="text"
+            class="tras-modelo"
+            placeholder="Modelo"
+            style="border:0.5px solid #c8d8ea;border-radius:8px;
+                   padding:6px 8px;font-size:12px;width:100%;
+                   height:32px;box-sizing:border-box">
+
+        <input
+            type="text"
+            class="tras-marca"
+            placeholder="Marca"
+            style="border:0.5px solid #c8d8ea;border-radius:8px;
+                   padding:6px 8px;font-size:12px;width:100%;
+                   height:32px;box-sizing:border-box">
+
+        <input
+            type="text"
+            class="tras-serial"
+            placeholder="Serial"
+            style="border:0.5px solid #c8d8ea;border-radius:8px;
+                   padding:6px 8px;font-size:12px;width:100%;
+                   height:32px;box-sizing:border-box">
+
+        <select
+            class="tras-unidad"
+            style="border:0.5px solid #c8d8ea;border-radius:8px;
+                   padding:6px 4px;font-size:12px;color:#0d2137;
+                   width:100%;height:32px">
+            <option value="UND">UND</option>
+            <option value="MTS">MTS</option>
+            <option value="KG">KG</option>
+            <option value="CAJA">CAJA</option>
+            <option value="ROLLO">ROLLO</option>
+            <option value="LITRO">LITRO</option>
+        </select>
+
+        <input
+            type="number"
+            class="tras-cantidad"
+            min="1"
+            value="1"
+            style="border:0.5px solid #c8d8ea;border-radius:8px;
+                   padding:6px 8px;font-size:12px;text-align:center;
+                   width:100%;height:32px;box-sizing:border-box">
+
+        <button
+            type="button"
+            style="background:#fdecea;border:none;border-radius:6px;
+                   color:#c0392b;cursor:pointer;font-size:14px;
+                   width:30px;height:32px"
+            onclick="this.parentElement.remove()">
+            ✕
+        </button>
+    `;
+
+    contenedor.appendChild(item);
+
+    const producto = item.querySelector('.tras-producto');
+    const unidad = item.querySelector('.tras-unidad');
+
+    function actualizarUnidad() {
+        const opcion =
+            producto.options[producto.selectedIndex];
+
+        unidad.value =
+            opcion?.dataset.unidad || 'UND';
+    }
+
+    producto.addEventListener(
+        'change',
+        actualizarUnidad
+    );
+
+    actualizarUnidad();
+}
+
+
+async function guardarTraslado(event) {
+
+    event.preventDefault();
+
+    const numero =
+        document.getElementById('tras-numero').value.trim();
+
+    const sedeOrigen =
+        parseInt(
+            document.getElementById('tras-sede-origen').value
+        );
+
+    const sedeDestino =
+        parseInt(
+            document.getElementById('tras-sede-destino').value
+        );
+
+    const observaciones =
+        document.getElementById('tras-observaciones').value.trim();
+
+    if (!numero) {
+        alert('Ingresa el número de documento.');
+        return;
+    }
+
+    if (!sedeOrigen || !sedeDestino) {
+        alert('Selecciona la sede de origen y la sede de destino.');
+        return;
+    }
+
+    if (sedeOrigen === sedeDestino) {
+        alert('La sede de origen y destino no pueden ser iguales.');
+        return;
+    }
+
+    const filas =
+        document
+            .getElementById('tras-items')
+            .querySelectorAll(':scope > div');
+
+    if (filas.length === 0) {
+        alert('Agrega al menos un producto.');
+        return;
+    }
+
+    const detalle = [];
+
+    for (const fila of filas) {
+
+        const producto =
+            fila.querySelector('.tras-producto');
+
+        const cantidad =
+            parseInt(
+                fila.querySelector('.tras-cantidad').value
+            ) || 0;
+
+        const opcion =
+            producto.options[producto.selectedIndex];
+
+        const stock =
+            parseInt(opcion?.dataset.stock) || 0;
+
+        if (!producto.value) {
+            alert('Selecciona un producto.');
+            return;
+        }
+
+        if (cantidad <= 0) {
+            alert('La cantidad debe ser mayor que cero.');
+            return;
+        }
+
+        if (cantidad > stock) {
+            alert(
+                `Stock insuficiente para ${producto.options[producto.selectedIndex].text}. ` +
+                `Disponible: ${stock}.`
+            );
+            return;
+        }
+
+        detalle.push({
+            producto_id: parseInt(producto.value),
+            cantidad: cantidad,
+            serial:
+                fila.querySelector('.tras-serial')?.value.trim() || '',
+            modelo:
+                fila.querySelector('.tras-modelo')?.value.trim() || '',
+            marca:
+                fila.querySelector('.tras-marca')?.value.trim() || '',
+            unidad:
+                fila.querySelector('.tras-unidad')?.value || 'UND'
+        });
+    }
+
+    const datos = {
+        numero_documento: numero,
+        sede_origen_id: sedeOrigen,
+        sede_destino_id: sedeDestino,
+        observaciones: observaciones,
+        detalle: detalle
+    };
+
+    const res = await apiFetch(`${API}/traslados/`, {
+        method: 'POST',
+        body: JSON.stringify(datos)
+    });
+
+    if (!res) return;
+
+    const resultado = await res.json();
+
+    if (!res.ok) {
+        alert(
+            'Error al crear traslado:\n\n' +
+            (resultado.error || 'Error desconocido')
+        );
+        return;
+    }
+
+    await mostrarConfirm(
+        `El traslado ${numero} fue creado correctamente.`,
+        'Traslado creado',
+        '✓',
+        'Aceptar'
+    );
+    
+    cerrarModal('modal-traslado');
+    limpiarFormTraslado();
+
+    cerrarModal('modal-traslado');
+
+    limpiarFormTraslado();
+
+    cargarTraslados();
+    cargarProductos();
+}
+
+
+function limpiarFormTraslado() {
+
+    document.getElementById('tras-numero').value = '';
+
+    document.getElementById('tras-sede-origen').value = '';
+
+    document.getElementById('tras-sede-destino').value = '';
+
+    document.getElementById('tras-observaciones').value = '';
+
+    document.getElementById('tras-items').innerHTML = `
+        <p style="font-size:12px;color:#6b8aab">
+            Selecciona primero la sede de origen.
+        </p>
+    `;
+
+    productosCacheTraslado = [];
+}
+
+// TRASLADOS ENTRE SEDES
+let trasladosData = [];
+
+async function cargarTraslados() {
+    const res = await apiFetch(`${API}/traslados/`);
+    if (!res) return;
+
+    trasladosData = await res.json();
+
+    renderizarTraslados(trasladosData);
+
+    const subtitulo = document.getElementById('subtitulo-traslados');
+    if (subtitulo) {
+        subtitulo.textContent =
+            `${trasladosData.length} traslado${trasladosData.length !== 1 ? 's' : ''} registrado${trasladosData.length !== 1 ? 's' : ''}`;
+    }
+}
+
+function renderizarTraslados(lista) {
+    const tbody = document.getElementById('tabla-traslados');
+
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (lista.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align:center;padding:30px;color:#6b8aab">
+                    No hay traslados registrados.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    lista.forEach(t => {
+
+        let badgeClase = 'badge-ok';
+        let badgeTexto = t.estado || 'PENDIENTE';
+
+        if (t.estado === 'PENDIENTE') {
+            badgeClase = 'badge-warning';
+        }
+
+        if (t.estado === 'RECIBIDO') {
+            badgeClase = 'badge-ok';
+        }
+
+        if (t.estado === 'CANCELADO') {
+            badgeClase = 'badge-danger';
+        }
+
+        tbody.insertAdjacentHTML('beforeend', `
+            <tr>
+                <td>
+                    <strong>${sanitizar(t.numero_documento)}</strong>
+                </td>
+
+                <td>
+                    ${sanitizar(t.sede_origen_nombre || '—')}
+                </td>
+
+                <td>
+                    ${sanitizar(t.sede_destino_nombre || '—')}
+                </td>
+
+                <td>
+                    ${t.total_items || 0}
+                </td>
+
+                <td>
+                    <span class="badge ${badgeClase}">
+                        ${sanitizar(badgeTexto)}
+                    </span>
+                </td>
+
+                <td>
+                    ${sanitizar(t.fecha_creacion || '—')}
+                </td>
+
+                <td>
+                    <div class="acciones">
+                        <button
+                            class="btn-accion"
+                            onclick="verTraslado(${t.id})">
+                            👁️ Ver
+                        </button>
+
+                        <button
+                            class="btn-accion"
+                            onclick="verPDFTraslado(${t.id})">
+                            📄 PDF
+                        </button>
+
+                        ${
+                            usuario.rol === 'admin' && t.estado === 'PENDIENTE'
+                            ? `
+                                <button
+                                    class="btn-accion"
+                                    onclick="recibirTraslado(${t.id})">
+                                    ✅ Recibir
+                                </button>
+                            `
+                            : ''
+                        }
+                    </div>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+function filtrarTraslados() {
+    const texto = document
+        .getElementById('buscar-traslados')
+        .value
+        .trim()
+        .toLowerCase();
+
+    const filtrados = trasladosData.filter(t =>
+        String(t.numero_documento || '').toLowerCase().includes(texto) ||
+        String(t.sede_origen_nombre || '').toLowerCase().includes(texto) ||
+        String(t.sede_destino_nombre || '').toLowerCase().includes(texto) ||
+        String(t.estado || '').toLowerCase().includes(texto)
+    );
+
+    renderizarTraslados(filtrados);
+}
+
+async function verTraslado(id) {
+    const res = await apiFetch(`${API}/traslados/${id}`);
+
+    if (!res) return;
+
+    const traslado = await res.json();
+
+    console.log('Traslado:', traslado);
+
+    // Número
+    document.getElementById('ver-tras-numero').textContent =
+        `Traslado ${traslado.numero_documento || '—'}`;
+
+    // Origen
+    document.getElementById('ver-tras-origen').textContent =
+        traslado.sede_origen_nombre || '—';
+
+    document.getElementById('ver-tras-origen-ciudad').textContent =
+        traslado.sede_origen_ciudad || '—';
+
+    // Destino
+    document.getElementById('ver-tras-destino').textContent =
+        traslado.sede_destino_nombre || '—';
+
+    document.getElementById('ver-tras-destino-ciudad').textContent =
+        traslado.sede_destino_ciudad || '—';
+
+    // Estado
+    document.getElementById('ver-tras-estado').textContent =
+        traslado.estado || '—';
+
+    // Fecha
+    document.getElementById('ver-tras-fecha').textContent =
+        traslado.fecha_creacion || '—';
+
+        // Finalización
+    document.getElementById('ver-tras-finalizacion').textContent =
+        traslado.fecha_recepcion || 'Pendiente';
+
+    // Creado por
+    document.getElementById('ver-tras-creado').textContent =
+        traslado.creado_por_nombre || '—';
+
+    // Recibido por
+    document.getElementById('ver-tras-recibido').textContent =
+        traslado.recibido_por_nombre || '—';
+
+    // Observaciones
+    document.getElementById('ver-tras-observaciones').textContent =
+        traslado.observaciones || 'Sin observaciones';
+
+    // Productos
+    const tbody = document.getElementById('ver-tras-productos');
+
+    tbody.innerHTML = '';
+
+    if (!traslado.detalle || traslado.detalle.length === 0) {
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align:center;color:#6b8aab;padding:20px">
+                    No hay productos registrados.
+                </td>
+            </tr>
+        `;
+
+    } else {
+
+        traslado.detalle.forEach(item => {
+
+            const tr = document.createElement('tr');
+
+            tr.innerHTML = `
+                <td>${sanitizar(item.nombre || '—')}</td>
+                <td>${sanitizar(item.modelo || '—')}</td>
+                <td>${sanitizar(item.marca || '—')}</td>
+                <td>${sanitizar(item.serial || '—')}</td>
+                <td>${sanitizar(item.unidad || 'UND')}</td>
+                <td>${item.cantidad || 0}</td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Abrir modal
+    document
+        .getElementById('modal-ver-traslado')
+        .classList.add('visible');
+}
+
+async function recibirTraslado(id) {
+    if (usuario.rol !== 'admin') {
+        alert('No tienes permisos para recibir traslados.');
+        return;
+    }
+
+    if (!await mostrarConfirm(
+        '¿Confirmar recepción de este traslado?',
+        '¿Recibir traslado?',
+        '📦',
+        'Confirmar'
+    )) {
+        return;
+    }
+
+    const res = await apiFetch(`${API}/traslados/${id}/recibir`, {
+        method: 'PUT'
+    });
+
+    if (!res) return;
+
+    const datos = await res.json();
+
+    if (datos.error) {
+        alert(datos.error);
+        return;
+    }
+
+    mostrarNotificacion('Traslado recibido correctamente.', 'exito');
+
+    await cargarTraslados();
+
+    if (typeof cargarProductos === 'function') {
+        await cargarProductos();
+    }
+}
+
+function verPDFTraslado(id) {
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+        alert('Sesión no válida.');
+        return;
+    }
+
+    window.open(
+        `${API}/pdf/traslados/${id}?token=${encodeURIComponent(token)}`,
+        '_blank'
+    );
 }

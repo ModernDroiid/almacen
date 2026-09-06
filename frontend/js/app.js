@@ -41,6 +41,8 @@ const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
 
 if (!token) {
     window.location.href = 'login.html';
+} else {
+    document.getElementById('app-principal').style.display = 'flex';
 }
 
 async function apiFetch(url, opciones = {}) {

@@ -872,3 +872,149 @@ body.rol-consulta .admin-only {
     font-size: 14px;
     font-weight: bold;
 }
+
+@keyframes entradaNotificacion {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ============================================================
+   LOGIN RESPONSIVE
+   ============================================================ */
+
+/* TABLET */
+@media (max-width: 600px) {
+
+    #pantalla-login {
+        padding: 16px;
+        align-items: center;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 380px;
+        padding: 2rem 1.5rem;
+        border-radius: 14px;
+    }
+
+    .login-logo {
+        margin-bottom: 1.1rem;
+        padding: 10px;
+    }
+
+    .login-logo img {
+        width: 150px;
+        max-width: 75%;
+        height: auto;
+    }
+
+    .login-titulo {
+        font-size: 17px;
+    }
+
+    .login-subtitulo {
+        font-size: 11.5px;
+        margin-bottom: 1.25rem;
+    }
+
+    .campo {
+        margin-bottom: 0.9rem;
+    }
+
+    .campo input {
+        min-height: 42px;
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+
+    .btn-login {
+        min-height: 44px;
+        font-size: 14px;
+    }
+}
+
+
+/* TELÉFONOS PEQUEÑOS */
+@media (max-width: 400px) {
+
+    #pantalla-login {
+        padding: 10px;
+    }
+
+    .login-card {
+        max-width: 100%;
+        padding: 1.5rem 1.1rem;
+        border-radius: 12px;
+    }
+
+    .login-logo {
+        padding: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .login-logo img {
+        width: 135px;
+    }
+
+    .login-titulo {
+        font-size: 16px;
+    }
+
+    .login-subtitulo {
+        font-size: 11px;
+        margin-bottom: 1rem;
+    }
+
+    .campo label {
+        font-size: 11.5px;
+    }
+
+    .campo input {
+        min-height: 44px;
+        font-size: 14px;
+    }
+
+    .btn-login {
+        min-height: 44px;
+    }
+}
+
+
+/* TELÉFONO MUY PEQUEÑO / POCA ALTURA */
+@media (max-width: 400px) and (max-height: 700px) {
+
+    #pantalla-login {
+        align-items: flex-start;
+        overflow-y: auto;
+        padding-top: 20px;
+        padding-bottom: 20px;
+    }
+
+    .login-card {
+        padding-top: 1.25rem;
+        padding-bottom: 1.25rem;
+    }
+
+    .login-logo {
+        margin-bottom: 0.8rem;
+    }
+
+    .login-subtitulo {
+        margin-bottom: 0.8rem;
+    }
+
+    .campo {
+        margin-bottom: 0.7rem;
+    }
+
+    .login-footer {
+        margin-top: 1rem;
+    }
+}

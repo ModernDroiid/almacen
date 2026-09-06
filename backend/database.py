@@ -1,156 +1,30 @@
-import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'almacen.db')
+import psycopg
+from psycopg.rows import dict_row
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    return conn
+    database_url = os.getenv("DATABASE_URL")
+
+    if database_url:
+        return psycopg.connect(
+            database_url,
+            row_factory=dict_row
+        )
+
+    return psycopg.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        port=os.getenv("DB_PORT", "5432"),
+        dbname=os.getenv("DB_NAME", "almacen"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD"),
+        row_factory=dict_row
+    )
+
 
 def inicializar_db():
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.executescript('''
-
-                CREATE TABLE IF NOT EXISTS traslados (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            numero_documento TEXT UNIQUE NOT NULL,
-            sede_origen_id INTEGER NOT NULL REFERENCES sedes(id),
-            sede_destino_id INTEGER NOT NULL REFERENCES sedes(id),
-            observaciones TEXT,
-            estado TEXT NOT NULL DEFAULT 'PENDIENTE',
-            creado_por INTEGER REFERENCES usuarios(id),
-            recibido_por INTEGER REFERENCES usuarios(id),
-            fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            fecha_recepcion TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS detalle_traslados (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            traslado_id INTEGER NOT NULL REFERENCES traslados(id),
-            producto_origen_id INTEGER NOT NULL REFERENCES productos(id),
-            producto_destino_id INTEGER REFERENCES productos(id),
-            cantidad INTEGER NOT NULL,
-            serial TEXT,
-            modelo TEXT,
-            marca TEXT,
-            unidad TEXT DEFAULT 'UND'
-        );
-
-        CREATE TABLE IF NOT EXISTS sedes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
-            ciudad TEXT NOT NULL,
-            activa INTEGER DEFAULT 1,
-            fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            correo TEXT UNIQUE NOT NULL,
-            nombre TEXT NOT NULL,
-            password_hash TEXT NOT NULL,
-            rol TEXT NOT NULL DEFAULT 'consulta',
-            sede_id INTEGER REFERENCES sedes(id),
-            activo INTEGER DEFAULT 1,
-            fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS productos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            codigo TEXT,
-            nombre TEXT NOT NULL,
-            descripcion TEXT,
-            unidad TEXT DEFAULT 'UND',
-            stock INTEGER DEFAULT 0,
-            stock_minimo INTEGER DEFAULT 0,
-            sede_id INTEGER REFERENCES sedes(id),
-            fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS modelos (
-	    id INTEGER PRIMARY KEY AUTOINCREMENT,
-	    nombre TEXT UNIQUE NOT NULL
-	);
-
-	CREATE TABLE IF NOT EXISTS marcas (
-	    id INTEGER PRIMARY KEY AUTOINCREMENT,
-	    nombre TEXT UNIQUE NOT NULL
-	);
-
-        CREATE TABLE IF NOT EXISTS entradas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            numero_documento TEXT UNIQUE NOT NULL,
-            obra TEXT,
-            destino TEXT,
-            observaciones TEXT,
-            sede_id INTEGER REFERENCES sedes(id),
-            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS detalle_entradas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            entrada_id INTEGER REFERENCES entradas(id),
-            producto_id INTEGER REFERENCES productos(id),
-            cantidad INTEGER NOT NULL,
-            serial TEXT,
-            modelo TEXT,
-            marca TEXT,
-            unidad TEXT DEFAULT 'UND'
-        );
-
-        CREATE TABLE IF NOT EXISTS salidas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            numero_documento TEXT UNIQUE NOT NULL,
-            obra TEXT,
-            destino TEXT,
-            observaciones TEXT,
-            sede_id INTEGER REFERENCES sedes(id),
-            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS detalle_salidas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            salida_id INTEGER REFERENCES salidas(id),
-            producto_id INTEGER REFERENCES productos(id),
-            cantidad INTEGER NOT NULL,
-            serial TEXT,
-            modelo TEXT,
-            marca TEXT,
-            unidad TEXT DEFAULT 'UND'
-        );
-
-        CREATE TABLE IF NOT EXISTS devoluciones (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            numero_documento TEXT UNIQUE NOT NULL,
-            tipo TEXT NOT NULL,
-            salida_id INTEGER REFERENCES salidas(id),
-            origen TEXT,
-            destino TEXT,
-            motivo TEXT,
-            observaciones TEXT,
-            sede_id INTEGER REFERENCES sedes(id),
-            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS detalle_devoluciones (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            devolucion_id INTEGER REFERENCES devoluciones(id),
-            producto_id INTEGER REFERENCES productos(id),
-            cantidad INTEGER NOT NULL,
-            serial TEXT,
-            modelo TEXT,
-            marca TEXT,
-            unidad TEXT DEFAULT 'UND'
-        );
-
-        CREATE UNIQUE INDEX IF NOT EXISTS ix_productos_codigo_sede
-            ON productos(codigo, sede_id);
-
-    ''')
-
-    conn.commit()
-    conn.close()
-    print("Base de datos inicializada correctamente.")
+    print("PostgreSQL seleccionado correctamente.")

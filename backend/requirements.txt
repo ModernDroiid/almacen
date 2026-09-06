@@ -1,4 +1,4 @@
-Flask
+﻿Flask
 flask-cors
 flask-jwt-extended
 PyJWT
@@ -8,3 +8,5 @@ reportlab
 flask-limiter
 python-dotenv
 flask-talisman
+psycopg[binary]
+

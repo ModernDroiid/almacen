@@ -5,13 +5,13 @@ inicializar_db()
 
 correo   = input("Correo del admin: ").strip().lower()
 nombre   = input("Nombre completo: ").strip()
-password = input("Contraseña: ").strip()
+password = input("Passworda: ").strip()
 
 conn = get_connection()
 cursor = conn.cursor()
 try:
     cursor.execute(
-        'INSERT INTO usuarios (correo, nombre, password_hash, rol) VALUES (?, ?, ?, ?)',
+        'INSERT INTO usuarios (correo, nombre, password_hash, rol) VALUES (%s, %s, %s, %s)',
         (correo, nombre, generate_password_hash(password), 'admin')
     )
     conn.commit()
@@ -20,3 +20,4 @@ except Exception as e:
     print("Error:", e)
 finally:
     conn.close()
+

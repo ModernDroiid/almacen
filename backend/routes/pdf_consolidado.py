@@ -1,299 +1,1241 @@
 # ============================================================
-# pdf_consolidado.py — PDF del consolidado por punto
+# pdf_consolidado.py
+# PDF del consolidado por punto
+# PostgreSQL
 # ============================================================
 
-from flask import Blueprint, request, send_file
+from flask import Blueprint, request, send_file, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer,
+    Image
+)
+
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-import os, sys
+
+import os
 from io import BytesIO
 from datetime import datetime
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from database import get_connection
 
-pdf_consolidado_bp = Blueprint('pdf_consolidado', __name__)
+
+pdf_consolidado_bp = Blueprint(
+    "pdf_consolidado",
+    __name__
+)
 
 
-@pdf_consolidado_bp.route('/consolidado', methods=['GET'])
+# ============================================================
+# GET /api/pdf/consolidado
+# ============================================================
+
+@pdf_consolidado_bp.route(
+    "/consolidado",
+    methods=["GET"]
+)
 @jwt_required()
 def generar_pdf_consolidado():
-    claims  = get_jwt()
-    destino = request.args.get('destino', '').strip()
-    sede_id = request.args.get('sede_id', type=int)
 
-    if claims.get('rol') != 'admin':
-        sede_id = claims.get('sede_id')
+    claims = get_jwt()
+
+    destino = (
+        request.args.get(
+            "destino",
+            ""
+        )
+        .strip()
+    )
+
+    sede_id = request.args.get(
+        "sede_id",
+        type=int
+    )
+
+    # ========================================================
+    # RESTRICCIÓN POR SEDE
+    # ========================================================
+
+    if claims.get("rol") != "admin":
+
+        sede_id = claims.get(
+            "sede_id"
+        )
 
     if not destino:
-        return {'error': 'Destino requerido'}, 400
+
+        return jsonify({
+            "error": "Destino requerido"
+        }), 400
 
     conn = get_connection()
-    cursor = conn.cursor()
 
-    # ── Salidas ──────────────────────────────────────────────
-    if sede_id:
-        cursor.execute('''
-            SELECT s.id, s.numero_documento, s.fecha, s.observaciones,
-                   se.nombre as sede_nombre
-            FROM salidas s
-            LEFT JOIN sedes se ON se.id = s.sede_id
-            WHERE s.destino = ? AND s.sede_id = ?
-            ORDER BY s.fecha DESC
-        ''', (destino, sede_id))
-    else:
-        cursor.execute('''
-            SELECT s.id, s.numero_documento, s.fecha, s.observaciones,
-                   se.nombre as sede_nombre
-            FROM salidas s
-            LEFT JOIN sedes se ON se.id = s.sede_id
-            WHERE s.destino = ?
-            ORDER BY s.fecha DESC
-        ''', (destino,))
+    try:
 
-    salidas = [dict(s) for s in cursor.fetchall()]
-    for salida in salidas:
-        cursor.execute('''
-            SELECT p.nombre, p.codigo, d.cantidad, d.unidad,
-                   d.modelo, d.marca, d.serial
-            FROM detalle_salidas d
-            INNER JOIN productos p ON p.id = d.producto_id
-            WHERE d.salida_id = ?
-        ''', (salida['id'],))
-        salida['detalle'] = [dict(d) for d in cursor.fetchall()]
+        with conn.cursor() as cursor:
 
-    # ── Devoluciones ─────────────────────────────────────────
-    if sede_id:
-        cursor.execute('''
-            SELECT dv.id, dv.numero_documento, dv.fecha, dv.motivo,
-                   dv.observaciones, s.numero_documento as salida_numero,
-                   se.nombre as sede_nombre
-            FROM devoluciones dv
-            LEFT JOIN salidas s ON s.id = dv.salida_id
-            LEFT JOIN sedes se ON se.id = dv.sede_id
-            WHERE dv.origen = ? AND dv.sede_id = ?
-            ORDER BY dv.fecha DESC
-        ''', (destino, sede_id))
-    else:
-        cursor.execute('''
-            SELECT dv.id, dv.numero_documento, dv.fecha, dv.motivo,
-                   dv.observaciones, s.numero_documento as salida_numero,
-                   se.nombre as sede_nombre
-            FROM devoluciones dv
-            LEFT JOIN salidas s ON s.id = dv.salida_id
-            LEFT JOIN sedes se ON se.id = dv.sede_id
-            WHERE dv.origen = ?
-            ORDER BY dv.fecha DESC
-        ''', (destino,))
+            # =================================================
+            # SALIDAS
+            # =================================================
 
-    devoluciones = [dict(d) for d in cursor.fetchall()]
-    for dev in devoluciones:
-        cursor.execute('''
-            SELECT p.nombre, p.codigo, d.cantidad, d.unidad,
-                   d.modelo, d.marca, d.serial
-            FROM detalle_devoluciones d
-            INNER JOIN productos p ON p.id = d.producto_id
-            WHERE d.devolucion_id = ?
-        ''', (dev['id'],))
-        dev['detalle'] = [dict(d) for d in cursor.fetchall()]
+            if sede_id:
 
-    conn.close()
+                cursor.execute("""
+                    SELECT
 
-    # ── Calcular resumen neto ─────────────────────────────────
+                        s.id,
+                        s.numero_documento,
+                        s.fecha,
+                        s.observaciones,
+                        s.destino,
+                        s.estado,
+
+                        se.nombre
+                            AS sede_nombre
+
+                    FROM salidas s
+
+                    LEFT JOIN sedes se
+                        ON se.id = s.sede_id
+
+                    WHERE s.destino = %s
+
+                    AND s.sede_id = %s
+
+                    AND s.estado = 'ACTIVA'
+
+                    ORDER BY s.fecha DESC
+                """, (
+                    destino,
+                    sede_id
+                ))
+
+            else:
+
+                cursor.execute("""
+                    SELECT
+
+                        s.id,
+                        s.numero_documento,
+                        s.fecha,
+                        s.observaciones,
+                        s.destino,
+                        s.estado,
+
+                        se.nombre
+                            AS sede_nombre
+
+                    FROM salidas s
+
+                    LEFT JOIN sedes se
+                        ON se.id = s.sede_id
+
+                    WHERE s.destino = %s
+
+                    AND s.estado = 'ACTIVA'
+
+                    ORDER BY s.fecha DESC
+                """, (
+                    destino,
+                ))
+
+            salidas = [
+                dict(row)
+                for row in cursor.fetchall()
+            ]
+
+            # =================================================
+            # DETALLE DE SALIDAS
+            # =================================================
+
+            for salida in salidas:
+
+                cursor.execute("""
+                    SELECT
+
+                        p.nombre,
+                        p.codigo,
+
+                        d.cantidad,
+
+                        un.codigo
+                            AS unidad_codigo,
+
+                        un.nombre
+                            AS unidad_nombre,
+
+                        mo.nombre
+                            AS modelo,
+
+                        ma.nombre
+                            AS marca,
+
+                        eq.serial
+
+                    FROM detalle_salidas d
+
+                    INNER JOIN productos p
+                        ON p.id = d.producto_id
+
+                    LEFT JOIN unidades un
+                        ON un.id = p.unidad_id
+
+                    LEFT JOIN modelos mo
+                        ON mo.id = p.modelo_id
+
+                    LEFT JOIN marcas ma
+                        ON ma.id = mo.marca_id
+
+                    LEFT JOIN equipos eq
+                        ON eq.id = d.equipo_id
+
+                    WHERE d.salida_id = %s
+
+                    ORDER BY d.id
+                """, (
+                    salida["id"],
+                ))
+
+                salida["detalle"] = [
+                    dict(row)
+                    for row in cursor.fetchall()
+                ]
+
+            # =================================================
+            # DEVOLUCIONES
+            # =================================================
+
+            if sede_id:
+
+                cursor.execute("""
+                    SELECT
+
+                        dv.id,
+                        dv.numero_documento,
+                        dv.fecha_creacion,
+                        dv.motivo,
+                        dv.observaciones,
+                        dv.estado,
+
+                        s.numero_documento
+                            AS salida_numero,
+
+                        s.destino
+                            AS salida_destino,
+
+                        se.nombre
+                            AS sede_nombre
+
+                    FROM devoluciones dv
+
+                    LEFT JOIN salidas s
+                        ON s.id = dv.salida_id
+
+                    LEFT JOIN sedes se
+                        ON se.id = dv.sede_id
+
+                    WHERE s.destino = %s
+
+                    AND dv.sede_id = %s
+
+                    AND dv.estado = 'ACTIVA'
+
+                    ORDER BY dv.fecha_creacion DESC
+                """, (
+                    destino,
+                    sede_id
+                ))
+
+            else:
+
+                cursor.execute("""
+                    SELECT
+
+                        dv.id,
+                        dv.numero_documento,
+                        dv.fecha_creacion,
+                        dv.motivo,
+                        dv.observaciones,
+                        dv.estado,
+
+                        s.numero_documento
+                            AS salida_numero,
+
+                        s.destino
+                            AS salida_destino,
+
+                        se.nombre
+                            AS sede_nombre
+
+                    FROM devoluciones dv
+
+                    LEFT JOIN salidas s
+                        ON s.id = dv.salida_id
+
+                    LEFT JOIN sedes se
+                        ON se.id = dv.sede_id
+
+                    WHERE s.destino = %s
+
+                    AND dv.estado = 'ACTIVA'
+
+                    ORDER BY dv.fecha_creacion DESC
+                """, (
+                    destino,
+                ))
+
+            devoluciones = [
+                dict(row)
+                for row in cursor.fetchall()
+            ]
+
+            # =================================================
+            # DETALLE DE DEVOLUCIONES
+            # =================================================
+
+            for dev in devoluciones:
+
+                cursor.execute("""
+                    SELECT
+
+                        p.nombre,
+                        p.codigo,
+
+                        d.cantidad,
+
+                        un.codigo
+                            AS unidad_codigo,
+
+                        un.nombre
+                            AS unidad_nombre,
+
+                        mo.nombre
+                            AS modelo,
+
+                        ma.nombre
+                            AS marca,
+
+                        eq.serial
+
+                    FROM detalle_devoluciones d
+
+                    INNER JOIN productos p
+                        ON p.id = d.producto_id
+
+                    LEFT JOIN unidades un
+                        ON un.id = p.unidad_id
+
+                    LEFT JOIN modelos mo
+                        ON mo.id = p.modelo_id
+
+                    LEFT JOIN marcas ma
+                        ON ma.id = mo.marca_id
+
+                    LEFT JOIN equipos eq
+                        ON eq.id = d.equipo_id
+
+                    WHERE d.devolucion_id = %s
+
+                    ORDER BY d.id
+                """, (
+                    dev["id"],
+                ))
+
+                dev["detalle"] = [
+                    dict(row)
+                    for row in cursor.fetchall()
+                ]
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+    finally:
+
+        conn.close()
+
+    # ========================================================
+    # CALCULAR RESUMEN NETO
+    # ========================================================
+
     neto = {}
+
+    # ========================================================
+    # SUMAR SALIDAS
+    # ========================================================
+
     for salida in salidas:
-        for item in salida['detalle']:
-            clave = (item['nombre'], item.get('modelo') or '', item.get('serial') or '')
+
+        for item in salida["detalle"]:
+
+            clave = (
+                item["nombre"],
+                item.get("modelo") or "",
+                item.get("serial") or ""
+            )
+
             if clave not in neto:
+
                 neto[clave] = {
-                    'nombre':   item['nombre'],
-                    'modelo':   item.get('modelo') or '—',
-                    'serial':   item.get('serial') or '—',
-                    'unidad':   item.get('unidad') or '',
-                    'salidas':  0,
-                    'devuelto': 0,
-                    'neto':     0
+
+                    "nombre":
+                        item["nombre"],
+
+                    "modelo":
+                        item.get("modelo")
+                        or "—",
+
+                    "serial":
+                        item.get("serial")
+                        or "—",
+
+                    "marca":
+                        item.get("marca")
+                        or "—",
+
+                    "unidad":
+                        item.get("unidad_codigo")
+                        or "UND",
+
+                    "salidas":
+                        0,
+
+                    "devuelto":
+                        0,
+
+                    "neto":
+                        0
                 }
-            neto[clave]['salidas'] += item['cantidad']
-            neto[clave]['neto']    += item['cantidad']
+
+            cantidad = (
+                item.get("cantidad")
+                or 0
+            )
+
+            neto[clave]["salidas"] += cantidad
+
+            neto[clave]["neto"] += cantidad
+
+    # ========================================================
+    # RESTAR DEVOLUCIONES
+    # ========================================================
 
     for dev in devoluciones:
-        for item in dev['detalle']:
-            clave = (item['nombre'], item.get('modelo') or '', item.get('serial') or '')
+
+        for item in dev["detalle"]:
+
+            clave = (
+                item["nombre"],
+                item.get("modelo") or "",
+                item.get("serial") or ""
+            )
+
+            # Si existe una salida correspondiente
             if clave in neto:
-                neto[clave]['devuelto'] += item['cantidad']
-                neto[clave]['neto']     -= item['cantidad']
 
-    resumen = list(neto.values())
+                cantidad = (
+                    item.get("cantidad")
+                    or 0
+                )
 
-    # ── Construir PDF ─────────────────────────────────────────
+                neto[clave]["devuelto"] += cantidad
+
+                neto[clave]["neto"] -= cantidad
+
+    resumen = list(
+        neto.values()
+    )
+
+    # ========================================================
+    # CREAR PDF
+    # ========================================================
+
     buffer = BytesIO()
+
     doc = SimpleDocTemplate(
-        buffer, pagesize=A4,
-        rightMargin=1.5*cm, leftMargin=1.5*cm,
-        topMargin=1.5*cm, bottomMargin=1.5*cm
+        buffer,
+
+        pagesize=A4,
+
+        rightMargin=1.5 * cm,
+        leftMargin=1.5 * cm,
+
+        topMargin=1.5 * cm,
+        bottomMargin=1.5 * cm
     )
 
     elementos = []
 
-    estilo_celda      = ParagraphStyle('celda', fontSize=8, leading=10)
-    estilo_titulo     = ParagraphStyle('titulo', fontSize=14, fontName='Helvetica-Bold',
-                                       textColor=colors.HexColor('#0d2137'))
-    estilo_encabezado = ParagraphStyle('enc', fontSize=7, fontName='Helvetica-Bold',
-                                       textColor=colors.white)
-    estilo_valor      = ParagraphStyle('valor', fontSize=8)
-    estilo_seccion    = ParagraphStyle('sec', fontSize=11, fontName='Helvetica-Bold',
-                                       textColor=colors.HexColor('#0d2137'))
-    estilo_sub        = ParagraphStyle('sub', fontSize=9, fontName='Helvetica-Bold',
-                                       textColor=colors.HexColor('#1a6fc4'))
+    # ========================================================
+    # ESTILOS
+    # ========================================================
 
-    # ── Logo + Título ─────────────────────────────────────────
-    logo_path = os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'img', 'occidente.png')
-    logo = Image(logo_path, width=4*cm, height=2.5*cm) if os.path.exists(logo_path) \
-           else Paragraph('OCCIDENTE', estilo_titulo)
+    estilo_celda = ParagraphStyle(
+        "celda",
+        fontSize=8,
+        leading=10
+    )
+
+    estilo_titulo = ParagraphStyle(
+        "titulo",
+        fontSize=14,
+        fontName="Helvetica-Bold",
+        textColor=colors.HexColor(
+            "#0d2137"
+        )
+    )
+
+    estilo_encabezado = ParagraphStyle(
+        "enc",
+        fontSize=7,
+        fontName="Helvetica-Bold",
+        textColor=colors.white,
+        alignment=TA_CENTER
+    )
+
+    estilo_valor = ParagraphStyle(
+        "valor",
+        fontSize=8
+    )
+
+    estilo_seccion = ParagraphStyle(
+        "sec",
+        fontSize=11,
+        fontName="Helvetica-Bold",
+        textColor=colors.HexColor(
+            "#0d2137"
+        )
+    )
+
+    estilo_sub = ParagraphStyle(
+        "sub",
+        fontSize=9,
+        fontName="Helvetica-Bold",
+        textColor=colors.HexColor(
+            "#1a6fc4"
+        )
+    )
+
+    # ========================================================
+    # LOGO
+    # ========================================================
+
+    logo_path = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "frontend",
+        "img",
+        "occidente.png"
+    )
+
+    if os.path.exists(logo_path):
+
+        logo = Image(
+            logo_path,
+            width=4 * cm,
+            height=2.5 * cm
+        )
+
+    else:
+
+        logo = Paragraph(
+            "OCCIDENTE",
+            estilo_titulo
+        )
+
+    # ========================================================
+    # TÍTULO
+    # ========================================================
 
     bloque_titulo = [
-        Paragraph('CONSOLIDADO POR PUNTO', ParagraphStyle(
-            'tit', fontSize=16, fontName='Helvetica-Bold',
-            textColor=colors.HexColor('#0d2137'), alignment=TA_CENTER
-        )),
-        Spacer(1, 0.2*cm),
-        Paragraph(destino, ParagraphStyle(
-            'dest', fontSize=11, alignment=TA_CENTER,
-            textColor=colors.HexColor('#1a6fc4'), fontName='Helvetica-Bold'
-        )),
+
+        Paragraph(
+            "CONSOLIDADO POR PUNTO",
+
+            ParagraphStyle(
+                "tit",
+                fontSize=16,
+                fontName="Helvetica-Bold",
+                textColor=colors.HexColor(
+                    "#0d2137"
+                ),
+                alignment=TA_CENTER
+            )
+        ),
+
+        Spacer(
+            1,
+            0.2 * cm
+        ),
+
+        Paragraph(
+            destino,
+
+            ParagraphStyle(
+                "dest",
+                fontSize=11,
+                alignment=TA_CENTER,
+                textColor=colors.HexColor(
+                    "#1a6fc4"
+                ),
+                fontName="Helvetica-Bold"
+            )
+        )
     ]
 
-    tabla_header = Table([[logo, bloque_titulo]], colWidths=[5*cm, 13*cm])
-    tabla_header.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('ALIGN',  (1,0), (1,0),   'CENTER'),
-    ]))
-    elementos.append(tabla_header)
-    elementos.append(Spacer(1, 0.3*cm))
+    tabla_header = Table(
+        [[
+            logo,
+            bloque_titulo
+        ]],
 
-    fecha_gen = datetime.now().strftime('%d/%m/%Y %H:%M')
-    elementos.append(Paragraph(
-        f'Generado el {fecha_gen}',
-        ParagraphStyle('gen', fontSize=7, textColor=colors.HexColor('#6b8aab'), alignment=TA_LEFT)
-    ))
-    elementos.append(Spacer(1, 0.5*cm))
+        colWidths=[
+            5 * cm,
+            13 * cm
+        ]
+    )
 
-    # ── RESUMEN NETO ──────────────────────────────────────────
-    elementos.append(Paragraph('📦  Equipos en el punto (resumen actual)', estilo_seccion))
-    elementos.append(Spacer(1, 0.3*cm))
+    tabla_header.setStyle(
+        TableStyle([
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
+
+            (
+                "ALIGN",
+                (1, 0),
+                (1, 0),
+                "CENTER"
+            )
+        ])
+    )
+
+    elementos.append(
+        tabla_header
+    )
+
+    elementos.append(
+        Spacer(
+            1,
+            0.3 * cm
+        )
+    )
+
+    # ========================================================
+    # FECHA DE GENERACIÓN
+    # ========================================================
+
+    fecha_gen = datetime.now().strftime(
+        "%d/%m/%Y %H:%M"
+    )
+
+    elementos.append(
+        Paragraph(
+            f"Generado el {fecha_gen}",
+
+            ParagraphStyle(
+                "gen",
+                fontSize=7,
+                textColor=colors.HexColor(
+                    "#6b8aab"
+                ),
+                alignment=TA_LEFT
+            )
+        )
+    )
+
+    elementos.append(
+        Spacer(
+            1,
+            0.5 * cm
+        )
+    )
+
+    # ========================================================
+    # RESUMEN NETO
+    # ========================================================
+
+    elementos.append(
+        Paragraph(
+            "Equipos en el punto (resumen actual)",
+            estilo_seccion
+        )
+    )
+
+    elementos.append(
+        Spacer(
+            1,
+            0.3 * cm
+        )
+    )
 
     if not resumen:
-        elementos.append(Paragraph('Sin equipos registrados.', estilo_valor))
+
+        elementos.append(
+            Paragraph(
+                "Sin equipos registrados.",
+                estilo_valor
+            )
+        )
+
     else:
+
         encabezados_resumen = [
-            Paragraph('Descripcion',  estilo_encabezado),
-            Paragraph('Modelo',       estilo_encabezado),
-            Paragraph('N° Serial',    estilo_encabezado),
-            Paragraph('Entro',        estilo_encabezado),
-            Paragraph('Salio',     estilo_encabezado),
-            Paragraph('En obra',      ParagraphStyle('enc_verde', fontSize=7,
-                                      fontName='Helvetica-Bold', textColor=colors.white)),
+
+            Paragraph(
+                "Descripción",
+                estilo_encabezado
+            ),
+
+            Paragraph(
+                "Modelo",
+                estilo_encabezado
+            ),
+
+            Paragraph(
+                "N° Serial",
+                estilo_encabezado
+            ),
+
+            Paragraph(
+                "Marca",
+                estilo_encabezado
+            ),
+
+            Paragraph(
+                "Salió",
+                estilo_encabezado
+            ),
+
+            Paragraph(
+                "Devuelto",
+                estilo_encabezado
+            ),
+
+            Paragraph(
+                "En punto",
+                estilo_encabezado
+            )
         ]
-        filas_resumen = [encabezados_resumen]
+
+        filas_resumen = [
+            encabezados_resumen
+        ]
+
         for r in resumen:
+
             filas_resumen.append([
-                Paragraph(r['nombre'], estilo_celda),
-                Paragraph(r['modelo'], estilo_celda),
-                Paragraph(r['serial'], estilo_celda),
-                Paragraph(f"{r['salidas']} {r['unidad']}", estilo_celda),
-                Paragraph(f"{r['devuelto']} {r['unidad']}",
-                          ParagraphStyle('dev_color', fontSize=8,
-                                         textColor=colors.HexColor('#c0392b'))),
-                Paragraph(f"{r['neto']} {r['unidad']}",
-                          ParagraphStyle('neto_color', fontSize=8, fontName='Helvetica-Bold',
-                                         textColor=colors.HexColor('#1a7a4a'))),
+
+                Paragraph(
+                    r["nombre"],
+                    estilo_celda
+                ),
+
+                Paragraph(
+                    r["modelo"],
+                    estilo_celda
+                ),
+
+                Paragraph(
+                    r["serial"],
+                    estilo_celda
+                ),
+
+                Paragraph(
+                    r["marca"],
+                    estilo_celda
+                ),
+
+                Paragraph(
+                    f'{r["salidas"]} {r["unidad"]}',
+                    estilo_celda
+                ),
+
+                Paragraph(
+                    f'{r["devuelto"]} {r["unidad"]}',
+
+                    ParagraphStyle(
+                        "dev_color",
+                        fontSize=8,
+                        textColor=colors.HexColor(
+                            "#c0392b"
+                        )
+                    )
+                ),
+
+                Paragraph(
+                    f'{r["neto"]} {r["unidad"]}',
+
+                    ParagraphStyle(
+                        "neto_color",
+                        fontSize=8,
+                        fontName="Helvetica-Bold",
+                        textColor=colors.HexColor(
+                            "#1a7a4a"
+                        )
+                    )
+                )
             ])
 
-        tabla_resumen = Table(filas_resumen, colWidths=[5*cm, 3*cm, 3*cm, 2*cm, 2*cm, 3*cm])
-        tabla_resumen.setStyle(TableStyle([
-            ('BACKGROUND',    (0,0), (-1,0),  colors.HexColor('#0d2137')),
-            ('BACKGROUND',    (5,0), (5,0),   colors.HexColor('#1a7a4a')),
-            ('TEXTCOLOR',     (0,0), (-1,0),  colors.white),
-            ('FONTNAME',      (0,0), (-1,0),  'Helvetica-Bold'),
-            ('FONTSIZE',      (0,0), (-1,0),  7),
-            ('GRID',          (0,0), (-1,-1), 0.5, colors.HexColor('#dce6f0')),
-            ('ROWBACKGROUNDS',(0,1), (-1,-1), [colors.white, colors.HexColor('#f7f9fc')]),
-            ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
-            ('PADDING',       (0,0), (-1,-1), 4),
-            ('FONTSIZE',      (0,1), (-1,-1), 7),
-        ]))
-        elementos.append(tabla_resumen)
-        elementos.append(Spacer(1, 0.5*cm))
+        tabla_resumen = Table(
 
-    # ── DEVOLUCIONES ──────────────────────────────────────────
-    elementos.append(Paragraph('🔄  Devoluciones al almacen', estilo_seccion))
-    elementos.append(Spacer(1, 0.3*cm))
+            filas_resumen,
+
+            colWidths=[
+                4.2 * cm,
+                2.5 * cm,
+                3.0 * cm,
+                2.3 * cm,
+                2.0 * cm,
+                2.2 * cm,
+                2.2 * cm
+            ]
+        )
+
+        tabla_resumen.setStyle(
+            TableStyle([
+
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.HexColor(
+                        "#0d2137"
+                    )
+                ),
+
+                (
+                    "BACKGROUND",
+                    (6, 0),
+                    (6, 0),
+                    colors.HexColor(
+                        "#1a7a4a"
+                    )
+                ),
+
+                (
+                    "TEXTCOLOR",
+                    (0, 0),
+                    (-1, 0),
+                    colors.white
+                ),
+
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (-1, 0),
+                    "Helvetica-Bold"
+                ),
+
+                (
+                    "FONTSIZE",
+                    (0, 0),
+                    (-1, 0),
+                    7
+                ),
+
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.HexColor(
+                        "#dce6f0"
+                    )
+                ),
+
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, -1),
+                    [
+                        colors.white,
+                        colors.HexColor(
+                            "#f7f9fc"
+                        )
+                    ]
+                ),
+
+                (
+                    "VALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "MIDDLE"
+                ),
+
+                (
+                    "PADDING",
+                    (0, 0),
+                    (-1, -1),
+                    4
+                ),
+
+                (
+                    "FONTSIZE",
+                    (0, 1),
+                    (-1, -1),
+                    7
+                )
+            ])
+        )
+
+        elementos.append(
+            tabla_resumen
+        )
+
+        elementos.append(
+            Spacer(
+                1,
+                0.5 * cm
+            )
+        )
+
+    # ========================================================
+    # DEVOLUCIONES
+    # ========================================================
+
+    elementos.append(
+        Paragraph(
+            "Devoluciones al almacén",
+            estilo_seccion
+        )
+    )
+
+    elementos.append(
+        Spacer(
+            1,
+            0.3 * cm
+        )
+    )
 
     if not devoluciones:
-        elementos.append(Paragraph('Sin devoluciones registradas.', estilo_valor))
+
+        elementos.append(
+            Paragraph(
+                "Sin devoluciones registradas.",
+                estilo_valor
+            )
+        )
+
     else:
+
         for dev in devoluciones:
-            fecha_str  = dev.get('fecha', '')[:10] if dev.get('fecha') else ''
-            sede_str   = dev.get('sede_nombre', '')
-            motivo_str = dev.get('motivo', '')
-            sal_str    = dev.get('salida_numero', '')
-            elementos.append(Paragraph(
-                f"{dev['numero_documento']}  ·  {fecha_str}{('  ·  ' + sede_str) if sede_str else ''}",
-                estilo_sub
-            ))
-            elementos.append(Paragraph(
-                f"Motivo: {motivo_str or '—'}   Salida origen: {sal_str or '—'}",
-                ParagraphStyle('mot', fontSize=7, textColor=colors.HexColor('#6b8aab'))
-            ))
-            elementos.append(Spacer(1, 0.15*cm))
+
+            fecha = dev.get(
+                "fecha_creacion"
+            )
+
+            if fecha:
+
+                fecha_str = str(
+                    fecha
+                )[:10]
+
+            else:
+
+                fecha_str = ""
+
+            sede_str = (
+                dev.get(
+                    "sede_nombre"
+                )
+                or ""
+            )
+
+            motivo_str = (
+                dev.get(
+                    "motivo"
+                )
+                or ""
+            )
+
+            salida_str = (
+                dev.get(
+                    "salida_numero"
+                )
+                or ""
+            )
+
+            elementos.append(
+                Paragraph(
+
+                    (
+                        f'{dev["numero_documento"]}'
+                        f' · '
+                        f'{fecha_str}'
+
+                        + (
+                            f' · {sede_str}'
+                            if sede_str
+                            else ""
+                        )
+                    ),
+
+                    estilo_sub
+                )
+            )
+
+            elementos.append(
+                Paragraph(
+
+                    (
+                        f"Motivo: "
+                        f"{motivo_str or '—'}"
+                        f"   "
+                        f"Salida origen: "
+                        f"{salida_str or '—'}"
+                    ),
+
+                    ParagraphStyle(
+                        "mot",
+                        fontSize=7,
+                        textColor=colors.HexColor(
+                            "#6b8aab"
+                        )
+                    )
+                )
+            )
+            elementos.append(
+                Spacer(
+                    1,
+                    0.15 * cm
+                )
+            )
 
             encabezados = [
-                Paragraph('Descripcion', estilo_encabezado),
-                Paragraph('Modelo',      estilo_encabezado),
-                Paragraph('N° Serial',   estilo_encabezado),
-                Paragraph('Marca',       estilo_encabezado),
-                Paragraph('Cant.',       estilo_encabezado),
-                Paragraph('Unidad',      estilo_encabezado),
+
+                Paragraph(
+                    "Descripción",
+                    estilo_encabezado
+                ),
+
+                Paragraph(
+                    "Modelo",
+                    estilo_encabezado
+                ),
+
+                Paragraph(
+                    "N° Serial",
+                    estilo_encabezado
+                ),
+
+                Paragraph(
+                    "Marca",
+                    estilo_encabezado
+                ),
+
+                Paragraph(
+                    "Cant.",
+                    estilo_encabezado
+                ),
+
+                Paragraph(
+                    "Unidad",
+                    estilo_encabezado
+                )
             ]
-            filas = [encabezados]
-            for item in dev['detalle']:
+
+            filas = [
+                encabezados
+            ]
+
+            for item in dev["detalle"]:
+
                 filas.append([
-                    Paragraph(item.get('nombre', ''), estilo_celda),
-                    Paragraph(item.get('modelo', '') or '', estilo_celda),
-                    Paragraph(item.get('serial', '') or '', estilo_celda),
-                    Paragraph(item.get('marca',  '') or '', estilo_celda),
-                    Paragraph(str(item.get('cantidad', '')), estilo_celda),
-                    Paragraph(item.get('unidad', '') or '', estilo_celda),
+
+                    Paragraph(
+                        item.get(
+                            "nombre",
+                            ""
+                        ),
+                        estilo_celda
+                    ),
+
+                    Paragraph(
+                        item.get(
+                            "modelo",
+                            ""
+                        ) or "",
+                        estilo_celda
+                    ),
+
+                    Paragraph(
+                        item.get(
+                            "serial",
+                            ""
+                        ) or "",
+                        estilo_celda
+                    ),
+
+                    Paragraph(
+                        item.get(
+                            "marca",
+                            ""
+                        ) or "",
+                        estilo_celda
+                    ),
+
+                    Paragraph(
+                        str(
+                            item.get(
+                                "cantidad",
+                                ""
+                            )
+                        ),
+                        estilo_celda
+                    ),
+
+                    Paragraph(
+                        item.get(
+                            "unidad_codigo",
+                            ""
+                        )
+                        or "UND",
+                        estilo_celda
+                    )
                 ])
 
-            tabla = Table(filas, colWidths=[5.5*cm, 3*cm, 3*cm, 2.5*cm, 2*cm, 2*cm])
-            tabla.setStyle(TableStyle([
-                ('BACKGROUND',    (0,0), (-1,0),  colors.HexColor('#1a6fc4')),
-                ('TEXTCOLOR',     (0,0), (-1,0),  colors.white),
-                ('FONTNAME',      (0,0), (-1,0),  'Helvetica-Bold'),
-                ('FONTSIZE',      (0,0), (-1,0),  7),
-                ('GRID',          (0,0), (-1,-1), 0.5, colors.HexColor('#dce6f0')),
-                ('ROWBACKGROUNDS',(0,1), (-1,-1), [colors.white, colors.HexColor('#f7f9fc')]),
-                ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
-                ('PADDING',       (0,0), (-1,-1), 4),
-                ('FONTSIZE',      (0,1), (-1,-1), 7),
-            ]))
-            elementos.append(tabla)
-            elementos.append(Spacer(1, 0.4*cm))
+            tabla = Table(
 
-    doc.build(elementos)
+                filas,
+
+                colWidths=[
+                    5.2 * cm,
+                    2.7 * cm,
+                    3.0 * cm,
+                    2.4 * cm,
+                    1.8 * cm,
+                    2.2 * cm
+                ]
+            )
+
+            tabla.setStyle(
+                TableStyle([
+
+                    (
+                        "BACKGROUND",
+                        (0, 0),
+                        (-1, 0),
+                        colors.HexColor(
+                            "#1a6fc4"
+                        )
+                    ),
+
+                    (
+                        "TEXTCOLOR",
+                        (0, 0),
+                        (-1, 0),
+                        colors.white
+                    ),
+
+                    (
+                        "FONTNAME",
+                        (0, 0),
+                        (-1, 0),
+                        "Helvetica-Bold"
+                    ),
+
+                    (
+                        "FONTSIZE",
+                        (0, 0),
+                        (-1, 0),
+                        7
+                    ),
+
+                    (
+                        "GRID",
+                        (0, 0),
+                        (-1, -1),
+                        0.5,
+                        colors.HexColor(
+                            "#dce6f0"
+                        )
+                    ),
+
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 1),
+                        (-1, -1),
+                        [
+                            colors.white,
+                            colors.HexColor(
+                                "#f7f9fc"
+                            )
+                        ]
+                    ),
+
+                    (
+                        "VALIGN",
+                        (0, 0),
+                        (-1, -1),
+                        "MIDDLE"
+                    ),
+
+                    (
+                        "PADDING",
+                        (0, 0),
+                        (-1, -1),
+                        4
+                    ),
+
+                    (
+                        "FONTSIZE",
+                        (0, 1),
+                        (-1, -1),
+                        7
+                    )
+                ])
+            )
+
+            elementos.append(
+                tabla
+            )
+
+            elementos.append(
+                Spacer(
+                    1,
+                    0.4 * cm
+                )
+            )
+
+    # ========================================================
+    # GENERAR PDF
+    # ========================================================
+
+    doc.build(
+        elementos
+    )
+
     buffer.seek(0)
 
-    nombre_archivo = f'consolidado_{destino.replace(" ", "_")}.pdf'
+    nombre_archivo = (
+        "consolidado_"
+        f'{destino.replace(" ", "_")}.pdf'
+    )
+
     return send_file(
+
         buffer,
-        mimetype='application/pdf',
+
+        mimetype="application/pdf",
+
         as_attachment=False,
+
         download_name=nombre_archivo
     )

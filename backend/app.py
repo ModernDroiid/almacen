@@ -35,7 +35,14 @@ limiter.init_app(app)
 
 # Clave secreta para firmar los tokens JWT
 # En produccion esto deberia ser una variable de entorno
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'fallback-solo-desarrollo')
+jwt_secret = os.getenv('JWT_SECRET_KEY')
+
+if not jwt_secret:
+    raise RuntimeError(
+        'Falta configurar JWT_SECRET_KEY'
+    )
+
+app.config['JWT_SECRET_KEY'] = jwt_secret
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 28800  # 8 horas en segundos
 jwt = JWTManager(app)
 

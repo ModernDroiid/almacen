@@ -241,20 +241,109 @@ async function cargarCatalogos() {
     catalogoMarcas  = await resMarcas.json();
 }
 
-async function guardarModeloEnCatalogo(nombre) {
-    if (!nombre || !nombre.trim()) return;
-    await apiFetch(`${API}/catalogos/modelos`, {
+async function guardarMarcaEnCatalogo(nombre) {
+    nombre = (nombre || '').trim();
+
+    if (!nombre) {
+        throw new Error('Escribe el nombre de la marca.');
+    }
+
+    // Si ya existe, usamos su ID
+    let existente = catalogoMarcas.find(m =>
+        m.activa !== false &&
+        m.nombre.trim().toLowerCase() === nombre.toLowerCase()
+    );
+
+    if (existente) {
+        return Number(existente.id);
+    }
+
+    // Crear nueva marca
+    const res = await apiFetch(`${API}/catalogos/marcas`, {
         method: 'POST',
-        body: JSON.stringify({ nombre: nombre.trim() })
+        body: JSON.stringify({
+            nombre: nombre
+        })
     });
+
+    if (!res) {
+        throw new Error('No se pudo conectar con el servidor.');
+    }
+
+    const resultado = await res.json();
+
+    if (!res.ok) {
+        throw new Error(resultado.error || 'No se pudo guardar la marca.');
+    }
+
+    // Recargar catálogo
+    await cargarCatalogos();
+
+    existente = catalogoMarcas.find(m =>
+        m.activa !== false &&
+        m.nombre.trim().toLowerCase() === nombre.toLowerCase()
+    );
+
+    return existente
+        ? Number(existente.id)
+        : Number(resultado.id);
 }
 
-async function guardarMarcaEnCatalogo(nombre) {
-    if (!nombre || !nombre.trim()) return;
-    await apiFetch(`${API}/catalogos/marcas`, {
+
+async function guardarModeloEnCatalogo(nombre, marcaId) {
+    nombre = (nombre || '').trim();
+    marcaId = Number(marcaId);
+
+    if (!nombre) {
+        throw new Error('Escribe el nombre del modelo.');
+    }
+
+    if (!marcaId) {
+        throw new Error('Primero selecciona una marca.');
+    }
+
+    // Si ya existe para esa marca, usamos su ID
+    let existente = catalogoModelos.find(m =>
+        m.activo !== false &&
+        Number(m.marca_id) === marcaId &&
+        m.nombre.trim().toLowerCase() === nombre.toLowerCase()
+    );
+
+    if (existente) {
+        return Number(existente.id);
+    }
+
+    // Crear nuevo modelo asociado a la marca
+    const res = await apiFetch(`${API}/catalogos/modelos`, {
         method: 'POST',
-        body: JSON.stringify({ nombre: nombre.trim() })
+        body: JSON.stringify({
+            nombre: nombre,
+            marca_id: marcaId
+        })
     });
+
+    if (!res) {
+        throw new Error('No se pudo conectar con el servidor.');
+    }
+
+    const resultado = await res.json();
+
+    if (!res.ok) {
+        throw new Error(resultado.error || 'No se pudo guardar el modelo.');
+    }
+
+    // Recargar catálogo
+    await cargarCatalogos();
+
+    existente = catalogoModelos.find(m =>
+        m.activo !== false &&
+        Number(m.marca_id) === marcaId &&
+        m.nombre.trim().toLowerCase() === nombre.toLowerCase()
+    );
+
+    return existente
+        ? Number(existente.id)
+        : Number(resultado.id);
 }
 
 function crearComboHTML(tipo, placeholder) {
@@ -447,63 +536,172 @@ function limpiarFormMarca() {
     document.getElementById('modal-marca-titulo').textContent = 'Nueva marca';
 }
 
-// ══ PRODUCTOS (separados por sede) ════════════════════════════
+// ══ PRODUCTOS/SERIALES (separados por sede) ════════════════════════════
 
 async function cargarProductos() {
-    const respuesta = await apiFetch(urlConSede(`${API}/productos/`));
+    const respuesta = await apiFetch(
+        urlConSede(`${API}/productos/`)
+    );
+
     if (!respuesta) return;
+
     const productos = await respuesta.json();
 
     const total    = productos.length;
     const agotados = productos.filter(p => p.stock === 0).length;
-    const bajos    = productos.filter(p => p.stock > 0 && p.stock <= 5).length;
+    const bajos    = productos.filter(
+        p => p.stock > 0 && p.stock <= 5
+    ).length;
     const enstock  = total - agotados - bajos;
 
-    document.getElementById('stat-total').textContent    = total;
-    document.getElementById('stat-enstock').textContent  = enstock;
-    document.getElementById('stat-bajo').textContent     = bajos;
-    document.getElementById('stat-agotados').textContent = agotados;
-    document.getElementById('subtitulo-productos').textContent = `${total} productos registrados`;
+    document.getElementById('stat-total').textContent =
+        total;
 
-    const tbody = document.getElementById('tabla-productos');
+    document.getElementById('stat-enstock').textContent =
+        enstock;
+
+    document.getElementById('stat-bajo').textContent =
+        bajos;
+
+    document.getElementById('stat-agotados').textContent =
+        agotados;
+
+    document.getElementById(
+        'subtitulo-productos'
+    ).textContent =
+        `${total} productos registrados`;
+
+    const tbody =
+        document.getElementById('tabla-productos');
+
     tbody.innerHTML = '';
 
     if (total === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#6b8aab;padding:2rem">Sin productos registrados</td></tr>';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7"
+                    style="text-align:center;color:#6b8aab;padding:2rem">
+                    Sin productos registrados
+                </td>
+            </tr>
+        `;
         return;
     }
 
     productos.forEach(p => {
-        let badgeClase, badgeTexto;
+
+        let badgeClase;
+        let badgeTexto;
+
         if (p.stock === 0) {
-            badgeClase = 'badge-agotado'; badgeTexto = 'Agotado';
+            badgeClase = 'badge-agotado';
+            badgeTexto = 'Agotado';
+
         } else if (p.stock <= 5) {
-            badgeClase = 'badge-minimo'; badgeTexto = 'Stock bajo';
+            badgeClase = 'badge-minimo';
+            badgeTexto = 'Stock bajo';
+
         } else {
-            badgeClase = 'badge-ok'; badgeTexto = 'En stock';
+            badgeClase = 'badge-ok';
+            badgeTexto = 'En stock';
         }
 
-        tbody.insertAdjacentHTML('beforeend', `
+        const botonEquipos =
+            p.requiere_serial
+                ? `
+                    <button
+                        class="btn-accion"
+                        onclick="verEquiposProducto(${p.id})">
+                        👁️ Ver equipos
+                    </button>
+                  `
+                : '';
+
+        tbody.insertAdjacentHTML(
+            'beforeend',
+            `
             <tr>
-                <td><span style="font-family:monospace;font-size:12px;color:#1a6fc4;font-weight:600">${p.codigo || '—'}</span></td>
+
                 <td>
-                    <strong>${p.nombre}</strong>
-                    <div class="sub">${sanitizar(p.descripcion)}</div>
+                    <span
+                        style="
+                            font-family:monospace;
+                            font-size:12px;
+                            color:#1a6fc4;
+                            font-weight:600
+                        ">
+                        ${p.codigo || '—'}
+                    </span>
                 </td>
-                <td><span style="font-size:11px;color:#4a6080">${p.sede_nombre || '—'}</span></td>
-                <td>${p.unidad}</td>
-                <td>${p.stock}</td>
-                <td><span class="badge ${badgeClase}">${badgeTexto}</span></td>
+
                 <td>
-                    <div class="acciones">
-                        ${usuario.rol !== 'consulta' ? `
-                            <button class="btn-accion" onclick="editarProducto(${p.id})">✏️ Editar</button>
-                            <button class="btn-accion danger" onclick="eliminarProducto(${p.id}, '${p.nombre}')">🗑️ Eliminar</button>
-                        ` : ''}
+                    <strong>
+                        ${sanitizar(p.nombre)}
+                    </strong>
+
+                    <div class="sub">
+                        ${sanitizar(p.descripcion)}
                     </div>
                 </td>
+
+                <td>
+                    <span
+                        style="
+                            font-size:11px;
+                            color:#4a6080
+                        ">
+                        ${sanitizar(p.sede_nombre || '—')}
+                    </span>
+                </td>
+
+                <td>
+                    ${sanitizar(p.unidad || 'UND')}
+                </td>
+
+                <td>
+                    ${p.stock}
+                </td>
+
+                <td>
+                    <span class="badge ${badgeClase}">
+                        ${badgeTexto}
+                    </span>
+                </td>
+
+                <td>
+                    <div class="acciones">
+
+                        ${botonEquipos}
+
+                        ${
+                            usuario.rol === 'admin'
+                                ? `
+                                    <button
+                                        class="btn-accion"
+                                        onclick="editarProducto(${p.id})">
+                                        ✏️ Editar
+                                    </button>
+
+                                    <button
+                                        class="btn-accion danger"
+                                        onclick="eliminarProducto(
+                                            ${p.id},
+                                            '${String(
+                                                p.nombre || ''
+                                            ).replace(/'/g, "\\'")}'
+                                        )">
+                                        🗑️ Eliminar
+                                    </button>
+                                  `
+                                : ''
+                        }
+
+                    </div>
+                </td>
+
             </tr>
-        `);
+            `
+        );
     });
 }
 
@@ -588,15 +786,39 @@ function limpiarFormProducto() {
 let productosCache = [];
 
 async function generarNumeroEntrada() {
-    const fecha = document.getElementById('ent-fecha').value;
-    const obra  = document.getElementById('ent-obra').value.trim();
-    if (!fecha || !obra) return;
-    const base       = `ENT-${fecha}-${obra.toUpperCase().replace(/ /g, '-')}`;
-    const res        = await apiFetch(`${API}/entradas/`);
+    const fecha =
+        document.getElementById('ent-fecha')?.value || '';
+
+    const campoOrigen =
+        document.getElementById('ent-origen') ||
+        document.getElementById('ent-obra');
+
+    const origen =
+        campoOrigen
+            ? campoOrigen.value.trim()
+            : '';
+
+    if (!fecha || !origen) return;
+
+    const base =
+        `ENT-${fecha}-${origen.toUpperCase().replace(/\s+/g, '-')}`;
+
+    const res =
+        await apiFetch(`${API}/entradas/`);
+
     if (!res) return;
-    const entradas   = await res.json();
-    const existentes = entradas.filter(e => e.numero_documento.startsWith(base));
-    document.getElementById('ent-numero').value = `${base}-${existentes.length + 1}`;
+
+    const entradas =
+        await res.json();
+
+    const existentes =
+        entradas.filter(e =>
+            String(e.numero_documento || '')
+                .startsWith(base)
+        );
+
+    document.getElementById('ent-numero').value =
+        `${base}-${existentes.length + 1}`;
 }
 
 let entradasCache = [];
@@ -685,131 +907,1059 @@ function filtrarEntradas() {
 }
 
 async function agregarItemEntrada() {
-    // ✅ Siempre recarga productos según la sede seleccionada en el modal
-    const sedeEntrada = parseInt(document.getElementById('ent-sede').value) || sedeActual;
-    const urlProductos = usuario.rol === 'admin' && sedeEntrada
-        ? `${API}/productos/?sede_id=${sedeEntrada}`
-        : urlConSede(`${API}/productos/`);
+
+    const sedeEntrada =
+        parseInt(document.getElementById('ent-sede').value) || sedeActual;
+
+    const urlProductos =
+        usuario.rol === 'admin' && sedeEntrada
+            ? `${API}/productos/?sede_id=${sedeEntrada}`
+            : urlConSede(`${API}/productos/`);
 
     const res = await apiFetch(urlProductos);
+
     if (!res) return;
+
     productosCache = await res.json();
-    if (catalogoModelos.length === 0 && catalogoMarcas.length === 0) {
-        await cargarCatalogos();
+
+    if (!Array.isArray(productosCache)) {
+        alert('No se pudieron cargar los productos.');
+        return;
     }
 
-    const opciones = productosCache
-        .map(p => `<option value="${p.id}" data-unidad="${p.unidad || 'UND'}">[${p.codigo||'—'}] ${p.nombre}</option>`)
+    // Cargar catálogos
+    await cargarCatalogos();
+
+    const opciones = productosCache.map(p => `
+        <option
+            value="${p.id}"
+            data-unidad="${p.unidad || 'UND'}"
+            data-requiere-serial="${p.requiere_serial ? 'true' : 'false'}">
+            [${p.codigo || '—'}] ${p.nombre}
+        </option>
+    `).join('');
+
+    const unidadesDisponibles = [
+        'UND',
+        'MTS',
+        'KG',
+        'CAJA',
+        'ROLLO',
+        'LITRO'
+    ];
+
+    const opcionesUnidad = unidadesDisponibles
+        .map(u => `<option value="${u}">${u}</option>`)
         .join('');
 
-    const unidadesDisponibles = ['UND','MTS','KG','CAJA','ROLLO','LITRO'];
-    const opcionesUnidad = unidadesDisponibles.map(u => `<option value="${u}">${u}</option>`).join('');
-
     const item = document.createElement('div');
-    item.style.cssText = 'display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr 70px 55px 30px;gap:6px;align-items:start';
+
+    item.className = 'item-entrada';
+
+    item.style.cssText = `
+        display:grid;
+        grid-template-columns:2fr 100px 70px;
+        gap:6px;
+        align-items:start;
+        margin-bottom:10px;
+        padding:8px;
+        border:1px solid #dbe5f0;
+        border-radius:8px;
+        background:#f8fbff;
+    `;
+
     item.innerHTML = `
-        <select class="select-producto" style="border:0.5px solid #c8d8ea;border-radius:8px;padding:6px 8px;font-size:12px;color:#0d2137;width:100%;min-width:0;height:32px">
+        <select
+            class="select-producto"
+            style="
+                width:100%;
+                padding:8px;
+                border:1px solid #ccd8e5;
+                border-radius:6px;
+            ">
             ${opciones}
         </select>
-        ${crearComboHTML('modelo', 'Modelo')}
-        ${crearComboHTML('marca', 'Marca')}
-        <input type="text" placeholder="Serial"
-               style="border:0.5px solid #c8d8ea;border-radius:8px;padding:6px 8px;font-size:12px;width:100%;min-width:0;height:32px;box-sizing:border-box">
-        <select class="select-unidad" style="border:0.5px solid #c8d8ea;border-radius:8px;padding:6px 4px;font-size:12px;color:#0d2137;width:100%;min-width:0;height:32px">
+
+        <select
+            class="select-unidad"
+            style="
+                width:100%;
+                padding:8px;
+                border:1px solid #ccd8e5;
+                border-radius:6px;
+            ">
             ${opcionesUnidad}
         </select>
-        <input type="number" min="1" value="1"
-               style="border:0.5px solid #c8d8ea;border-radius:8px;padding:6px 8px;font-size:12px;text-align:center;width:100%;min-width:0;height:32px;box-sizing:border-box">
-        <button type="button"
-                style="background:#fdecea;border:none;border-radius:6px;color:#c0392b;cursor:pointer;font-size:14px;width:30px;height:32px;flex-shrink:0"
-                onclick="this.parentElement.remove()">✕</button>
-    `;
-    document.getElementById('ent-items').appendChild(item);
-    item.querySelectorAll('.combo-wrap').forEach(activarCombo);
 
-    const selectProducto = item.querySelector('.select-producto');
-    const selectUnidad    = item.querySelector('.select-unidad');
+        <input
+            type="number"
+            class="input-cantidad"
+            min="1"
+            value="1"
+            style="
+                width:100%;
+                padding:8px;
+                border:1px solid #ccd8e5;
+                border-radius:6px;
+            ">
+
+        <div
+            class="seriales-container"
+            style="
+                grid-column:1 / -1;
+                display:none;
+                padding:10px;
+                margin-top:4px;
+                border-top:1px solid #dbe5f0;
+            ">
+        </div>
+
+        <button
+            type="button"
+            style="
+                grid-column:1 / -1;
+                width:max-content;
+                padding:5px 10px;
+                border:none;
+                border-radius:6px;
+                background:#dc3545;
+                color:white;
+                cursor:pointer;
+            "
+            onclick="this.parentElement.remove()">
+            ✕ Quitar producto
+        </button>
+    `;
+
+    document
+        .getElementById('ent-items')
+        .appendChild(item);
+
+    const selectProducto =
+        item.querySelector('.select-producto');
+
+    const selectUnidad =
+        item.querySelector('.select-unidad');
+
+    const inputCantidad =
+        item.querySelector('.input-cantidad');
+
+    const serialesContainer =
+        item.querySelector('.seriales-container');
+
+
+    // =========================================================
+    // UNIDAD AUTOMÁTICA
+    // =========================================================
+
     function autocompletarUnidad() {
-        const opcion = selectProducto.options[selectProducto.selectedIndex];
-        selectUnidad.value = opcion?.dataset.unidad || 'UND';
+
+        const opcion =
+            selectProducto.options[
+                selectProducto.selectedIndex
+            ];
+
+        selectUnidad.value =
+            opcion?.dataset.unidad || 'UND';
+
+        actualizarSeriales();
     }
-    selectProducto.addEventListener('change', autocompletarUnidad);
+
+
+    // =========================================================
+    // EQUIPOS SERIALIZADOS
+    // =========================================================
+
+    function actualizarSeriales() {
+
+        const opcion =
+            selectProducto.options[
+                selectProducto.selectedIndex
+            ];
+
+        const requiereSerial =
+            opcion?.dataset.requiereSerial === 'true';
+
+        const cantidad =
+            parseInt(inputCantidad.value) || 1;
+
+
+        // -----------------------------------------------------
+        // PRODUCTO NORMAL
+        // -----------------------------------------------------
+
+        if (!requiereSerial) {
+
+            serialesContainer.style.display = 'none';
+            serialesContainer.innerHTML = '';
+
+            return;
+        }
+
+
+        // -----------------------------------------------------
+        // PRODUCTO SERIALIZADO
+        // -----------------------------------------------------
+
+        serialesContainer.style.display = 'block';
+
+        serialesContainer.innerHTML = `
+            <div style="
+                font-weight:600;
+                margin-bottom:10px;
+                color:#294d73;
+            ">
+                📦 Equipos serializados
+            </div>
+        `;
+
+
+        for (let i = 0; i < cantidad; i++) {
+
+            const fila =
+                document.createElement('div');
+
+            fila.style.cssText = `
+                display:grid;
+                grid-template-columns:40px 1fr 1fr 1fr;
+                gap:8px;
+                margin-bottom:8px;
+                align-items:center;
+            `;
+
+
+            // =================================================
+            // MARCAS
+            // =================================================
+
+            const opcionesMarcas =
+                catalogoMarcas
+                    .filter(m => m.activa !== false)
+                    .map(m => `
+                        <option value="${m.id}">
+                            ${m.nombre}
+                        </option>
+                    `)
+                    .join('');
+
+
+            fila.innerHTML = `
+                <strong style="color:#4a6080;">
+                    #${i + 1}
+                </strong>
+
+                <input
+                    type="text"
+                    class="serial-equipo"
+                    placeholder="Serial"
+                    style="
+                        width:100%;
+                        padding:8px;
+                        border:1px solid #ccd8e5;
+                        border-radius:6px;
+                    ">
+
+                <select
+                    class="marca-equipo"
+                    style="
+                        width:100%;
+                        padding:8px;
+                        border:1px solid #ccd8e5;
+                        border-radius:6px;
+                    ">
+
+                    <option value="">
+                        — Selecciona marca —
+                    </option>
+
+                    ${opcionesMarcas}
+
+                    <option value="__nueva__">
+                        + Nueva marca...
+                    </option>
+
+                </select>
+
+                <select
+                    class="modelo-equipo"
+                    style="
+                        width:100%;
+                        padding:8px;
+                        border:1px solid #ccd8e5;
+                        border-radius:6px;
+                    ">
+
+                    <option value="">
+                        — Selecciona modelo —
+                    </option>
+
+                </select>
+
+                <input
+                    type="text"
+                    class="nueva-marca"
+                    placeholder="Escribe la nueva marca"
+                    style="
+                        display:none;
+                        grid-column:3 / 5;
+                        width:100%;
+                        padding:8px;
+                        border:1px solid #ccd8e5;
+                        border-radius:6px;
+                    ">
+
+                <input
+                    type="text"
+                    class="nuevo-modelo"
+                    placeholder="Escribe el nuevo modelo"
+                    style="
+                        display:none;
+                        grid-column:3 / 5;
+                        width:100%;
+                        padding:8px;
+                        border:1px solid #ccd8e5;
+                        border-radius:6px;
+                    ">
+            `;
+
+
+            const selectMarca =
+                fila.querySelector('.marca-equipo');
+
+            const selectModelo =
+                fila.querySelector('.modelo-equipo');
+
+            const nuevaMarca =
+                fila.querySelector('.nueva-marca');
+
+            const nuevoModelo =
+                fila.querySelector('.nuevo-modelo');
+
+
+            // =================================================
+            // CAMBIAR MARCA
+            // =================================================
+
+            selectMarca.addEventListener('change', () => {
+
+                const marcaId =
+                    selectMarca.value;
+
+
+                // -----------------------------
+                // Nueva marca
+                // -----------------------------
+
+                if (marcaId === '__nueva__') {
+
+                    nuevaMarca.style.display = 'block';
+
+                    selectModelo.innerHTML = `
+                        <option value="">
+                            — Escribe primero la marca —
+                        </option>
+                    `;
+
+                    nuevoModelo.style.display = 'block';
+
+                    return;
+                }
+
+
+                // -----------------------------
+                // Marca existente
+                // -----------------------------
+
+                nuevaMarca.style.display = 'none';
+                nuevaMarca.value = '';
+
+                nuevoModelo.style.display = 'none';
+                nuevoModelo.value = '';
+
+
+                const modelosFiltrados =
+                    catalogoModelos.filter(m =>
+                        m.activo !== false &&
+                        Number(m.marca_id) === Number(marcaId)
+                    );
+
+
+                selectModelo.innerHTML = `
+                    <option value="">
+                        — Selecciona modelo —
+                    </option>
+
+                    ${modelosFiltrados.map(m => `
+                        <option value="${m.id}">
+                            ${m.nombre}
+                        </option>
+                    `).join('')}
+
+                    <option value="__nuevo__">
+                        + Nuevo modelo...
+                    </option>
+                `;
+            });
+
+
+            // =================================================
+            // NUEVO MODELO
+            // =================================================
+
+            selectModelo.addEventListener('change', () => {
+
+                if (selectModelo.value === '__nuevo__') {
+
+                    nuevoModelo.style.display = 'block';
+
+                } else {
+
+                    nuevoModelo.style.display = 'none';
+                    nuevoModelo.value = '';
+                }
+            });
+
+
+            serialesContainer.appendChild(fila);
+        }
+    }
+
+
+    // =========================================================
+    // EVENTOS
+    // =========================================================
+
+    selectProducto.addEventListener(
+        'change',
+        autocompletarUnidad
+    );
+
+    inputCantidad.addEventListener(
+        'input',
+        actualizarSeriales
+    );
+
+
+    // =========================================================
+    // INICIALIZAR
+    // =========================================================
+
     autocompletarUnidad();
+    actualizarSeriales();
 }
 
 async function guardarEntrada(event) {
     event.preventDefault();
 
-    const numero = document.getElementById('ent-numero').value;
-    if (!numero) {
-        alert('Escribe el Origen para generar el numero de documento');
-        return;
-    }
+    try {
+        // =====================================================
+        // NÚMERO DE DOCUMENTO
+        // =====================================================
 
-    const filas = document.getElementById('ent-items').querySelectorAll(':scope > div');
-    if (filas.length === 0) {
-        alert('Agrega al menos un producto');
-        return;
-    }
+        const numero = document
+            .getElementById('ent-numero')
+            .value
+            .trim();
 
-    const detalle = Array.from(filas).map(fila => {
-        const selectProducto = fila.querySelector('.select-producto');
-        const selectUnidad   = fila.querySelector('.select-unidad');
-        const comboModelo    = fila.querySelector('[data-tipo="modelo"] .combo-input');
-        const comboMarca     = fila.querySelector('[data-tipo="marca"] .combo-input');
-        const inputSerial    = fila.querySelectorAll('input[type="text"]')[2];
-        const inputCantidad  = fila.querySelector('input[type="number"]');
-        return {
-            producto_id: parseInt(selectProducto.value),
-            unidad:      selectUnidad.value,
-            modelo:      comboModelo.value,
-            marca:       comboMarca.value,
-            serial:      inputSerial ? inputSerial.value : '',
-            cantidad:    parseInt(inputCantidad.value) || 1
-        };
-    });
-
-    const datos = {
-        numero_documento: numero,
-        obra:             document.getElementById('ent-obra').value,
-        destino:          document.getElementById('ent-destino').value || 'Almacen',
-        observaciones:    document.getElementById('ent-observaciones').value,
-        sede_id:          parseInt(document.getElementById('ent-sede').value) || sedeActual,
-        detalle:          detalle
-    };
-
-    const res = await apiFetch(`${API}/entradas/`, {
-        method: 'POST',
-        body: JSON.stringify(datos)
-    });
-
-    if (!res) return;
-    const resultado = await res.json();
-
-    if (res.ok) {
-        for (const item of detalle) {
-            await guardarModeloEnCatalogo(item.modelo);
-            await guardarMarcaEnCatalogo(item.marca);
+        if (!numero) {
+            alert('Escribe el número de documento.');
+            return;
         }
-        await cargarCatalogos();
-        cerrarModal('modal-entrada');
+
+
+        // =====================================================
+        // FILAS DE PRODUCTOS
+        // =====================================================
+
+        const filas = document
+            .getElementById('ent-items')
+            .querySelectorAll(':scope > .item-entrada');
+
+        if (filas.length === 0) {
+            alert('Agrega al menos un producto.');
+            return;
+        }
+
+
+        const detalle = [];
+
+
+        // =====================================================
+        // PROCESAR PRODUCTOS
+        // =====================================================
+
+        for (const fila of filas) {
+
+            const selectProducto =
+                fila.querySelector('.select-producto');
+
+            const selectUnidad =
+                fila.querySelector('.select-unidad');
+
+            const inputCantidad =
+                fila.querySelector('.input-cantidad');
+
+            const serialesContainer =
+                fila.querySelector('.seriales-container');
+
+            const productoId =
+                parseInt(selectProducto?.value);
+
+            const cantidad =
+                parseInt(inputCantidad?.value) || 1;
+
+            const unidad =
+                selectUnidad?.value || 'UND';
+
+
+            // =================================================
+            // VALIDAR PRODUCTO
+            // =================================================
+
+            if (!productoId) {
+                throw new Error(
+                    'Selecciona un producto.'
+                );
+            }
+
+
+            const producto =
+                productosCache.find(
+                    p => Number(p.id) === productoId
+                );
+
+
+            if (!producto) {
+                throw new Error(
+                    'No se encontró el producto seleccionado.'
+                );
+            }
+
+
+            const requiereSerial =
+                producto.requiere_serial === true ||
+                producto.requiere_serial === 1;
+
+
+            const item = {
+                producto_id: productoId,
+                unidad: unidad,
+                cantidad: cantidad,
+                unidades: []
+            };
+
+
+            // =====================================================
+            // PRODUCTO SERIALIZADO
+            // =====================================================
+
+            if (requiereSerial) {
+
+                if (!serialesContainer) {
+                    throw new Error(
+                        `No se encontró el área de seriales para "${producto.nombre}".`
+                    );
+                }
+
+
+                const inputsSerial =
+                    serialesContainer.querySelectorAll(
+                        '.serial-equipo'
+                    );
+
+
+                if (inputsSerial.length !== cantidad) {
+
+                    throw new Error(
+                        `El producto "${producto.nombre}" requiere ${cantidad} equipo(s) serializado(s).`
+                    );
+                }
+
+
+                // =================================================
+                // PROCESAR CADA EQUIPO
+                // =================================================
+
+                for (const inputSerial of inputsSerial) {
+
+                    const filaEquipo =
+                        inputSerial.closest('div');
+
+
+                    const serial =
+                        inputSerial.value.trim();
+
+
+                    const selectMarca =
+                        filaEquipo.querySelector(
+                            '.marca-equipo'
+                        );
+
+
+                    const selectModelo =
+                        filaEquipo.querySelector(
+                            '.modelo-equipo'
+                        );
+
+
+                    const inputNuevaMarca =
+                        filaEquipo.querySelector(
+                            '.nueva-marca'
+                        );
+
+
+                    const inputNuevoModelo =
+                        filaEquipo.querySelector(
+                            '.nuevo-modelo'
+                        );
+
+
+                    // =============================================
+                    // SERIAL
+                    // =============================================
+
+                    if (!serial) {
+
+                        throw new Error(
+                            'Todos los equipos serializados deben tener serial.'
+                        );
+                    }
+
+
+                    // =============================================
+                    // MARCA
+                    // =============================================
+
+                    let marcaId = null;
+
+
+                    // ---------------------------------------------
+                    // Marca nueva
+                    // ---------------------------------------------
+
+                    if (
+                        selectMarca &&
+                        selectMarca.value === '__nueva__'
+                    ) {
+
+                        const nombreMarca =
+                            inputNuevaMarca?.value.trim();
+
+
+                        if (!nombreMarca) {
+
+                            throw new Error(
+                                `Escribe la nueva marca para el equipo ${serial}.`
+                            );
+                        }
+
+
+                        marcaId =
+                            await guardarMarcaEnCatalogo(
+                                nombreMarca
+                            );
+
+                    }
+
+
+                    // ---------------------------------------------
+                    // Marca existente
+                    // ---------------------------------------------
+
+                    else {
+
+                        marcaId =
+                            parseInt(
+                                selectMarca?.value
+                            );
+
+
+                        if (!marcaId) {
+
+                            throw new Error(
+                                `Selecciona una marca para el equipo ${serial}.`
+                            );
+                        }
+                    }
+
+
+                    // =================================================
+                    // MODELO
+                    // =================================================
+
+                    let modeloId = null;
+
+
+                    // ---------------------------------------------
+                    // Modelo nuevo
+                    // ---------------------------------------------
+
+                    if (
+                        selectModelo &&
+                        selectModelo.value === '__nuevo__'
+                    ) {
+
+                        const nombreModelo =
+                            inputNuevoModelo?.value.trim();
+
+
+                        if (!nombreModelo) {
+
+                            throw new Error(
+                                `Escribe el nuevo modelo para el equipo ${serial}.`
+                            );
+                        }
+
+
+                        modeloId =
+                            await guardarModeloEnCatalogo(
+                                nombreModelo,
+                                marcaId
+                            );
+                    }
+
+
+                    // ---------------------------------------------
+                    // Marca nueva
+                    // El modelo también se escribe manualmente
+                    // ---------------------------------------------
+
+                    else if (
+                        selectMarca &&
+                        selectMarca.value === '__nueva__'
+                    ) {
+
+                        const nombreModelo =
+                            inputNuevoModelo?.value.trim();
+
+
+                        if (!nombreModelo) {
+
+                            throw new Error(
+                                `Escribe el nuevo modelo para el equipo ${serial}.`
+                            );
+                        }
+
+
+                        modeloId =
+                            await guardarModeloEnCatalogo(
+                                nombreModelo,
+                                marcaId
+                            );
+                    }
+
+
+                    // ---------------------------------------------
+                    // Modelo existente
+                    // ---------------------------------------------
+
+                    else {
+
+                        modeloId =
+                            parseInt(
+                                selectModelo?.value
+                            );
+
+
+                        if (!modeloId) {
+
+                            throw new Error(
+                                `Selecciona un modelo para el equipo ${serial}.`
+                            );
+                        }
+                    }
+
+
+                    // =================================================
+                    // VERIFICAR MODELO
+                    // =================================================
+
+                    const modelo =
+                        catalogoModelos.find(
+                            m =>
+                                Number(m.id) ===
+                                Number(modeloId)
+                        );
+
+
+                    if (!modelo) {
+
+                        throw new Error(
+                            `No se encontró el modelo para el equipo ${serial}.`
+                        );
+                    }
+
+
+                    if (
+                        Number(modelo.marca_id) !==
+                        Number(marcaId)
+                    ) {
+
+                        throw new Error(
+                            `El modelo "${modelo.nombre}" no pertenece a la marca seleccionada.`
+                        );
+                    }
+
+
+                    // =================================================
+                    // AGREGAR EQUIPO
+                    // =================================================
+
+                    item.unidades.push({
+
+                        serial: serial,
+
+                        modelo_id:
+                            Number(modeloId)
+
+                    });
+                }
+            }
+
+
+            // =====================================================
+            // PRODUCTO NO SERIALIZADO
+            // =====================================================
+
+            else {
+
+                item.unidades = [];
+            }
+
+
+            // =====================================================
+            // AGREGAR DETALLE
+            // =====================================================
+
+            detalle.push(item);
+        }
+
+
+        // =========================================================
+        // ORIGEN
+        // =========================================================
+        //
+        // IMPORTANTE:
+        // El HTML antiguo probablemente tiene ent-obra.
+        //
+        // Primero intentamos ent-origen.
+        // Si todavía existe ent-obra, lo usamos como respaldo.
+        //
+        // Así no se rompe mientras actualizamos el HTML.
+        // =========================================================
+
+        const campoOrigen =
+            document.getElementById('ent-origen') ||
+            document.getElementById('ent-obra');
+
+
+        const origen =
+            campoOrigen
+                ? campoOrigen.value.trim()
+                : '';
+
+        console.log('ORIGEN LEÍDO DEL FORMULARIO:', origen);
+        console.log('CAMPO ORIGEN:', campoOrigen);
+
+        // =========================================================
+        // DESTINO
+        // =========================================================
+        //
+        // Para una entrada normal siempre es Almacén.
+        // Si posteriormente quieres manejar otros destinos,
+        // podremos convertirlo nuevamente en un campo seleccionable.
+        // =========================================================
+
+        const destino =
+            'Almacén';
+
+
+        // =========================================================
+        // OBSERVACIONES
+        // =========================================================
+
+        const campoObservaciones =
+            document.getElementById(
+                'ent-observaciones'
+            );
+
+
+        const observaciones =
+            campoObservaciones
+                ? campoObservaciones.value.trim()
+                : '';
+
+
+        // =========================================================
+        // SEDE
+        // =========================================================
+
+        const campoSede =
+            document.getElementById(
+                'ent-sede'
+            );
+
+
+        const sedeId =
+            parseInt(
+                campoSede?.value
+            ) || sedeActual;
+
+
+        // =========================================================
+        // DATOS DE LA ENTRADA
+        // =========================================================
+
+        const datos = {
+
+            numero_documento:
+                numero,
+
+            origen:
+                origen,
+
+            destino:
+                destino,
+
+            observaciones:
+                observaciones,
+
+            sede_id:
+                sedeId,
+
+            detalle:
+                detalle
+        };
+
+
+        console.log(
+            'DATOS ENVIADOS ENTRADA:',
+            datos
+        );
+
+        console.log('DATOS QUE SE ENVIARÁN A ENTRADAS:', datos);
+
+        // =========================================================
+        // ENVIAR AL BACKEND
+        // =========================================================
+
+        const res =
+            await apiFetch(
+                `${API}/entradas/`,
+                {
+                    method: 'POST',
+
+                    body:
+                        JSON.stringify(datos)
+                }
+            );
+
+
+        if (!res) return;
+
+
+        const resultado =
+            await res.json();
+
+
+        // =========================================================
+        // ERROR
+        // =========================================================
+
+        if (!res.ok) {
+
+            console.error(
+                'RESPUESTA DEL BACKEND AL GUARDAR ENTRADA:',
+                resultado
+            );
+        
+            throw new Error(
+                resultado.error ||
+                'No se pudo guardar la entrada.'
+            );
+        }
+
+
+        // =========================================================
+        // ÉXITO
+        // =========================================================
+
+        mostrarNotificacion(
+            'Entrada registrada correctamente.',
+            'exito'
+        );
+
+
+        cerrarModal(
+            'modal-entrada'
+        );
+
+
         limpiarFormEntrada();
-        cargarEntradas();
-        cargarProductos();
-    } else {
-        alert('Error: ' + resultado.error);
+
+
+        await cargarEntradas();
+
+
+        await cargarProductos();
+
+
+    } catch (error) {
+
+        console.error(
+            'Error al guardar entrada:',
+            error
+        );
+
+
+        alert(
+            'No se pudo guardar la entrada:\n\n' +
+            error.message
+        );
     }
 }
 
 function limpiarFormEntrada() {
-    document.getElementById('ent-numero').value        = '';
-    document.getElementById('ent-fecha').value         = '';
-    document.getElementById('ent-obra').value          = '';
-    document.getElementById('ent-destino').value       = 'Almacen';
-    document.getElementById('ent-observaciones').value = '';
-    document.getElementById('ent-items').innerHTML     = '';
-    document.getElementById('ent-sede').value = '';
-    productosCache = [];
+    const entNumero = document.getElementById('ent-numero');
+    const entFecha = document.getElementById('ent-fecha');
+    const entOrigen = document.getElementById('ent-origen');
+    const entObra = document.getElementById('ent-obra');
+    const entDestino = document.getElementById('ent-destino');
+    const entObservaciones = document.getElementById('ent-observaciones');
+    const entSede = document.getElementById('ent-sede');
+    const entItems = document.getElementById('ent-items');
+
+    if (entNumero) {
+        entNumero.value = '';
+    }
+
+    if (entFecha) {
+        entFecha.value = '';
+    }
+
+    if (entOrigen) {
+        entOrigen.value = '';
+    }
+
+    if (entObra) {
+        entObra.value = '';
+    }
+
+    if (entDestino) {
+        entDestino.value = 'Almacén';
+    }
+
+    if (entObservaciones) {
+        entObservaciones.value = '';
+    }
+
+    if (entSede) {
+        entSede.value = '';
+    }
+
+    if (entItems) {
+        entItems.innerHTML = '';
+    }
 }
 
 function verPDFEntrada(id) {
@@ -926,118 +2076,1304 @@ function filtrarSalidas() {
 }
 
 async function agregarItemSalida() {
-    const sedeSalida = parseInt(document.getElementById('sal-sede').value) || sedeActual;
-    const urlProductos = usuario.rol === 'admin' && sedeSalida
-        ? `${API}/productos/?sede_id=${sedeSalida}`
-        : urlConSede(`${API}/productos/`);
+    const sedeSalida =
+        parseInt(document.getElementById('sal-sede').value) || sedeActual;
+
+    const urlProductos =
+        usuario.rol === 'admin' && sedeSalida
+            ? `${API}/productos/?sede_id=${sedeSalida}`
+            : urlConSede(`${API}/productos/`);
 
     const res = await apiFetch(urlProductos);
     if (!res) return;
+
     productosCacheSalida = await res.json();
+
     if (catalogoModelos.length === 0 && catalogoMarcas.length === 0) {
         await cargarCatalogos();
     }
 
     const opciones = productosCacheSalida
-        .map(p => `<option value="${p.id}" data-stock="${p.stock}" data-unidad="${p.unidad || 'UND'}">[${p.codigo||'—'}] ${p.nombre} (disp: ${p.stock})</option>`)
+        .map(p => `
+            <option
+                value="${p.id}"
+                data-stock="${p.stock || 0}"
+                data-unidad="${p.unidad || 'UND'}"
+                data-serializado="${p.requiere_serial ? '1' : '0'}">
+                [${p.codigo || '—'}] ${p.nombre}
+                (disp: ${p.stock || 0})
+            </option>
+        `)
         .join('');
 
-    const unidadesDisponibles = ['UND','MTS','KG','CAJA','ROLLO','LITRO'];
-    const opcionesUnidad = unidadesDisponibles.map(u => `<option value="${u}">${u}</option>`).join('');
+    const unidadesDisponibles = [
+        'UND',
+        'MTS',
+        'KG',
+        'CAJA',
+        'ROLLO',
+        'LITRO'
+    ];
+
+    const opcionesUnidad = unidadesDisponibles
+        .map(u => `<option value="${u}">${u}</option>`)
+        .join('');
 
     const item = document.createElement('div');
-    item.style.cssText = 'display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr 70px 55px 30px;gap:6px;align-items:start';
-    item.innerHTML = `
-        <select class="select-producto" style="border:0.5px solid #c8d8ea;border-radius:8px;padding:6px 8px;font-size:12px;color:#0d2137;width:100%;min-width:0;height:32px">
-            ${opciones}
-        </select>
-        ${crearComboHTML('modelo', 'Modelo')}
-        ${crearComboHTML('marca', 'Marca')}
-        <input type="text" placeholder="Serial"
-               style="border:0.5px solid #c8d8ea;border-radius:8px;padding:6px 8px;font-size:12px;width:100%;min-width:0;height:32px;box-sizing:border-box">
-        <select class="select-unidad" style="border:0.5px solid #c8d8ea;border-radius:8px;padding:6px 4px;font-size:12px;color:#0d2137;width:100%;min-width:0;height:32px">
-            ${opcionesUnidad}
-        </select>
-        <input type="number" min="1" value="1"
-               style="border:0.5px solid #c8d8ea;border-radius:8px;padding:6px 8px;font-size:12px;text-align:center;width:100%;min-width:0;height:32px;box-sizing:border-box">
-        <button type="button"
-                style="background:#fdecea;border:none;border-radius:6px;color:#c0392b;cursor:pointer;font-size:14px;width:30px;height:32px;flex-shrink:0"
-                onclick="this.parentElement.remove()">✕</button>
-    `;
-    document.getElementById('sal-items').appendChild(item);
-    item.querySelectorAll('.combo-wrap').forEach(activarCombo);
 
-    const selectProducto = item.querySelector('.select-producto');
-    const selectUnidad    = item.querySelector('.select-unidad');
+    item.className = 'item-salida';
+
+    item.style.cssText = `
+        border:1px solid #d5e2f0;
+        border-radius:8px;
+        padding:8px;
+        margin-bottom:8px;
+        background:#f8fbff;
+    `;
+
+    item.innerHTML = `
+        <div style="
+            display:grid;
+            grid-template-columns:1.6fr 70px 70px;
+            gap:6px;
+            align-items:start;
+        ">
+
+            <select
+                class="select-producto"
+                style="
+                    border:0.5px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 8px;
+                    font-size:12px;
+                    color:#0d2137;
+                    width:100%;
+                    height:32px;
+                ">
+                ${opciones}
+            </select>
+
+            <select
+                class="select-unidad"
+                style="
+                    border:0.5px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 4px;
+                    font-size:12px;
+                    color:#0d2137;
+                    width:100%;
+                    height:32px;
+                ">
+                ${opcionesUnidad}
+            </select>
+
+            <input
+                type="number"
+                class="input-cantidad-salida"
+                min="1"
+                value="1"
+                style="
+                    border:0.5px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 8px;
+                    font-size:12px;
+                    text-align:center;
+                    width:100%;
+                    height:32px;
+                    box-sizing:border-box;
+                ">
+        </div>
+
+        <div
+            class="equipos-salida-container"
+            style="
+                display:none;
+                margin-top:8px;
+                border-top:1px solid #dce7f2;
+                padding-top:8px;
+            ">
+
+            <div style="
+                font-weight:600;
+                color:#315b87;
+                font-size:13px;
+                margin-bottom:7px;
+            ">
+                📦 Equipos serializados
+            </div>
+
+            <div class="equipos-salida-lista"></div>
+        </div>
+
+        <div style="
+            margin-top:8px;
+            display:flex;
+            justify-content:flex-start;
+        ">
+            <button
+                type="button"
+                class="btn-quitar-salida"
+                style="
+                    background:#fdecea;
+                    border:none;
+                    border-radius:6px;
+                    color:#c0392b;
+                    cursor:pointer;
+                    font-size:12px;
+                    padding:6px 10px;
+                ">
+                ✕ Quitar producto
+            </button>
+        </div>
+    `;
+
+    document.getElementById('sal-items').appendChild(item);
+
+    const selectProducto =
+        item.querySelector('.select-producto');
+
+    const selectUnidad =
+        item.querySelector('.select-unidad');
+
+    const inputCantidad =
+        item.querySelector('.input-cantidad-salida');
+
+    const contenedorEquipos =
+        item.querySelector('.equipos-salida-container');
+
+    const listaEquipos =
+        item.querySelector('.equipos-salida-lista');
+
+    const botonQuitar =
+        item.querySelector('.btn-quitar-salida');
+
+    let equiposDisponibles = [];
+
+    botonQuitar.addEventListener('click', () => {
+        item.remove();
+    });
+
     function autocompletarUnidad() {
-        const opcion = selectProducto.options[selectProducto.selectedIndex];
-        selectUnidad.value = opcion?.dataset.unidad || 'UND';
+        const opcion =
+            selectProducto.options[
+                selectProducto.selectedIndex
+            ];
+
+        if (opcion) {
+            selectUnidad.value =
+                opcion.dataset.unidad || 'UND';
+        }
     }
-    selectProducto.addEventListener('change', autocompletarUnidad);
+
+    function obtenerEquiposSeleccionados() {
+        return Array.from(
+            listaEquipos.querySelectorAll('.select-equipo-salida')
+        )
+            .map(select => parseInt(select.value))
+            .filter(Boolean);
+    }
+
+    function refrescarOpcionesEquipos() {
+
+        const filas =
+            listaEquipos.querySelectorAll(
+                '.fila-equipo-salida'
+            );
+
+        const usados = new Set();
+
+        filas.forEach(fila => {
+
+            const inputSerial =
+                fila.querySelector(
+                    '.input-serial-equipo'
+                );
+
+            const inputEquipoId =
+                fila.querySelector(
+                    '.select-equipo-salida'
+                );
+
+            const serial =
+                inputSerial?.value
+                    ?.trim()
+                    ?.toLowerCase();
+
+            const equipoId =
+                parseInt(inputEquipoId?.value) || 0;
+
+            if (serial) {
+
+                if (usados.has(serial)) {
+
+                    inputSerial.style.borderColor =
+                        '#e74c3c';
+
+                } else {
+
+                    usados.add(serial);
+
+                    if (equipoId) {
+                        inputSerial.style.borderColor =
+                            '#27ae60';
+                    }
+                }
+            }
+        });
+    }
+
+function crearFilaEquipo(indice) {
+
+    const fila = document.createElement('div');
+
+    fila.className = 'fila-equipo-salida';
+
+    fila.style.cssText = `
+        display:grid;
+        grid-template-columns:45px 1.2fr 1fr 1fr;
+        gap:6px;
+        align-items:start;
+        margin-bottom:6px;
+    `;
+
+    // Datalist con los seriales disponibles
+    const idDatalist = `lista-seriales-salida-${Date.now()}-${indice}`;
+
+    const opcionesSeriales = equiposDisponibles
+        .filter(equipo => equipo.estado === 'DISPONIBLE')
+        .map(equipo => `
+            <option value="${equipo.serial || ''}">
+                ${equipo.serial || 'SIN SERIAL'}
+            </option>
+        `)
+        .join('');
+
+    fila.innerHTML = `
+        <div style="
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            height:32px;
+            background:#e8f1fa;
+            border-radius:6px;
+            color:#315b87;
+            font-size:12px;
+            font-weight:600;
+        ">
+            #${indice}
+        </div>
+
+        <!-- ID DEL EQUIPO -->
+        <input
+            type="hidden"
+            class="select-equipo-salida"
+            value=""
+        >
+
+        <!-- SERIAL -->
+        <div>
+            <input
+                type="text"
+                class="input-serial-equipo"
+                list="${idDatalist}"
+                placeholder="Escribe o escanea el serial"
+                autocomplete="off"
+                style="
+                    width:100%;
+                    height:32px;
+                    box-sizing:border-box;
+                    border:1px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 8px;
+                    font-size:12px;
+                    color:#0d2137;
+                    background:white;
+                "
+            >
+
+            <datalist id="${idDatalist}">
+                ${opcionesSeriales}
+            </datalist>
+        </div>
+
+        <!-- MARCA -->
+        <input
+            type="text"
+            class="input-marca-equipo"
+            placeholder="Marca"
+            readonly
+            style="
+                width:100%;
+                height:32px;
+                box-sizing:border-box;
+                border:1px solid #c8d8ea;
+                border-radius:8px;
+                padding:6px 8px;
+                font-size:12px;
+                color:#0d2137;
+                background:#f1f5f9;
+            "
+        >
+
+        <!-- MODELO -->
+        <input
+            type="text"
+            class="input-modelo-equipo"
+            placeholder="Modelo"
+            readonly
+            style="
+                width:100%;
+                height:32px;
+                box-sizing:border-box;
+                border:1px solid #c8d8ea;
+                border-radius:8px;
+                padding:6px 8px;
+                font-size:12px;
+                color:#0d2137;
+                background:#f1f5f9;
+            "
+        >
+    `;
+
+    listaEquipos.appendChild(fila);
+
+    const inputSerial =
+        fila.querySelector('.input-serial-equipo');
+
+    const inputEquipoId =
+        fila.querySelector('.select-equipo-salida');
+
+    const inputMarca =
+        fila.querySelector('.input-marca-equipo');
+
+    const inputModelo =
+        fila.querySelector('.input-modelo-equipo');
+
+
+    // --------------------------------------------------------
+    // BUSCAR EQUIPO POR SERIAL
+    // --------------------------------------------------------
+
+    function buscarEquipoPorSerial(serial) {
+
+        const serialBuscado =
+            String(serial || '')
+                .trim()
+                .toLowerCase();
+
+        if (!serialBuscado) {
+            return null;
+        }
+
+        return equiposDisponibles.find(equipo =>
+            String(equipo.serial || '')
+                .trim()
+                .toLowerCase() === serialBuscado
+        );
+    }
+
+
+    // --------------------------------------------------------
+    // VERIFICAR SI EL SERIAL YA ESTÁ UTILIZADO
+    // --------------------------------------------------------
+
+    function serialYaSeleccionado(serial) {
+
+        const serialBuscado =
+            String(serial || '')
+                .trim()
+                .toLowerCase();
+
+        if (!serialBuscado) {
+            return false;
+        }
+
+        const inputs =
+            listaEquipos.querySelectorAll(
+                '.input-serial-equipo'
+            );
+
+        let cantidad = 0;
+
+        inputs.forEach(input => {
+
+            const valor =
+                String(input.value || '')
+                    .trim()
+                    .toLowerCase();
+
+            if (valor === serialBuscado) {
+                cantidad++;
+            }
+        });
+
+        return cantidad > 1;
+    }
+
+
+    // --------------------------------------------------------
+    // PROCESAR SERIAL
+    // --------------------------------------------------------
+
+    function procesarSerial() {
+
+        const serial =
+            inputSerial.value.trim();
+
+        // Limpiar si está vacío
+        if (!serial) {
+
+            inputEquipoId.value = '';
+            inputMarca.value = '';
+            inputModelo.value = '';
+
+            inputSerial.style.borderColor =
+                '#c8d8ea';
+
+            return;
+        }
+
+        // Buscar equipo
+        const equipo =
+            buscarEquipoPorSerial(serial);
+
+        // No existe
+        if (!equipo) {
+
+            inputEquipoId.value = '';
+            inputMarca.value = '';
+            inputModelo.value = '';
+
+            inputSerial.style.borderColor =
+                '#e74c3c';
+
+            return;
+        }
+
+        // Verificar duplicado
+        if (serialYaSeleccionado(serial)) {
+
+            mostrarNotificacionSalida(
+                `El serial "${equipo.serial}" ya fue seleccionado.`,
+                'error'
+            );
+        
+            inputSerial.value = '';
+            inputEquipoId.value = '';
+            inputMarca.value = '';
+            inputModelo.value = '';
+
+            inputSerial.style.borderColor =
+                '#e74c3c';
+
+            inputSerial.focus();
+
+            refrescarOpcionesEquipos();
+
+            return;
+        }
+
+        // Guardar ID
+        inputEquipoId.value =
+            equipo.id;
+
+        // Autocompletar marca
+        inputMarca.value =
+            equipo.marca_nombre || '';
+
+        // Autocompletar modelo
+        inputModelo.value =
+            equipo.modelo_nombre || '';
+
+        // Serial correcto
+        inputSerial.style.borderColor =
+            '#27ae60';
+
+        refrescarOpcionesEquipos();
+    }
+
+
+    // --------------------------------------------------------
+    // MIENTRAS ESCRIBE / ESCANEA
+    // --------------------------------------------------------
+
+    inputSerial.addEventListener(
+        'input',
+        () => {
+
+            const serial =
+                inputSerial.value.trim();
+
+            const equipo =
+                buscarEquipoPorSerial(serial);
+
+            if (!equipo) {
+
+                inputEquipoId.value = '';
+                inputMarca.value = '';
+                inputModelo.value = '';
+
+                inputSerial.style.borderColor =
+                    '#c8d8ea';
+
+                return;
+            }
+
+            // Si encontró el serial automáticamente,
+            // rellenamos marca y modelo
+            procesarSerial();
+        }
+    );
+
+
+    // --------------------------------------------------------
+    // AL TERMINAR DE ESCRIBIR / ESCANEAR
+    // --------------------------------------------------------
+
+    inputSerial.addEventListener(
+        'change',
+        procesarSerial
+    );
+
+    inputSerial.addEventListener(
+        'blur',
+        () => {
+
+            if (inputSerial.value.trim()) {
+                procesarSerial();
+            }
+        }
+    );
+}
+
+    async function actualizarEquiposSerializados() {
+        const opcion =
+            selectProducto.options[
+                selectProducto.selectedIndex
+            ];
+
+        if (!opcion) return;
+
+        autocompletarUnidad();
+
+        const esSerializado =
+            opcion.dataset.serializado === '1';
+
+        const stock =
+            parseInt(opcion.dataset.stock) || 0;
+
+        listaEquipos.innerHTML = '';
+
+        if (!esSerializado) {
+            contenedorEquipos.style.display = 'none';
+            inputCantidad.max = stock || '';
+            inputCantidad.value = Math.min(
+                parseInt(inputCantidad.value) || 1,
+                stock || 1
+            );
+            return;
+        }
+
+        const productoId =
+            parseInt(selectProducto.value);
+
+        contenedorEquipos.style.display = 'block';
+
+        const respuesta =
+            await apiFetch(
+                `${API}/productos/${productoId}/equipos`
+            );
+
+        if (!respuesta) return;
+
+        const datos =
+            await respuesta.json();
+
+        equiposDisponibles =
+            (datos.equipos || [])
+                .filter(
+                    equipo =>
+                        equipo.estado === 'DISPONIBLE'
+                );
+
+        if (equiposDisponibles.length === 0) {
+
+            listaEquipos.innerHTML = `
+                <div style="
+                    color:#c0392b;
+                    font-size:12px;
+                    padding:5px;
+                ">
+                    No hay equipos disponibles para este producto.
+                </div>
+            `;
+
+            inputCantidad.value = 0;
+            inputCantidad.min = 0;
+            inputCantidad.max = 0;
+
+            return;
+        }
+
+        inputCantidad.min = 1;
+        inputCantidad.max =
+            equiposDisponibles.length;
+
+        let cantidad =
+            parseInt(inputCantidad.value) || 1;
+
+        cantidad = Math.max(
+            1,
+            Math.min(
+                cantidad,
+                equiposDisponibles.length
+            )
+        );
+
+        inputCantidad.value = cantidad;
+
+        for (let i = 1; i <= cantidad; i++) {
+            crearFilaEquipo(i);
+        }
+
+        refrescarOpcionesEquipos();
+    }
+
+    inputCantidad.addEventListener('input', () => {
+
+        // Permitir borrar temporalmente el campo
+        if (inputCantidad.value === '') {
+            return;
+        }
+
+        const opcion =
+            selectProducto.options[
+                selectProducto.selectedIndex
+            ];
+
+        if (!opcion) return;
+
+        const esSerializado =
+            opcion.dataset.serializado === '1';
+
+        let cantidad =
+            parseInt(inputCantidad.value) || 1;
+
+        // ==========================================================
+        // PRODUCTOS NO SERIALIZADOS
+        // ==========================================================
+
+        if (!esSerializado) {
+
+            const stock =
+                parseInt(opcion.dataset.stock) || 0;
+
+            cantidad = Math.max(1, cantidad);
+
+            if (stock > 0) {
+                cantidad = Math.min(cantidad, stock);
+            }
+
+            inputCantidad.value = cantidad;
+
+            return;
+        }
+
+        // ==========================================================
+        // PRODUCTOS SERIALIZADOS
+        // ==========================================================
+
+        cantidad = Math.max(
+            1,
+            Math.min(
+                cantidad,
+                equiposDisponibles.length || 1
+            )
+        );
+
+        inputCantidad.value = cantidad;
+
+        // ==========================================================
+        // GUARDAR LOS SERIALES QUE YA EXISTEN
+        // ==========================================================
+
+        const anteriores =
+            Array.from(
+                listaEquipos.querySelectorAll(
+                    '.fila-equipo-salida'
+                )
+            ).map(fila => {
+
+                const inputSerial =
+                    fila.querySelector(
+                        '.input-serial-equipo'
+                    );
+
+                return {
+                    serial:
+                        inputSerial?.value?.trim() || ''
+                };
+            });
+
+        // ==========================================================
+        // RECREAR FILAS
+        // ==========================================================
+
+        listaEquipos.innerHTML = '';
+
+        for (
+            let i = 1;
+            i <= cantidad;
+            i++
+        ) {
+            crearFilaEquipo(i);
+        }
+
+        // ==========================================================
+        // RESTAURAR LOS SERIALES ANTERIORES
+        // ==========================================================
+
+        const filasNuevas =
+            listaEquipos.querySelectorAll(
+                '.fila-equipo-salida'
+            );
+
+        anteriores.forEach(
+            (anterior, index) => {
+
+                if (
+                    index >= cantidad ||
+                    !anterior.serial
+                ) {
+                    return;
+                }
+
+                const fila =
+                    filasNuevas[index];
+
+                if (!fila) return;
+
+                const inputSerial =
+                    fila.querySelector(
+                        '.input-serial-equipo'
+                    );
+
+                if (!inputSerial) return;
+
+                inputSerial.value =
+                    anterior.serial;
+
+                inputSerial.dispatchEvent(
+                    new Event('change')
+                );
+            }
+        );
+
+        refrescarOpcionesEquipos();
+    });
+
+
+    /* ==========================================================
+    CORREGIR CANTIDAD AL SALIR DEL CAMPO
+    ========================================================== */
+
+    inputCantidad.addEventListener('blur', () => {
+
+        const opcion =
+            selectProducto.options[
+                selectProducto.selectedIndex
+            ];
+
+        if (!opcion) return;
+
+        const esSerializado =
+            opcion.dataset.serializado === '1';
+
+        let cantidad =
+            parseInt(inputCantidad.value);
+
+        if (!cantidad || cantidad < 1) {
+            cantidad = 1;
+        }
+
+        // PRODUCTO NORMAL
+        if (!esSerializado) {
+
+            const stock =
+                parseInt(opcion.dataset.stock) || 0;
+
+            cantidad = Math.max(1, cantidad);
+
+            if (stock > 0) {
+                cantidad = Math.min(cantidad, stock);
+            }
+        
+            inputCantidad.value = cantidad;
+        
+            return;
+        }
+
+        // PRODUCTO SERIALIZADO
+        cantidad = Math.min(
+            cantidad,
+            equiposDisponibles.length
+        );
+
+        cantidad = Math.max(1, cantidad);
+
+        inputCantidad.value = cantidad;
+
+        inputCantidad.dispatchEvent(
+            new Event('input')
+        );
+    });
+
+    selectProducto.addEventListener(
+        'change',
+        async () => {
+            equiposDisponibles = [];
+            await actualizarEquiposSerializados();
+        }
+    );
+
     autocompletarUnidad();
+
+    await actualizarEquiposSerializados();
+}
+
+function mostrarNotificacionSalida(mensaje, tipo = 'error') {
+
+    let contenedor =
+        document.getElementById('notificaciones-salida');
+
+    if (!contenedor) {
+
+        contenedor = document.createElement('div');
+
+        contenedor.id =
+            'notificaciones-salida';
+
+        contenedor.style.cssText = `
+            position:fixed;
+            top:20px;
+            right:20px;
+            z-index:99999;
+            display:flex;
+            flex-direction:column;
+            gap:10px;
+            pointer-events:none;
+        `;
+
+        document.body.appendChild(contenedor);
+    }
+
+    const notificacion =
+        document.createElement('div');
+
+    const esError =
+        tipo === 'error';
+
+    notificacion.style.cssText = `
+        min-width:300px;
+        max-width:420px;
+        padding:14px 16px;
+        border-radius:10px;
+        background:${esError ? '#fff5f5' : '#f0fff4'};
+        border:1px solid ${esError ? '#f5c2c7' : '#b7e4c7'};
+        box-shadow:0 6px 20px rgba(0,0,0,0.15);
+        color:#263238;
+        font-size:13px;
+        display:flex;
+        align-items:flex-start;
+        gap:10px;
+        pointer-events:auto;
+        animation:entradaNotificacion .25s ease;
+    `;
+
+    notificacion.innerHTML = `
+        <div style="
+            font-size:18px;
+            line-height:1;
+        ">
+            ${esError ? '⚠️' : '✓'}
+        </div>
+
+        <div style="
+            flex:1;
+            line-height:1.4;
+        ">
+            ${mensaje}
+        </div>
+
+        <button
+            type="button"
+            style="
+                border:none;
+                background:transparent;
+                color:#777;
+                font-size:16px;
+                cursor:pointer;
+                padding:0;
+            "
+        >
+            ×
+        </button>
+    `;
+
+    const botonCerrar =
+        notificacion.querySelector('button');
+
+    botonCerrar.addEventListener(
+        'click',
+        () => notificacion.remove()
+    );
+
+    contenedor.appendChild(notificacion);
+
+    setTimeout(() => {
+
+        if (notificacion.parentNode) {
+            notificacion.remove();
+        }
+
+    }, 3500);
 }
 
 async function guardarSalida(event) {
     event.preventDefault();
 
-    const numero = document.getElementById('sal-numero').value;
+    const numero =
+        document.getElementById('sal-numero').value;
+
     if (!numero) {
-        alert('Escribe el Destino para generar el numero de documento');
+        mostrarNotificacionSalida(
+            'Escribe el Destino para generar el número de documento.',
+            'error'
+        );
         return;
     }
 
-    const filas = document.getElementById('sal-items').querySelectorAll(':scope > div');
+    const filas =
+        document
+            .getElementById('sal-items')
+            .querySelectorAll(':scope > .item-salida');
+
     if (filas.length === 0) {
-        alert('Agrega al menos un producto');
+        mostrarNotificacionSalida(
+            'Agrega al menos un producto.',
+            'error'
+        );
         return;
     }
 
-    const detalle = Array.from(filas).map(fila => {
-        const selectProducto = fila.querySelector('.select-producto');
-        const selectUnidad   = fila.querySelector('.select-unidad');
-        const comboModelo    = fila.querySelector('[data-tipo="modelo"] .combo-input');
-        const comboMarca     = fila.querySelector('[data-tipo="marca"] .combo-input');
-        const inputSerial    = fila.querySelectorAll('input[type="text"]')[2];
-        const inputCantidad  = fila.querySelector('input[type="number"]');
-        return {
-            producto_id: parseInt(selectProducto.value),
-            unidad:      selectUnidad.value,
-            modelo:      comboModelo.value,
-            marca:       comboMarca.value,
-            serial:      inputSerial ? inputSerial.value : '',
-            cantidad:    parseInt(inputCantidad.value) || 1
-        };
-    });
+    const detalle = [];
+
+    for (const fila of filas) {
+
+        const selectProducto =
+            fila.querySelector('.select-producto');
+
+        const selectUnidad =
+            fila.querySelector('.select-unidad');
+
+        const inputCantidad =
+            fila.querySelector('.input-cantidad-salida');
+
+        const opcion =
+            selectProducto.options[
+                selectProducto.selectedIndex
+            ];
+
+        if (!opcion) {
+            mostrarNotificacionSalida(
+                'Selecciona un producto en todas las filas.',
+                'error'
+            );
+            return;
+        }
+
+        const productoId =
+            parseInt(selectProducto.value);
+
+        const esSerializado =
+            opcion.dataset.serializado === '1';
+
+        const cantidad =
+            parseInt(inputCantidad.value) || 0;
+
+        if (cantidad <= 0) {
+            mostrarNotificacionSalida(
+                'La cantidad debe ser mayor que cero.',
+                'error'
+            );
+            return;
+        }
+
+        // ==========================================================
+        // PRODUCTO SERIALIZADO
+        // ==========================================================
+
+        if (esSerializado) {
+
+            const filasEquipos =
+                fila.querySelectorAll(
+                    '.fila-equipo-salida'
+                );
+
+            if (
+                filasEquipos.length !==
+                cantidad
+            ) {
+                mostrarNotificacionSalida(
+                    'La cantidad de equipos seleccionados no coincide con la cantidad indicada.',
+                    'error'
+                );
+                return;
+            }
+
+            const unidades = [];
+
+            for (
+                const filaEquipo
+                of filasEquipos
+            ) {
+
+                // ID interno del equipo
+                const inputEquipoId =
+                    filaEquipo.querySelector(
+                        '.select-equipo-salida'
+                    );
+
+                const equipoId =
+                    parseInt(
+                        inputEquipoId?.value
+                    ) || 0;
+
+                // Serial escrito o escaneado
+                const inputSerial =
+                    filaEquipo.querySelector(
+                        '.input-serial-equipo'
+                    );
+
+                const serial =
+                    inputSerial?.value?.trim() || '';
+
+                // --------------------------------------------------
+                // VALIDAR SERIAL VACÍO
+                // --------------------------------------------------
+
+                if (!serial) {
+
+                    mostrarNotificacionSalida(
+                        'Debes escribir o escanear un serial para cada equipo.',
+                        'error'
+                    );
+
+                    inputSerial?.focus();
+
+                    return;
+                }
+
+                // --------------------------------------------------
+                // VALIDAR EQUIPO
+                // --------------------------------------------------
+
+                if (!equipoId) {
+
+                    mostrarNotificacionSalida(
+                        `El serial "${serial}" no corresponde a un equipo disponible.`,
+                        'error'
+                    );
+
+                    inputSerial?.focus();
+
+                    return;
+                }
+
+                // --------------------------------------------------
+                // VALIDAR DUPLICADO POR SERIAL
+                // --------------------------------------------------
+
+                const serialesActuales =
+                    unidades.map(
+                        u =>
+                            String(u.serial)
+                                .trim()
+                                .toLowerCase()
+                    );
+
+                if (
+                    serialesActuales.includes(
+                        serial.toLowerCase()
+                    )
+                ) {
+
+                    mostrarNotificacionSalida(
+                        `El serial "${serial}" está repetido. No puedes utilizar el mismo serial más de una vez.`,
+                        'error'
+                    );
+
+                    inputSerial.focus();
+
+                    return;
+                }
+
+                // --------------------------------------------------
+                // AGREGAR EQUIPO
+                // --------------------------------------------------
+
+                unidades.push({
+                    equipo_id: equipoId,
+                    serial: serial
+                });
+            }
+
+            // ------------------------------------------------------
+            // VALIDAR DUPLICADOS POR ID
+            // ------------------------------------------------------
+
+            const ids =
+                unidades.map(
+                    u => u.equipo_id
+                );
+
+            if (
+                new Set(ids).size !==
+                ids.length
+            ) {
+
+                mostrarNotificacionSalida(
+                    'No puedes seleccionar el mismo equipo/serial más de una vez.',
+                    'error'
+                );
+
+                return;
+            }
+
+            // ------------------------------------------------------
+            // AGREGAR DETALLE
+            // ------------------------------------------------------
+
+            detalle.push({
+                producto_id: productoId,
+
+                unidad:
+                    selectUnidad.value ||
+                    'UND',
+
+                cantidad:
+                    cantidad,
+
+                unidades:
+                    unidades
+            });
+
+        } else {
+
+            // ======================================================
+            // PRODUCTO NORMAL
+            // ======================================================
+
+            detalle.push({
+                producto_id: productoId,
+
+                unidad:
+                    selectUnidad.value ||
+                    'UND',
+
+                cantidad:
+                    cantidad,
+
+                unidades: []
+            });
+        }
+    }
+
+    // ==========================================================
+    // DATOS DE LA SALIDA
+    // ==========================================================
 
     const datos = {
-        numero_documento: numero,
-        obra:             document.getElementById('sal-obra').value || 'Almacen',
-        destino:          document.getElementById('sal-destino').value,
-        observaciones:    document.getElementById('sal-observaciones').value,
-        sede_id:          parseInt(document.getElementById('sal-sede').value) || sedeActual,
-        detalle:          detalle
+
+        numero_documento:
+            numero,
+
+        obra:
+            document.getElementById('sal-obra').value ||
+            'Almacen',
+
+        destino:
+            document.getElementById('sal-destino').value,
+
+        observaciones:
+            document.getElementById(
+                'sal-observaciones'
+            ).value,
+
+        sede_id:
+            parseInt(
+                document.getElementById(
+                    'sal-sede'
+                ).value
+            ) || sedeActual,
+
+        detalle:
+            detalle
     };
 
-    const res = await apiFetch(`${API}/salidas/`, {
-        method: 'POST',
-        body: JSON.stringify(datos)
-    });
+    console.log(
+        'DATOS ENVIADOS SALIDA:',
+        datos
+    );
+
+    // ==========================================================
+    // GUARDAR EN BACKEND
+    // ==========================================================
+
+    const res =
+        await apiFetch(
+            `${API}/salidas/`,
+            {
+                method: 'POST',
+
+                body:
+                    JSON.stringify(datos)
+            }
+        );
 
     if (!res) return;
-    const resultado = await res.json();
+
+    const resultado =
+        await res.json();
+
+    // ==========================================================
+    // ÉXITO
+    // ==========================================================
 
     if (res.ok) {
-        for (const item of detalle) {
-            await guardarModeloEnCatalogo(item.modelo);
-            await guardarMarcaEnCatalogo(item.marca);
-        }
+
         await cargarCatalogos();
-        cerrarModal('modal-salida');
+
+        cerrarModal(
+            'modal-salida'
+        );
+
         limpiarFormSalida();
+
         cargarSalidas();
+
         cargarProductos();
+
     } else {
-        alert('Error: ' + resultado.error);
+
+        mostrarNotificacionSalida(
+            'Error: ' +
+            (
+                resultado.error ||
+                'No se pudo registrar la salida.'
+            ),
+            'error'
+        );
     }
 }
 
@@ -1108,47 +3444,216 @@ function filtrarPuntos() {
 }
 
 async function cargarItemsDeSalida() {
-    const select      = document.getElementById('dev-salida');
-    const salidaId    = select.value;
-    const contenedor  = document.getElementById('dev-items');
+
+    const salidaHidden =
+        document.getElementById('dev-salida');
+
+    const salidaId =
+        salidaHidden.value;
+
+    const contenedor =
+        document.getElementById('dev-items');
 
     if (!salidaId) {
-        contenedor.innerHTML = '<p style="font-size:12px;color:#6b8aab">Selecciona primero una salida arriba.</p>';
+
+        contenedor.innerHTML =
+            '<p style="font-size:12px;color:#6b8aab">' +
+            'Selecciona primero una salida arriba.' +
+            '</p>';
+
         document.getElementById('dev-origen').value = '';
+
         return;
     }
 
-    const opcionElegida = select.options[select.selectedIndex];
-    document.getElementById('dev-origen').value = opcionElegida.dataset.destino || '';
     generarNumeroDevolucion();
 
-    const res   = await apiFetch(`${API}/devoluciones/salida/${salidaId}/items`);
+    const res = await apiFetch(
+        `${API}/devoluciones/salida/${salidaId}/items`
+    );
+
     if (!res) return;
+
     const items = await res.json();
 
     if (items.length === 0) {
-        contenedor.innerHTML = '<p style="font-size:12px;color:#6b8aab">Esta salida no tiene productos.</p>';
+
+        contenedor.innerHTML =
+            '<p style="font-size:12px;color:#6b8aab">' +
+            'Esta salida no tiene productos pendientes por devolver.' +
+            '</p>';
+
         return;
     }
 
-    contenedor.innerHTML = items.map(item => `
-        <div class="dev-item-fila" data-producto-id="${item.producto_id}"
-             data-modelo="${item.modelo || ''}" data-marca="${item.marca || ''}"
-             data-serial="${item.serial || ''}" data-unidad="${item.unidad || 'UND'}"
-             style="display:grid;grid-template-columns:24px 2fr 1fr 70px;gap:8px;align-items:center;
-                    padding:8px;border:0.5px solid #dce6f0;border-radius:8px">
-            <input type="checkbox" class="dev-check" style="width:16px;height:16px">
-            <div>
-                <strong style="font-size:12.5px">${item.nombre}</strong>
-                <div style="font-size:11px;color:#6b8aab">
-                    ${item.modelo || '—'} ${item.marca ? '· ' + item.marca : ''} ${item.serial ? '· Serial: ' + item.serial : ''}
+    contenedor.innerHTML = items.map(item => {
+
+        const serializado =
+            item.requiere_serial;
+
+        const serial =
+            item.serial || '—';
+
+        const modelo =
+            item.modelo_nombre || '—';
+
+        const marca =
+            item.marca_nombre || '—';
+
+        return `
+
+            <div
+                class="dev-item-fila"
+
+                data-producto-id="${item.producto_id}"
+
+                data-equipo-id="${item.equipo_id || ''}"
+
+                data-serial="${serial}"
+
+                data-modelo="${modelo}"
+
+                data-marca="${marca}"
+
+                data-unidad="${item.unidad || 'UND'}"
+
+                data-requiere-serial="${serializado}"
+
+                style="
+                    display:grid;
+                    grid-template-columns:
+                        24px
+                        2fr
+                        1fr
+                        70px;
+
+                    gap:8px;
+                    align-items:center;
+
+                    padding:8px;
+
+                    border:
+                        0.5px solid #dce6f0;
+
+                    border-radius:8px;
+
+                    margin-bottom:6px;
+                "
+            >
+
+                <input
+                    type="checkbox"
+                    class="dev-check"
+
+                    style="
+                        width:16px;
+                        height:16px;
+                    "
+                >
+
+                <div>
+
+                    <strong
+                        style="font-size:12.5px"
+                    >
+                        ${item.nombre}
+                    </strong>
+
+                    <div
+                        style="
+                            font-size:11px;
+                            color:#6b8aab;
+                            margin-top:3px;
+                        "
+                    >
+
+                        ${serializado ? `
+
+                            <strong>
+                                🔢 Serial:
+                            </strong>
+
+                            ${serial}
+
+                            <br>
+
+                            <strong>
+                                📦 Modelo:
+                            </strong>
+
+                            ${modelo}
+
+                            <br>
+
+                            <strong>
+                                🏷️ Marca:
+                            </strong>
+
+                            ${marca}
+
+                        ` : `
+
+                            Producto no serializado
+
+                        `}
+
+                    </div>
+
                 </div>
+
+                <div
+                    style="
+                        font-size:11px;
+                        color:#6b8aab;
+                    "
+                >
+
+                    Salió:
+                    ${item.cantidad_original || item.cantidad}
+
+                    ${item.unidad || ''}
+
+                    <br>
+
+                    Pendiente:
+                    ${item.cantidad}
+
+                </div>
+
+                <input
+
+                    type="number"
+
+                    class="dev-cantidad"
+
+                    min="1"
+
+                    max="${item.cantidad}"
+
+                    value="${item.cantidad}"
+
+                    ${serializado ? 'readonly' : ''}
+
+                    style="
+                        border:
+                            0.5px solid #c8d8ea;
+
+                        border-radius:8px;
+
+                        padding:6px;
+
+                        font-size:12px;
+
+                        text-align:center;
+                    "
+                >
+
             </div>
-            <div style="font-size:11px;color:#6b8aab">Salio: ${item.cantidad} ${item.unidad || ''}</div>
-            <input type="number" class="dev-cantidad" min="1" max="${item.cantidad}" value="${item.cantidad}"
-                   style="border:0.5px solid #c8d8ea;border-radius:8px;padding:6px;font-size:12px;text-align:center">
-        </div>
-    `).join('');
+
+        `;
+
+    }).join('');
+
 }
 
 async function generarNumeroDevolucion() {
@@ -1164,23 +3669,229 @@ async function generarNumeroDevolucion() {
     document.getElementById('dev-numero').value = `${base}-${existentes.length + 1}`;
 }
 
+function abrirNuevaDevolucion() {
+
+    limpiarFormDevolucion();
+
+    const fecha =
+        document.getElementById('dev-fecha');
+
+    if (fecha) {
+        fecha.value =
+            new Date()
+                .toISOString()
+                .split('T')[0];
+    }
+
+    cargarSalidasDisponibles();
+
+    abrirModal('modal-devolucion');
+}
+
+function buscarSalidasDevolucion() {
+
+    const buscador =
+        document.getElementById('dev-salida-busqueda');
+
+    const resultados =
+        document.getElementById('dev-salida-resultados');
+
+    const salidaHidden =
+        document.getElementById('dev-salida');
+
+    if (!buscador || !resultados || !salidaHidden) return;
+
+    const texto =
+        buscador.value
+            .trim()
+            .toLowerCase();
+
+    // Si el usuario vuelve a escribir,
+    // quitamos la salida seleccionada anteriormente
+    salidaHidden.value = '';
+
+    if (!texto) {
+
+        resultados.innerHTML = '';
+        resultados.style.display = 'none';
+
+        return;
+    }
+
+    const coincidencias =
+        salidasDisponiblesDevolucion.filter(salida => {
+
+            const numero =
+                String(
+                    salida.numero_documento || ''
+                ).toLowerCase();
+
+            const destino =
+                String(
+                    salida.destino || ''
+                ).toLowerCase();
+
+            return (
+                numero.includes(texto) ||
+                destino.includes(texto)
+            );
+        });
+
+    resultados.innerHTML = '';
+
+    if (coincidencias.length === 0) {
+
+        resultados.innerHTML =
+            '<div style="' +
+            'padding:12px;' +
+            'font-size:12px;' +
+            'color:#6b8aab;' +
+            '">' +
+            'No se encontraron salidas con ese nombre.' +
+            '</div>';
+
+        resultados.style.display = 'block';
+
+        return;
+    }
+
+    coincidencias.forEach(salida => {
+
+        const fecha =
+            salida.fecha
+                ? new Date(
+                    salida.fecha
+                ).toLocaleDateString(
+                    'es-CO',
+                    {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    }
+                )
+                : '';
+
+        const resultado =
+            document.createElement('div');
+
+        resultado.style.cssText = `
+            padding:10px 12px;
+            cursor:pointer;
+            border-bottom:0.5px solid #edf2f7;
+            font-size:12.5px;
+            color:#0d2137;
+        `;
+
+        resultado.innerHTML = `
+            <strong>
+                ${salida.numero_documento || 'Sin número'}
+            </strong>
+
+            <span style="color:#4a6080">
+                — ${salida.destino || 'Sin destino'}
+            </span>
+
+            <div style="
+                font-size:11px;
+                color:#6b8aab;
+                margin-top:3px;
+            ">
+                ${fecha}
+            </div>
+        `;
+
+        resultado.onmouseenter = () => {
+            resultado.style.background = '#f5f8fc';
+        };
+
+        resultado.onmouseleave = () => {
+            resultado.style.background = 'white';
+        };
+
+        resultado.onclick = () => {
+
+            seleccionarSalidaDevolucion(salida);
+
+        };
+
+        resultados.appendChild(resultado);
+    });
+
+    resultados.style.display = 'block';
+}
+
+function seleccionarSalidaDevolucion(salida) {
+
+    const buscador =
+        document.getElementById('dev-salida-busqueda');
+
+    const salidaHidden =
+        document.getElementById('dev-salida');
+
+    const resultados =
+        document.getElementById('dev-salida-resultados');
+
+    const origen =
+        document.getElementById('dev-origen');
+
+    if (!buscador || !salidaHidden) return;
+
+    // Guardar el ID real de la salida
+    salidaHidden.value = salida.id;
+
+    // Mostrar la salida seleccionada
+    buscador.value =
+        `${salida.numero_documento} — ${salida.destino || 'Sin destino'}`;
+
+    // Mostrar de dónde procede
+    if (origen) {
+        origen.value =
+            salida.destino || '';
+    }
+
+    // Ocultar resultados
+    if (resultados) {
+        resultados.style.display = 'none';
+    }
+
+    // Cargar productos de la salida
+    cargarItemsDeSalida();
+}
+
 async function cargarDevoluciones() {
     const res = await apiFetch(urlConSede(`${API}/devoluciones/`));
+
     if (!res) return;
+
     devolucionesCache = await res.json();
 
     if (usuario.rol === 'admin') {
         const sel = document.getElementById('filtro-sede-devoluciones');
-        const valorActual = sel.value;
-        const resSedes = await apiFetch(`${API}/auth/sedes`);
-        if (resSedes) {
-            const sedes = await resSedes.json();
-            sel.innerHTML = '<option value="">— Todas las sedes —</option>';
-            sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}">${s.nombre} — ${s.ciudad}</option>`
-            ));
-            sel.style.display = 'block';
-            sel.value = valorActual;
+
+        if (sel) {
+            const valorActual = sel.value;
+
+            const resSedes =
+                await apiFetch(`${API}/auth/sedes`);
+
+            if (resSedes) {
+                const sedes = await resSedes.json();
+
+                sel.innerHTML =
+                    '<option value="">— Todas las sedes —</option>';
+
+                sedes.forEach(s => {
+                    sel.insertAdjacentHTML(
+                        'beforeend',
+                        `<option value="${s.id}">
+                            ${s.nombre} — ${s.ciudad}
+                        </option>`
+                    );
+                });
+
+                sel.style.display = 'block';
+                sel.value = valorActual;
+            }
         }
     }
 
@@ -1188,139 +3899,505 @@ async function cargarDevoluciones() {
     filtrarDevoluciones();
 }
 
+let salidasDisponiblesDevolucion = [];
+
+async function cargarSalidasDisponibles() {
+
+    const buscador =
+        document.getElementById('dev-salida-busqueda');
+
+    const resultados =
+        document.getElementById('dev-salida-resultados');
+
+    const salidaHidden =
+        document.getElementById('dev-salida');
+
+    if (!buscador || !resultados || !salidaHidden) return;
+
+    buscador.value = '';
+    salidaHidden.value = '';
+
+    resultados.innerHTML = '';
+    resultados.style.display = 'none';
+
+    buscador.placeholder = 'Cargando salidas...';
+
+    const res =
+        await apiFetch(
+            urlConSede(
+                `${API}/devoluciones/salidas-disponibles`
+            )
+        );
+
+    if (!res) return;
+
+    const salidas = await res.json();
+
+    salidasDisponiblesDevolucion =
+        Array.isArray(salidas)
+            ? salidas
+            : [];
+
+    buscador.placeholder =
+        'Escribe nombre clave, destino o N° de salida...';
+
+    if (salidasDisponiblesDevolucion.length === 0) {
+
+        resultados.innerHTML =
+            '<div style="padding:12px;font-size:12px;color:#6b8aab">' +
+            'No hay salidas disponibles para devolver.' +
+            '</div>';
+
+        return;
+    }
+}
+
 function renderizarDevoluciones(devoluciones) {
-    document.getElementById('subtitulo-devoluciones').textContent =
+
+    document.getElementById(
+        'subtitulo-devoluciones'
+    ).textContent =
         `${devoluciones.length} devoluciones registradas`;
 
-    const tbody = document.getElementById('tabla-devoluciones');
+    const tbody =
+        document.getElementById(
+            'tabla-devoluciones'
+        );
+
     tbody.innerHTML = '';
 
     if (devoluciones.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#6b8aab;padding:2rem">Sin devoluciones registradas</td></tr>';
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8"
+                    style="text-align:center;
+                           color:#6b8aab;
+                           padding:2rem">
+                    Sin devoluciones registradas
+                </td>
+            </tr>
+        `;
+
         return;
     }
 
     devoluciones.forEach(d => {
-        const fecha = new Date(d.fecha).toLocaleDateString('es-CO', {
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        });
-        tbody.insertAdjacentHTML('beforeend', `
+
+        const fecha =
+            d.fecha
+                ? new Date(d.fecha).toLocaleDateString(
+                    'es-CO',
+                    {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    }
+                )
+                : '—';
+
+        tbody.insertAdjacentHTML(
+            'beforeend',
+            `
             <tr>
-                <td><strong>${d.numero_documento}</strong></td>
-                <td>${d.salida_numero || '—'}</td>
-                <td>${d.origen || '—'}</td>
-                <td>${d.motivo || '—'}</td>
-                <td>${d.total_items} producto(s)</td>
-                <td><span style="font-size:11px;color:#4a6080">${d.sede_nombre || '—'}</span></td>
-                <td>${fecha}</td>
+
                 <td>
-                    <div class="acciones">
-                        <button class="btn-accion" onclick="verPDFDevolucion(${d.id})">📄 PDF</button>
-                        ${usuario.rol !== 'consulta' ? `
-                            <button class="btn-accion danger" onclick="eliminarDevolucion(${d.id}, '${d.numero_documento}')">🗑️ Eliminar</button>
-                        ` : ''}
-                    </div>
+                    <strong>
+                        ${d.numero_documento || '—'}
+                    </strong>
                 </td>
+
+                <td>
+                    ${d.salida_numero || '—'}
+                </td>
+
+                <td>
+                    ${d.salida_numero
+                        ? 'Salida de almacén'
+                        : '—'}
+                </td>
+
+                <td>
+                    ${d.motivo || '—'}
+                </td>
+
+                <td>
+                    ${d.total_items || 0} producto(s)
+                </td>
+
+                <td>
+                    <span style="
+                        font-size:11px;
+                        color:#4a6080">
+                        ${d.sede_nombre || '—'}
+                    </span>
+                </td>
+
+                <td>
+                    ${fecha}
+                </td>
+
+                <td>
+
+                    <div class="acciones">
+
+                        <button
+                            class="btn-accion"
+                            onclick="verPDFDevolucion(${d.id})">
+                            📄 PDF
+                        </button>
+
+                        ${
+                            usuario.rol === 'admin'
+                            ? `
+                                <button
+                                    class="btn-accion danger"
+                                    onclick="anularDevolucion(
+                                        ${d.id},
+                                        '${String(
+                                            d.numero_documento || ''
+                                        ).replace(/'/g, "\\'")}'
+                                    )">
+                                    🗑️ Anular
+                                </button>
+                            `
+                            : ''
+                        }
+
+                    </div>
+
+                </td>
+
             </tr>
-        `);
+            `
+        );
     });
 }
 
 function filtrarDevoluciones() {
-    const texto = document.getElementById('buscar-devoluciones').value.trim().toLowerCase();
-    const sedeFiltro = document.getElementById('filtro-sede-devoluciones')?.value;
 
-    let filtradas = devolucionesCache;
+    const input =
+        document.getElementById(
+            'buscar-devoluciones'
+        );
+
+    const texto =
+        input?.value
+            ?.trim()
+            ?.toLowerCase() || '';
+
+    const sedeFiltro =
+        document.getElementById(
+            'filtro-sede-devoluciones'
+        )?.value || '';
+
+    let filtradas =
+        devolucionesCache || [];
 
     if (texto) {
-        filtradas = filtradas.filter(d =>
-            (d.numero_documento || '').toLowerCase().includes(texto) ||
-            (d.origen || '').toLowerCase().includes(texto) ||
-            (d.motivo || '').toLowerCase().includes(texto)
-        );
+
+        filtradas =
+            filtradas.filter(d =>
+
+                String(
+                    d.numero_documento || ''
+                )
+                .toLowerCase()
+                .includes(texto)
+
+                ||
+
+                String(
+                    d.salida_numero || ''
+                )
+                .toLowerCase()
+                .includes(texto)
+
+                ||
+
+                String(
+                    d.motivo || ''
+                )
+                .toLowerCase()
+                .includes(texto)
+
+                ||
+
+                String(
+                    d.sede_nombre || ''
+                )
+                .toLowerCase()
+                .includes(texto)
+
+            );
     }
 
     if (sedeFiltro) {
-        filtradas = filtradas.filter(d => String(d.sede_id) === sedeFiltro);
+
+        filtradas =
+            filtradas.filter(
+                d =>
+                    String(d.sede_id) ===
+                    String(sedeFiltro)
+            );
     }
 
-    renderizarDevoluciones(filtradas);
+    renderizarDevoluciones(
+        filtradas
+    );
 }
 
 async function guardarDevolucion(event) {
+
     event.preventDefault();
 
-    const salidaId = document.getElementById('dev-salida').value;
+    const salidaId =
+        document.getElementById('dev-salida').value;
+
     if (!salidaId) {
-        alert('Selecciona la salida de la que esta regresando la mercancia');
+
+        alert(
+            'Selecciona la salida de la que está regresando la mercancía'
+        );
+
         return;
     }
 
-    const numero = document.getElementById('dev-numero').value;
+    const numero =
+        document.getElementById('dev-numero').value;
+
     if (!numero) {
-        alert('No se pudo generar el numero de documento. Verifica fecha y salida.');
+
+        alert(
+            'No se pudo generar el número de documento. Verifica fecha y salida.'
+        );
+
         return;
     }
 
-    const filas = document.querySelectorAll('.dev-item-fila');
+    // =====================================================
+    // DETALLE DE PRODUCTOS
+    // =====================================================
+
+    const filas =
+        document.querySelectorAll('.dev-item-fila');
+
     const detalle = [];
+
     filas.forEach(fila => {
-        const check = fila.querySelector('.dev-check');
+
+        const check =
+            fila.querySelector('.dev-check');
+
+        // Solo enviar los productos seleccionados
         if (!check.checked) return;
-        const cantidad = fila.querySelector('.dev-cantidad');
+
+        const inputCantidad =
+            fila.querySelector('.dev-cantidad');
+
+        const productoId =
+            parseInt(fila.dataset.productoId);
+
+        const equipoId =
+            fila.dataset.equipoId
+                ? parseInt(fila.dataset.equipoId)
+                : null;
+
+        const cantidad =
+            parseInt(inputCantidad.value) || 1;
+
+        // =================================================
+        // AGREGAR PRODUCTO
+        // =================================================
+
         detalle.push({
-            producto_id: parseInt(fila.dataset.productoId),
-            cantidad:    parseInt(cantidad.value) || 1,
-            modelo:      fila.dataset.modelo,
-            marca:       fila.dataset.marca,
-            serial:      fila.dataset.serial,
-            unidad:      fila.dataset.unidad
+
+            producto_id: productoId,
+
+            // IMPORTANTE:
+            // Para productos serializados se envía
+            // automáticamente el equipo_id original
+            // de la salida.
+            equipo_id: equipoId,
+
+            cantidad: cantidad,
+
+            condicion_retorno:
+                'BUEN_ESTADO',
+
+            observaciones: ''
+
         });
+
     });
+
+
+    // =====================================================
+    // VALIDAR DETALLE
+    // =====================================================
 
     if (detalle.length === 0) {
-        alert('Marca al menos un producto que este regresando');
+
+        alert(
+            'Marca al menos un producto que esté regresando'
+        );
+
         return;
     }
 
+
+    // =====================================================
+    // DATOS DE LA DEVOLUCIÓN
+    // =====================================================
+
     const datos = {
-        numero_documento: numero,
-        salida_id:         parseInt(salidaId),
-        origen:            document.getElementById('dev-origen').value,
-        destino:           'Almacen',
-        motivo:            document.getElementById('dev-motivo').value,
-        observaciones:     document.getElementById('dev-observaciones').value,
-        sede_id:          parseInt(document.getElementById('dev-sede').value) || sedeActual,
-        detalle:           detalle
+
+        numero_documento:
+            numero,
+
+        salida_id:
+            parseInt(salidaId),
+
+        motivo:
+            document.getElementById(
+                'dev-motivo'
+            ).value,
+
+        observaciones:
+            document.getElementById(
+                'dev-observaciones'
+            ).value,
+
+        sede_id:
+
+            parseInt(
+                document.getElementById(
+                    'dev-sede'
+                ).value
+            ) || sedeActual,
+
+        detalle:
+            detalle
+
     };
 
-    const res = await apiFetch(`${API}/devoluciones/`, {
-        method: 'POST',
-        body: JSON.stringify(datos)
-    });
+
+    // =====================================================
+    // ENVIAR AL BACKEND
+    // =====================================================
+
+    const res = await apiFetch(
+
+        `${API}/devoluciones/`,
+
+        {
+
+            method: 'POST',
+
+            body:
+                JSON.stringify(datos)
+
+        }
+
+    );
+
 
     if (!res) return;
-    const resultado = await res.json();
+
+
+    const resultado =
+        await res.json();
+
+
+    // =====================================================
+    // RESULTADO
+    // =====================================================
 
     if (res.ok) {
-        cerrarModal('modal-devolucion');
+
+        cerrarModal(
+            'modal-devolucion'
+        );
+
         limpiarFormDevolucion();
+
         cargarDevoluciones();
+
         cargarProductos();
+
     } else {
-        alert('Error: ' + resultado.error);
+
+        alert(
+            'Error: ' +
+            (resultado.error ||
+                'No se pudo registrar la devolución')
+        );
+
     }
+
 }
 
 function verPDFDevolucion(id) {
     window.open(`${API}/pdf/devolucion/${id}?token=${token}`, '_blank');
 }
 
-async function eliminarDevolucion(id, numero) {
-    if (!await mostrarConfirm(`¿Eliminar la devolucion "${numero}"? Esto revertira el stock sumado.`)) return;
-    await apiFetch(`${API}/devoluciones/${id}`, { method: 'DELETE' });
-    cargarDevoluciones();
-    cargarProductos();
+async function anularDevolucion(id, numero) {
+
+    const confirmar =
+        await mostrarConfirm(
+            `¿Anular la devolución "${numero}"?`
+        );
+
+    if (!confirmar) return;
+
+    const motivo =
+        prompt(
+            'Escribe el motivo de la anulación:'
+        );
+
+    if (!motivo || !motivo.trim()) {
+        mostrarNotificacionSalida(
+            'Debes indicar el motivo de la anulación.',
+            'error'
+        );
+        return;
+    }
+
+    const res =
+        await apiFetch(
+            `${API}/devoluciones/${id}/anular`,
+            {
+                method: 'PUT',
+                body: JSON.stringify({
+                    motivo_anulacion:
+                        motivo.trim()
+                })
+            }
+        );
+
+    if (!res) return;
+
+    const resultado =
+        await res.json();
+
+    if (res.ok) {
+
+        mostrarNotificacionSalida(
+            'Devolución anulada correctamente.',
+            'success'
+        );
+
+        await cargarDevoluciones();
+        await cargarProductos();
+
+    } else {
+
+        mostrarNotificacionSalida(
+            resultado.error ||
+            'No se pudo anular la devolución.',
+            'error'
+        );
+    }
 }
 
 function limpiarFormDevolucion() {
@@ -2114,9 +5191,6 @@ async function guardarTraslado(event) {
         '✓',
         'Aceptar'
     );
-    
-    cerrarModal('modal-traslado');
-    limpiarFormTraslado();
 
     cerrarModal('modal-traslado');
 
@@ -2368,6 +5442,7 @@ async function verTraslado(id) {
 }
 
 async function recibirTraslado(id) {
+
     if (usuario.rol !== 'admin') {
         alert('No tienes permisos para recibir traslados.');
         return;
@@ -2390,12 +5465,15 @@ async function recibirTraslado(id) {
 
     const datos = await res.json();
 
-    if (datos.error) {
-        alert(datos.error);
+    if (!res.ok) {
+        alert(datos.error || 'No se pudo recibir el traslado.');
         return;
     }
 
-    mostrarNotificacion('Traslado recibido correctamente.', 'exito');
+    mostrarNotificacion(
+        'Traslado recibido correctamente.',
+        'exito'
+    );
 
     await cargarTraslados();
 
@@ -2405,6 +5483,7 @@ async function recibirTraslado(id) {
 }
 
 function verPDFTraslado(id) {
+
     const token = localStorage.getItem('token');
 
     if (!token) {
@@ -2416,4 +5495,89 @@ function verPDFTraslado(id) {
         `${API}/pdf/traslados/${id}?token=${encodeURIComponent(token)}`,
         '_blank'
     );
+}
+
+async function verEquiposProducto(productoId) {
+    try {
+        const res = await apiFetch(
+            `${API}/productos/${productoId}/equipos`
+        );
+
+        if (!res) return;
+
+        const resultado = await res.json();
+
+        if (!res.ok) {
+            throw new Error(
+                resultado.error ||
+                'No se pudieron consultar los equipos.'
+            );
+        }
+
+        const producto = resultado.producto || {};
+        const equipos = resultado.equipos || [];
+
+        document.getElementById('modal-equipos-titulo').textContent =
+            `${producto.codigo || ''} — ${producto.nombre || 'Producto'}`;
+
+        const tbody =
+            document.getElementById('tabla-equipos-producto');
+
+        tbody.innerHTML = '';
+
+        if (equipos.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5"
+                        style="text-align:center;color:#6b8aab;padding:2rem">
+                        No hay equipos serializados registrados.
+                    </td>
+                </tr>
+            `;
+        } else {
+            equipos.forEach(equipo => {
+                tbody.insertAdjacentHTML(
+                    'beforeend',
+                    `
+                    <tr>
+                        <td>
+                            <strong>
+                                ${sanitizar(equipo.serial || '—')}
+                            </strong>
+                        </td>
+
+                        <td>
+                            ${sanitizar(equipo.marca_nombre || '—')}
+                        </td>
+
+                        <td>
+                            ${sanitizar(equipo.modelo_nombre || '—')}
+                        </td>
+
+                        <td>
+                            ${sanitizar(equipo.condicion || '—')}
+                        </td>
+
+                        <td>
+                            ${sanitizar(equipo.estado || '—')}
+                        </td>
+                    </tr>
+                    `
+                );
+            });
+        }
+
+        abrirModal('modal-equipos-producto');
+
+    } catch (error) {
+        console.error(
+            'Error al consultar equipos:',
+            error
+        );
+
+        alert(
+            'No se pudieron cargar los equipos:\n\n' +
+            error.message
+        );
+    }
 }

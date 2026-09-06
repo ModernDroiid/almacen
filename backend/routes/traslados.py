@@ -1,793 +1,1272 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
-from datetime import datetime, timedelta, timezone
-import sys
-import os
+# ============================================================
+# traslados.py — Traslados entre sedes
+# PostgreSQL
+#
+# ROLES:
+#   admin     → crear, consultar, recibir y anular
+#   sede      → crear desde su sede, consultar y recibir
+#               traslados destinados a su sede
+#   consulta  → solamente consultar
+#
+# IMPORTANTE:
+# El inventario NO se modifica directamente desde Flask.
+#
+# Al CREAR:
+#   PENDIENTE
+#
+# Al RECIBIR:
+#   PostgreSQL ejecuta el trigger:
+#   procesar_traslado_recibido()
+#
+# Al ANULAR:
+#   PostgreSQL ejecuta el trigger:
+#   revertir_traslado_anulado()
+# ============================================================
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import (
+    jwt_required,
+    get_jwt,
+    get_jwt_identity
+)
+
 from database import get_connection
 
-traslados_bp = Blueprint('traslados', __name__)
+
+traslados_bp = Blueprint(
+    "traslados",
+    __name__
+)
 
 
 # ============================================================
-# HORA DE COLOMBIA
+# FUNCIONES AUXILIARES
 # ============================================================
-
-COLOMBIA_TZ = timezone(timedelta(hours=-5))
-
-
-def fecha_colombia():
-    """
-    Devuelve la fecha y hora actual de Colombia.
-    Formato: YYYY-MM-DD HH:MM:SS
-    """
-    return datetime.now(COLOMBIA_TZ).strftime('%Y-%m-%d %H:%M:%S')
-
 
 def obtener_sede_actual():
+
     claims = get_jwt()
 
-    if claims.get('rol') == 'admin':
-        return request.args.get('sede_id', type=int)
+    if claims.get("rol") == "admin":
 
-    return claims.get('sede_id')
+        return request.args.get(
+            "sede_id",
+            type=int
+        )
+
+    return claims.get("sede_id")
+
+
+def usuario_puede_ver_traslado(traslado):
+
+    claims = get_jwt()
+
+    rol = claims.get("rol")
+    sede_id = claims.get("sede_id")
+
+    if rol == "admin":
+        return True
+
+    if sede_id is None:
+        return False
+
+    return (
+        traslado["sede_origen_id"] == sede_id
+        or traslado["sede_destino_id"] == sede_id
+    )
 
 
 # ============================================================
-# GET /api/traslados
-# Listar traslados
+# GET /api/traslados/
+# LISTAR TRASLADOS
 # ============================================================
 
-@traslados_bp.route('/', methods=['GET'])
+@traslados_bp.route("/", methods=["GET"])
 @jwt_required()
 def listar_traslados():
 
-    claims = get_jwt()
-    rol = claims.get('rol')
     sede_id = obtener_sede_actual()
 
     conn = get_connection()
-    cursor = conn.cursor()
 
     try:
 
-        if rol == 'admin' and sede_id is None:
+        with conn.cursor() as cursor:
 
-            cursor.execute('''
-                SELECT
-                    t.id,
-                    t.numero_documento,
-                    t.sede_origen_id,
-                    t.sede_destino_id,
-                    t.observaciones,
-                    t.estado,
-                    t.creado_por,
-                    t.recibido_por,
-                    t.fecha_creacion,
-                    t.fecha_recepcion,
+            if sede_id is None:
 
-                    so.nombre AS sede_origen_nombre,
-                    so.ciudad AS sede_origen_ciudad,
+                cursor.execute("""
+                    SELECT
+                        t.id,
+                        t.numero_documento,
 
-                    sd.nombre AS sede_destino_nombre,
-                    sd.ciudad AS sede_destino_ciudad,
+                        t.sede_origen_id,
+                        t.sede_destino_id,
 
-                    uc.nombre AS creado_por_nombre,
-                    ur.nombre AS recibido_por_nombre,
+                        t.observaciones,
+                        t.estado,
 
-                    COUNT(dt.id) AS total_items
+                        t.usuario_creador_id,
+                        t.usuario_recibido_id,
 
-                FROM traslados t
+                        t.fecha_creacion,
+                        t.fecha_recepcion,
 
-                LEFT JOIN detalle_traslados dt
-                    ON dt.traslado_id = t.id
+                        t.fecha_anulacion,
+                        t.anulado_por,
+                        t.motivo_anulacion,
 
-                LEFT JOIN sedes so
-                    ON so.id = t.sede_origen_id
+                        so.nombre
+                            AS sede_origen_nombre,
 
-                LEFT JOIN sedes sd
-                    ON sd.id = t.sede_destino_id
+                        so.ciudad
+                            AS sede_origen_ciudad,
 
-                LEFT JOIN usuarios uc
-                    ON uc.id = t.creado_por
+                        sd.nombre
+                            AS sede_destino_nombre,
 
-                LEFT JOIN usuarios ur
-                    ON ur.id = t.recibido_por
+                        sd.ciudad
+                            AS sede_destino_ciudad,
 
-                GROUP BY t.id
+                        uc.nombre
+                            AS creador_nombre,
 
-                ORDER BY t.fecha_creacion DESC
-            ''')
+                        ur.nombre
+                            AS recibido_nombre,
 
-        else:
+                        COUNT(dt.id)
+                            AS total_items
 
-            cursor.execute('''
-                SELECT
-                    t.id,
-                    t.numero_documento,
-                    t.sede_origen_id,
-                    t.sede_destino_id,
-                    t.observaciones,
-                    t.estado,
-                    t.creado_por,
-                    t.recibido_por,
-                    t.fecha_creacion,
-                    t.fecha_recepcion,
+                    FROM traslados t
 
-                    so.nombre AS sede_origen_nombre,
-                    so.ciudad AS sede_origen_ciudad,
+                    LEFT JOIN detalle_traslados dt
+                        ON dt.traslado_id = t.id
 
-                    sd.nombre AS sede_destino_nombre,
-                    sd.ciudad AS sede_destino_ciudad,
+                    LEFT JOIN sedes so
+                        ON so.id = t.sede_origen_id
 
-                    uc.nombre AS creado_por_nombre,
-                    ur.nombre AS recibido_por_nombre,
+                    LEFT JOIN sedes sd
+                        ON sd.id = t.sede_destino_id
 
-                    COUNT(dt.id) AS total_items
+                    LEFT JOIN usuarios uc
+                        ON uc.id = t.usuario_creador_id
 
-                FROM traslados t
+                    LEFT JOIN usuarios ur
+                        ON ur.id = t.usuario_recibido_id
 
-                LEFT JOIN detalle_traslados dt
-                    ON dt.traslado_id = t.id
+                    GROUP BY
+                        t.id,
+                        so.nombre,
+                        so.ciudad,
+                        sd.nombre,
+                        sd.ciudad,
+                        uc.nombre,
+                        ur.nombre
 
-                LEFT JOIN sedes so
-                    ON so.id = t.sede_origen_id
+                    ORDER BY
+                        t.fecha_creacion DESC
+                """)
 
-                LEFT JOIN sedes sd
-                    ON sd.id = t.sede_destino_id
+            else:
 
-                LEFT JOIN usuarios uc
-                    ON uc.id = t.creado_por
+                cursor.execute("""
+                    SELECT
+                        t.id,
+                        t.numero_documento,
 
-                LEFT JOIN usuarios ur
-                    ON ur.id = t.recibido_por
+                        t.sede_origen_id,
+                        t.sede_destino_id,
 
-                WHERE
-                    t.sede_origen_id = ?
-                    OR t.sede_destino_id = ?
+                        t.observaciones,
+                        t.estado,
 
-                GROUP BY t.id
+                        t.usuario_creador_id,
+                        t.usuario_recibido_id,
 
-                ORDER BY t.fecha_creacion DESC
-            ''', (sede_id, sede_id))
+                        t.fecha_creacion,
+                        t.fecha_recepcion,
 
-        traslados = [dict(x) for x in cursor.fetchall()]
+                        t.fecha_anulacion,
+                        t.anulado_por,
+                        t.motivo_anulacion,
 
-        return jsonify(traslados)
+                        so.nombre
+                            AS sede_origen_nombre,
+
+                        so.ciudad
+                            AS sede_origen_ciudad,
+
+                        sd.nombre
+                            AS sede_destino_nombre,
+
+                        sd.ciudad
+                            AS sede_destino_ciudad,
+
+                        uc.nombre
+                            AS creador_nombre,
+
+                        ur.nombre
+                            AS recibido_nombre,
+
+                        COUNT(dt.id)
+                            AS total_items
+
+                    FROM traslados t
+
+                    LEFT JOIN detalle_traslados dt
+                        ON dt.traslado_id = t.id
+
+                    LEFT JOIN sedes so
+                        ON so.id = t.sede_origen_id
+
+                    LEFT JOIN sedes sd
+                        ON sd.id = t.sede_destino_id
+
+                    LEFT JOIN usuarios uc
+                        ON uc.id = t.usuario_creador_id
+
+                    LEFT JOIN usuarios ur
+                        ON ur.id = t.usuario_recibido_id
+
+                    WHERE
+                        t.sede_origen_id = %s
+                        OR t.sede_destino_id = %s
+
+                    GROUP BY
+                        t.id,
+                        so.nombre,
+                        so.ciudad,
+                        sd.nombre,
+                        sd.ciudad,
+                        uc.nombre,
+                        ur.nombre
+
+                    ORDER BY
+                        t.fecha_creacion DESC
+                """, (
+                    sede_id,
+                    sede_id
+                ))
+
+            traslados = [
+                dict(item)
+                for item in cursor.fetchall()
+            ]
 
     finally:
+
         conn.close()
+
+    return jsonify(traslados)
 
 
 # ============================================================
 # GET /api/traslados/<id>
-# Ver detalle
+# DETALLE DEL TRASLADO
 # ============================================================
 
-@traslados_bp.route('/<int:id>', methods=['GET'])
+@traslados_bp.route(
+    "/<int:id>",
+    methods=["GET"]
+)
 @jwt_required()
 def obtener_traslado(id):
 
-    claims = get_jwt()
-    rol = claims.get('rol')
-    sede_id = claims.get('sede_id')
-
     conn = get_connection()
-    cursor = conn.cursor()
 
     try:
 
-        cursor.execute('''
-            SELECT
-                t.*,
+        with conn.cursor() as cursor:
 
-                so.nombre AS sede_origen_nombre,
-                so.ciudad AS sede_origen_ciudad,
+            cursor.execute("""
+                SELECT
+                    t.id,
+                    t.numero_documento,
 
-                sd.nombre AS sede_destino_nombre,
-                sd.ciudad AS sede_destino_ciudad,
+                    t.sede_origen_id,
+                    t.sede_destino_id,
 
-                uc.nombre AS creado_por_nombre,
-                ur.nombre AS recibido_por_nombre
+                    t.usuario_creador_id,
+                    t.usuario_recibido_id,
 
-            FROM traslados t
+                    t.estado,
+                    t.observaciones,
 
-            LEFT JOIN sedes so
-                ON so.id = t.sede_origen_id
+                    t.fecha_creacion,
+                    t.fecha_recepcion,
 
-            LEFT JOIN sedes sd
-                ON sd.id = t.sede_destino_id
+                    t.fecha_anulacion,
+                    t.anulado_por,
+                    t.motivo_anulacion,
 
-            LEFT JOIN usuarios uc
-                ON uc.id = t.creado_por
+                    so.nombre
+                        AS sede_origen_nombre,
 
-            LEFT JOIN usuarios ur
-                ON ur.id = t.recibido_por
+                    so.ciudad
+                        AS sede_origen_ciudad,
 
-            WHERE t.id = ?
-        ''', (id,))
+                    sd.nombre
+                        AS sede_destino_nombre,
 
-        traslado = cursor.fetchone()
+                    sd.ciudad
+                        AS sede_destino_ciudad,
 
-        if not traslado:
-            return jsonify({
-                'error': 'Traslado no encontrado'
-            }), 404
+                    uc.nombre
+                        AS creador_nombre,
 
-        traslado = dict(traslado)
+                    ur.nombre
+                        AS recibido_nombre,
 
-        # Un usuario que no sea admin solo puede consultar
-        # traslados relacionados con su sede.
-        if rol != 'admin':
+                    ua.nombre
+                        AS anulado_por_nombre
 
-            if (
-                traslado['sede_origen_id'] != sede_id
-                and traslado['sede_destino_id'] != sede_id
-            ):
+                FROM traslados t
+
+                LEFT JOIN sedes so
+                    ON so.id = t.sede_origen_id
+
+                LEFT JOIN sedes sd
+                    ON sd.id = t.sede_destino_id
+
+                LEFT JOIN usuarios uc
+                    ON uc.id = t.usuario_creador_id
+
+                LEFT JOIN usuarios ur
+                    ON ur.id = t.usuario_recibido_id
+
+                LEFT JOIN usuarios ua
+                    ON ua.id = t.anulado_por
+
+                WHERE t.id = %s
+            """, (id,))
+
+            traslado = cursor.fetchone()
+
+            if not traslado:
+
                 return jsonify({
-                    'error': 'No autorizado'
+                    "error": "Traslado no encontrado"
+                }), 404
+
+            if not usuario_puede_ver_traslado(
+                traslado
+            ):
+
+                return jsonify({
+                    "error": "No autorizado"
                 }), 403
 
-        cursor.execute('''
-            SELECT
-                dt.id,
-                dt.producto_origen_id,
-                dt.producto_destino_id,
-                dt.cantidad,
-                dt.serial,
-                dt.modelo,
-                dt.marca,
-                dt.unidad,
+            # ------------------------------------------------
+            # Detalle
+            # ------------------------------------------------
 
-                p.codigo,
-                p.nombre
+            cursor.execute("""
+                SELECT
+                    dt.id,
+                    dt.producto_id,
+                    dt.equipo_id,
+                    dt.cantidad,
+                    dt.observaciones,
 
-            FROM detalle_traslados dt
+                    p.codigo,
+                    p.nombre AS producto_nombre,
+                    p.descripcion,
 
-            INNER JOIN productos p
-                ON p.id = dt.producto_origen_id
+                    un.codigo AS unidad,
+                    un.nombre AS unidad_nombre,
 
-            WHERE dt.traslado_id = ?
+                    p.requiere_serial,
 
-            ORDER BY dt.id
-        ''', (id,))
+                    mo.nombre
+                        AS modelo_nombre,
 
-        detalle = [dict(x) for x in cursor.fetchall()]
+                    ma.id
+                        AS marca_id,
 
-        traslado['detalle'] = detalle
+                    ma.nombre
+                        AS marca_nombre,
 
-        return jsonify(traslado)
+                    e.serial
+                        AS equipo_serial,
+
+                    e.estado
+                        AS equipo_estado,
+
+                    e.condicion
+                        AS equipo_condicion
+
+                FROM detalle_traslados dt
+
+                INNER JOIN productos p
+                    ON p.id = dt.producto_id
+
+                LEFT JOIN equipos e
+                    ON e.id = dt.equipo_id
+
+                LEFT JOIN unidades un
+                    ON un.id = p.unidad_id
+
+                LEFT JOIN modelos mo
+                    ON mo.id = p.modelo_id
+
+                LEFT JOIN marcas ma
+                    ON ma.id = mo.marca_id
+
+                WHERE dt.traslado_id = %s
+
+                ORDER BY dt.id
+            """, (id,))
+
+            detalle = [
+                dict(item)
+                for item in cursor.fetchall()
+            ]
 
     finally:
+
         conn.close()
 
+    resultado = dict(traslado)
+
+    resultado["detalle"] = detalle
+
+    return jsonify(resultado)
+
 
 # ============================================================
-# POST /api/traslados
-# Crear y enviar traslado
+# POST /api/traslados/
+# CREAR TRASLADO
 # ============================================================
 
-@traslados_bp.route('/', methods=['POST'])
+@traslados_bp.route(
+    "/",
+    methods=["POST"]
+)
 @jwt_required()
 def crear_traslado():
 
     claims = get_jwt()
-    rol = claims.get('rol')
-    sede_usuario_id = claims.get('sede_id')
+
+    rol = claims.get("rol")
+    sede_usuario_id = claims.get("sede_id")
 
     datos = request.json or {}
 
-    # Hora de Colombia
-    ahora_colombia = datetime.now(COLOMBIA_TZ)
+    # --------------------------------------------------------
+    # PERMISOS
+    # --------------------------------------------------------
 
-    # Número del documento
-    numero_documento = (
-        f"TR-{ahora_colombia.strftime('%Y%m%d-%H%M%S')}"
-    )
-
-    # Fecha de creación en Colombia
-    fecha_creacion = ahora_colombia.strftime(
-        '%Y-%m-%d %H:%M:%S'
-    )
-
-    sede_origen_id = datos.get('sede_origen_id')
-    sede_destino_id = datos.get('sede_destino_id')
-    detalle = datos.get('detalle')
-
-    # ----------------------------------------------------
-    # Validar permisos de origen
-    # ----------------------------------------------------
-
-    if rol not in ('admin', 'sede'):
+    if rol not in (
+        "admin",
+        "sede"
+    ):
 
         return jsonify({
-            'error': 'No tienes permisos para crear traslados'
+            "error": (
+                "No tienes permisos para crear traslados"
+            )
         }), 403
 
-    # El almacenista SOLO puede enviar desde su propia sede
-    if rol == 'sede':
+    sede_origen_id = datos.get(
+        "sede_origen_id"
+    )
+
+    sede_destino_id = datos.get(
+        "sede_destino_id"
+    )
+
+    detalle = datos.get(
+        "detalle"
+    )
+
+    # --------------------------------------------------------
+    # SEDE ORIGEN
+    # --------------------------------------------------------
+
+    if rol == "sede":
 
         if not sede_usuario_id:
 
             return jsonify({
-                'error': 'El usuario no tiene una sede asignada'
+                "error": (
+                    "El usuario no tiene una sede asignada"
+                )
             }), 403
 
         if not sede_origen_id:
+
             sede_origen_id = sede_usuario_id
 
-        if int(sede_origen_id) != int(sede_usuario_id):
+        if int(sede_origen_id) != int(
+            sede_usuario_id
+        ):
 
             return jsonify({
-                'error':
-                    'Solo puedes crear traslados desde tu propia sede'
+                "error": (
+                    "Solo puedes crear traslados "
+                    "desde tu propia sede"
+                )
             }), 403
+
+    # --------------------------------------------------------
+    # VALIDACIONES
+    # --------------------------------------------------------
 
     if not sede_origen_id or not sede_destino_id:
 
         return jsonify({
-            'error':
-                'Debe seleccionar sede de origen y sede de destino'
+            "error": (
+                "Debe seleccionar sede de origen "
+                "y sede de destino"
+            )
         }), 400
 
-    if int(sede_origen_id) == int(sede_destino_id):
+    sede_origen_id = int(
+        sede_origen_id
+    )
+
+    sede_destino_id = int(
+        sede_destino_id
+    )
+
+    if sede_origen_id == sede_destino_id:
 
         return jsonify({
-            'error':
-                'La sede de origen y destino no pueden ser iguales'
+            "error": (
+                "La sede de origen y destino "
+                "no pueden ser iguales"
+            )
         }), 400
 
     if not detalle or len(detalle) == 0:
 
         return jsonify({
-            'error':
-                'Debe agregar al menos un producto'
+            "error": (
+                "Debe agregar al menos un producto"
+            )
         }), 400
 
+    usuario_id = int(
+        get_jwt_identity()
+    )
+
     conn = get_connection()
-    cursor = conn.cursor()
 
     try:
 
-        # ----------------------------------------------------
-        # Verificar sedes
-        # ----------------------------------------------------
+        with conn.cursor() as cursor:
 
-        cursor.execute(
-            '''
-            SELECT id
-            FROM sedes
-            WHERE id=? AND activa=1
-            ''',
-            (sede_origen_id,)
-        )
+            # ------------------------------------------------
+            # Verificar sedes
+            # ------------------------------------------------
 
-        if not cursor.fetchone():
-
-            return jsonify({
-                'error':
-                    'La sede de origen no existe o está inactiva'
-            }), 400
-
-        cursor.execute(
-            '''
-            SELECT id
-            FROM sedes
-            WHERE id=? AND activa=1
-            ''',
-            (sede_destino_id,)
-        )
-
-        if not cursor.fetchone():
-
-            return jsonify({
-                'error':
-                    'La sede de destino no existe o está inactiva'
-            }), 400
-
-        # ----------------------------------------------------
-        # Verificar documento duplicado
-        # ----------------------------------------------------
-
-        cursor.execute(
-            '''
-            SELECT id
-            FROM traslados
-            WHERE numero_documento=?
-            ''',
-            (numero_documento,)
-        )
-
-        if cursor.fetchone():
-
-            return jsonify({
-                'error':
-                    'Ya existe un traslado con ese numero de documento'
-            }), 400
-
-        # ----------------------------------------------------
-        # Validar productos y stock
-        # ----------------------------------------------------
-
-        productos_validos = []
-
-        for item in detalle:
-
-            producto_id = item.get('producto_id')
-            cantidad = item.get('cantidad')
-
-            if not producto_id or not cantidad:
-
-                return jsonify({
-                    'error':
-                        'Cada producto debe tener producto_id y cantidad'
-                }), 400
-
-            cantidad = int(cantidad)
-
-            if cantidad <= 0:
-
-                return jsonify({
-                    'error':
-                        'La cantidad debe ser mayor que cero'
-                }), 400
-
-            cursor.execute('''
+            cursor.execute("""
                 SELECT
                     id,
-                    codigo,
                     nombre,
-                    stock,
-                    sede_id,
-                    unidad
-                FROM productos
-                WHERE id=?
-            ''', (producto_id,))
+                    ciudad
+                FROM sedes
+                WHERE id = %s
+                  AND activa = TRUE
+            """, (sede_origen_id,))
 
-            producto = cursor.fetchone()
+            sede_origen = cursor.fetchone()
 
-            if not producto:
+            if not sede_origen:
 
-                return jsonify({
-                    'error':
-                        f'Producto {producto_id} no encontrado'
-                }), 400
+                raise ValueError(
+                    (
+                        "La sede de origen "
+                        "no existe o está inactiva"
+                    )
+                )
 
-            if producto['sede_id'] != int(sede_origen_id):
+            cursor.execute("""
+                SELECT
+                    id,
+                    nombre,
+                    ciudad
+                FROM sedes
+                WHERE id = %s
+                  AND activa = TRUE
+            """, (sede_destino_id,))
 
-                return jsonify({
-                    'error':
-                        f'El producto "{producto["nombre"]}" '
-                        'no pertenece a la sede de origen'
-                }), 400
+            sede_destino = cursor.fetchone()
 
-            if producto['stock'] < cantidad:
+            if not sede_destino:
 
-                return jsonify({
-                    'error':
-                        f'Stock insuficiente para '
-                        f'"{producto["nombre"]}". '
-                        f'Disponible: {producto["stock"]}. '
-                        f'Solicitado: {cantidad}.'
-                }), 400
+                raise ValueError(
+                    (
+                        "La sede de destino "
+                        "no existe o está inactiva"
+                    )
+                )
 
-            productos_validos.append({
-                'producto': producto,
-                'cantidad': cantidad,
-                'item': item
-            })
+            # ------------------------------------------------
+            # Generar documento
+            #
+            # Se genera dentro de la aplicación.
+            # ------------------------------------------------
 
-        # ----------------------------------------------------
-        # Crear traslado
-        # ----------------------------------------------------
+            cursor.execute("""
+                SELECT
+                    COUNT(*) AS cantidad
+                FROM traslados
+                WHERE fecha_creacion::date =
+                      CURRENT_DATE
+            """)
 
-        cursor.execute('''
-            INSERT INTO traslados
-                (
+            consecutivo = (
+                cursor.fetchone()["cantidad"]
+                + 1
+            )
+
+            numero_documento = (
+                f"TR-"
+                f"{__import__('datetime').datetime.now().strftime('%Y%m%d')}"
+                f"-{consecutivo:04d}"
+            )
+
+            # ------------------------------------------------
+            # Validar productos
+            # ------------------------------------------------
+
+            productos_validos = []
+
+            for item in detalle:
+
+                producto_id = item.get(
+                    "producto_id"
+                )
+
+                cantidad = item.get(
+                    "cantidad"
+                )
+
+                equipo_id = item.get(
+                    "equipo_id"
+                )
+
+                if not producto_id:
+
+                    raise ValueError(
+                        (
+                            "Cada detalle debe tener "
+                            "producto_id"
+                        )
+                    )
+
+                try:
+
+                    cantidad = int(
+                        cantidad
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    raise ValueError(
+                        (
+                            "La cantidad debe ser "
+                            "un número entero"
+                        )
+                    )
+
+                if cantidad <= 0:
+
+                    raise ValueError(
+                        (
+                            "La cantidad debe ser "
+                            "mayor que cero"
+                        )
+                    )
+
+                # --------------------------------------------
+                # Producto
+                # --------------------------------------------
+
+                cursor.execute("""
+                    SELECT
+                        p.id,
+                        p.codigo,
+                        p.nombre,
+                        p.sede_id,
+                        p.requiere_serial,
+
+                        COALESCE(
+                            i.cantidad,
+                            0
+                        ) AS stock
+
+                    FROM productos p
+
+                    LEFT JOIN inventario i
+                        ON i.producto_id = p.id
+                       AND i.sede_id = p.sede_id
+
+                    WHERE p.id = %s
+                    FOR UPDATE OF p
+                """, (producto_id,))
+
+                producto = cursor.fetchone()
+
+                if not producto:
+
+                    raise ValueError(
+                        (
+                            f"Producto {producto_id} "
+                            "no encontrado"
+                        )
+                    )
+
+                if producto["sede_id"] != (
+                    sede_origen_id
+                ):
+
+                    raise ValueError(
+                        (
+                            f'El producto '
+                            f'"{producto["nombre"]}" '
+                            "no pertenece a la "
+                            "sede de origen"
+                        )
+                    )
+
+                # --------------------------------------------
+                # Verificar inventario disponible
+                #
+                # NO se modifica aquí.
+                # --------------------------------------------
+
+                if producto["stock"] < cantidad:
+
+                    raise ValueError(
+                        (
+                            f'Stock insuficiente para '
+                            f'"{producto["nombre"]}". '
+                            f'Disponible: '
+                            f'{producto["stock"]}. '
+                            f'Solicitado: '
+                            f'{cantidad}.'
+                        )
+                    )
+
+                # --------------------------------------------
+                # Producto serializado
+                # --------------------------------------------
+
+                if (
+                    producto["requiere_serial"]
+                    and not equipo_id
+                ):
+
+                    raise ValueError(
+                        (
+                            f'El producto '
+                            f'"{producto["nombre"]}" '
+                            "requiere número de serie"
+                        )
+                    )
+
+                # --------------------------------------------
+                # Equipo / serial
+                # --------------------------------------------
+
+                if equipo_id:
+
+                    cursor.execute("""
+                        SELECT
+                            id,
+                            producto_id,
+                            sede_id,
+                            serial,
+                            estado,
+                            condicion
+
+                        FROM equipos
+
+                        WHERE id = %s
+
+                        FOR UPDATE
+                    """, (equipo_id,))
+
+                    equipo = cursor.fetchone()
+
+                    if not equipo:
+
+                        raise ValueError(
+                            (
+                                f"Equipo {equipo_id} "
+                                "no encontrado"
+                            )
+                        )
+
+                    if equipo["producto_id"] != (
+                        producto_id
+                    ):
+
+                        raise ValueError(
+                            (
+                                "El equipo no pertenece "
+                                "al producto seleccionado"
+                            )
+                        )
+
+                    if equipo["sede_id"] != (
+                        sede_origen_id
+                    ):
+
+                        raise ValueError(
+                            (
+                                "El equipo no pertenece "
+                                "a la sede de origen"
+                            )
+                        )
+
+                    if equipo["estado"] in (
+                        "EN_TRANSITO",
+                        "MANTENIMIENTO",
+                        "DADO_DE_BAJA"
+                    ):
+
+                        raise ValueError(
+                            (
+                                f'El equipo con serial '
+                                f'"{equipo["serial"]}" '
+                                f'no puede trasladarse '
+                                f'porque está en estado '
+                                f'{equipo["estado"]}'
+                            )
+                        )
+
+                productos_validos.append({
+                    "producto_id": producto_id,
+                    "cantidad": cantidad,
+                    "equipo_id": equipo_id,
+                    "observaciones": item.get(
+                        "observaciones",
+                        ""
+                    ).strip()
+                })
+
+            # ------------------------------------------------
+            # Crear traslado
+            #
+            # IMPORTANTE:
+            # El inventario NO cambia aquí.
+            # ------------------------------------------------
+
+            cursor.execute("""
+                INSERT INTO traslados (
                     numero_documento,
                     sede_origen_id,
                     sede_destino_id,
-                    observaciones,
+                    usuario_creador_id,
                     estado,
-                    creado_por,
-                    fecha_creacion
+                    observaciones
                 )
-            VALUES (?, ?, ?, ?, 'PENDIENTE', ?, ?)
-        ''', (
-            numero_documento,
-            sede_origen_id,
-            sede_destino_id,
-            datos.get('observaciones', ''),
-            int(get_jwt_identity()),
-            fecha_creacion
-        ))
+                VALUES (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    'PENDIENTE',
+                    %s
+                )
+                RETURNING id
+            """, (
+                numero_documento,
+                sede_origen_id,
+                sede_destino_id,
+                usuario_id,
+                datos.get(
+                    "observaciones",
+                    ""
+                ).strip()
+            ))
 
-        traslado_id = cursor.lastrowid
+            traslado_id = cursor.fetchone()["id"]
 
-        # ----------------------------------------------------
-        # Detalle + descuento de stock
-        # ----------------------------------------------------
+            # ------------------------------------------------
+            # Detalles
+            # ------------------------------------------------
 
-        for item in productos_validos:
+            for item in productos_validos:
 
-            producto = item['producto']
-            datos_item = item['item']
-            cantidad = item['cantidad']
-
-            cursor.execute('''
-                INSERT INTO detalle_traslados
-                    (
+                cursor.execute("""
+                    INSERT INTO detalle_traslados (
                         traslado_id,
-                        producto_origen_id,
-                        producto_destino_id,
+                        producto_id,
+                        equipo_id,
                         cantidad,
-                        serial,
-                        modelo,
-                        marca,
-                        unidad
+                        observaciones
                     )
-                VALUES (?, ?, NULL, ?, ?, ?, ?, ?)
-            ''', (
-                traslado_id,
-                producto['id'],
-                cantidad,
-                datos_item.get('serial', ''),
-                datos_item.get('modelo', ''),
-                datos_item.get('marca', ''),
-                datos_item.get(
-                    'unidad',
-                    producto['unidad'] or 'UND'
-                )
-            ))
-
-            cursor.execute('''
-                UPDATE productos
-                SET stock = stock - ?
-                WHERE id = ?
-            ''', (
-                cantidad,
-                producto['id']
-            ))
+                    VALUES (
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s
+                    )
+                """, (
+                    traslado_id,
+                    item["producto_id"],
+                    item["equipo_id"],
+                    item["cantidad"],
+                    item["observaciones"]
+                ))
 
         conn.commit()
-
-        return jsonify({
-            'mensaje':
-                'Traslado creado y enviado correctamente',
-            'id': traslado_id,
-            'estado': 'PENDIENTE'
-        }), 201
 
     except Exception as e:
 
         conn.rollback()
 
         return jsonify({
-            'error': str(e)
-        }), 500
+            "error": str(e)
+        }), 400
 
     finally:
+
         conn.close()
+
+    return jsonify({
+        "mensaje": (
+            "Traslado creado correctamente"
+        ),
+        "id": traslado_id,
+        "numero_documento": numero_documento,
+        "estado": "PENDIENTE"
+    }), 201
 
 
 # ============================================================
 # PUT /api/traslados/<id>/recibir
-# Recibir traslado
+#
+# RECIBIR TRASLADO
+#
+# El trigger PostgreSQL hará el trabajo de inventario,
+# producto destino, equipo e historial.
 # ============================================================
 
-@traslados_bp.route('/<int:id>/recibir', methods=['PUT'])
+@traslados_bp.route(
+    "/<int:id>/recibir",
+    methods=["PUT"]
+)
 @jwt_required()
 def recibir_traslado(id):
 
     claims = get_jwt()
 
+    rol = claims.get("rol")
+    sede_usuario_id = claims.get(
+        "sede_id"
+    )
+
+    usuario_id = int(
+        get_jwt_identity()
+    )
+
+    # --------------------------------------------------------
+    # Consulta no puede recibir
+    # --------------------------------------------------------
+
+    if rol == "consulta":
+
+        return jsonify({
+            "error": (
+                "El usuario de consulta "
+                "no puede recibir traslados"
+            )
+        }), 403
+
     conn = get_connection()
-    cursor = conn.cursor()
 
     try:
 
-        cursor.execute('''
-            SELECT
-                id,
-                sede_origen_id,
-                sede_destino_id,
-                estado
-            FROM traslados
-            WHERE id=?
-        ''', (id,))
+        with conn.cursor() as cursor:
 
-        traslado = cursor.fetchone()
+            # ------------------------------------------------
+            # Bloquear traslado
+            # ------------------------------------------------
 
-        if not traslado:
-
-            return jsonify({
-                'error': 'Traslado no encontrado'
-            }), 404
-
-        # ----------------------------------------------------
-        # Solo admin puede recibir
-        # ----------------------------------------------------
-
-        if claims.get('rol') != 'admin':
-
-            return jsonify({
-                'error':
-                    'Solo el administrador puede recibir traslados'
-            }), 403
-
-        # ----------------------------------------------------
-        # Verificar estado
-        # ----------------------------------------------------
-
-        if traslado['estado'] != 'PENDIENTE':
-
-            return jsonify({
-                'error':
-                    f'El traslado ya está en estado '
-                    f'{traslado["estado"]}'
-            }), 400
-
-        sede_destino_id = traslado['sede_destino_id']
-
-        # ----------------------------------------------------
-        # Obtener productos
-        # ----------------------------------------------------
-
-        cursor.execute('''
-            SELECT
-                id,
-                producto_origen_id,
-                cantidad,
-                serial,
-                modelo,
-                marca,
-                unidad
-            FROM detalle_traslados
-            WHERE traslado_id=?
-        ''', (id,))
-
-        items = cursor.fetchall()
-
-        if not items:
-
-            return jsonify({
-                'error':
-                    'El traslado no tiene productos'
-            }), 400
-
-        # ----------------------------------------------------
-        # Pasar productos a sede destino
-        # ----------------------------------------------------
-
-        for item in items:
-
-            producto_origen_id = item['producto_origen_id']
-
-            cursor.execute('''
+            cursor.execute("""
                 SELECT
-                    codigo,
-                    nombre,
-                    descripcion,
-                    unidad
-                FROM productos
-                WHERE id=?
-            ''', (producto_origen_id,))
+                    id,
+                    sede_origen_id,
+                    sede_destino_id,
+                    estado
 
-            producto = cursor.fetchone()
+                FROM traslados
 
-            if not producto:
+                WHERE id = %s
+
+                FOR UPDATE
+            """, (id,))
+
+            traslado = cursor.fetchone()
+
+            if not traslado:
 
                 return jsonify({
-                    'error':
-                        f'Producto origen '
-                        f'{producto_origen_id} no encontrado'
+                    "error": "Traslado no encontrado"
+                }), 404
+
+            # ------------------------------------------------
+            # Solo la sede destino puede recibir
+            # Admin puede recibir cualquiera.
+            # ------------------------------------------------
+
+            if rol != "admin":
+
+                if (
+                    not sede_usuario_id
+                    or int(sede_usuario_id)
+                    != int(
+                        traslado[
+                            "sede_destino_id"
+                        ]
+                    )
+                ):
+
+                    return jsonify({
+                        "error": (
+                            "Solo la sede de destino "
+                            "puede recibir este traslado"
+                        )
+                    }), 403
+
+            # ------------------------------------------------
+            # Estado
+            # ------------------------------------------------
+
+            if traslado["estado"] != "PENDIENTE":
+
+                return jsonify({
+                    "error": (
+                        "El traslado no está pendiente. "
+                        f"Estado actual: "
+                        f"{traslado['estado']}"
+                    )
                 }), 400
 
-            codigo = producto['codigo']
+            # ------------------------------------------------
+            # Verificar que tenga detalles
+            # ------------------------------------------------
 
-            # Buscar producto equivalente en la sede destino
-            cursor.execute('''
-                SELECT id
-                FROM productos
-                WHERE codigo=?
-                  AND sede_id=?
-            ''', (
-                codigo,
-                sede_destino_id
+            cursor.execute("""
+                SELECT COUNT(*) AS cantidad
+                FROM detalle_traslados
+                WHERE traslado_id = %s
+            """, (id,))
+
+            cantidad_items = cursor.fetchone()[
+                "cantidad"
+            ]
+
+            if cantidad_items == 0:
+
+                return jsonify({
+                    "error": (
+                        "El traslado no tiene productos"
+                    )
+                }), 400
+
+            # ------------------------------------------------
+            # Cambiar estado
+            #
+            # AQUÍ SE DISPARA EL TRIGGER:
+            #
+            # procesar_traslado_recibido()
+            #
+            # El trigger:
+            #   - descuenta origen
+            #   - suma destino
+            #   - mueve equipos
+            #   - registra historial
+            #   - establece fecha_recepcion
+            # ------------------------------------------------
+
+            cursor.execute("""
+                UPDATE traslados
+                SET
+                    estado = 'RECIBIDO',
+                    usuario_recibido_id = %s,
+                    fecha_recepcion =
+                        CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (
+                usuario_id,
+                id
             ))
-
-            producto_destino = cursor.fetchone()
-
-            if producto_destino:
-
-                destino_id = producto_destino['id']
-
-                cursor.execute('''
-                    UPDATE productos
-                    SET stock = stock + ?
-                    WHERE id=?
-                ''', (
-                    item['cantidad'],
-                    destino_id
-                ))
-
-            else:
-
-                cursor.execute('''
-                    INSERT INTO productos
-                        (
-                            codigo,
-                            nombre,
-                            descripcion,
-                            unidad,
-                            stock,
-                            stock_minimo,
-                            sede_id
-                        )
-                    SELECT
-                        codigo,
-                        nombre,
-                        descripcion,
-                        unidad,
-                        ?,
-                        stock_minimo,
-                        ?
-                    FROM productos
-                    WHERE id=?
-                ''', (
-                    item['cantidad'],
-                    sede_destino_id,
-                    producto_origen_id
-                ))
-
-                destino_id = cursor.lastrowid
-
-            # Guardamos qué producto terminó en destino
-            cursor.execute('''
-                UPDATE detalle_traslados
-                SET producto_destino_id=?
-                WHERE id=?
-            ''', (
-                destino_id,
-                item['id']
-            ))
-
-        # ----------------------------------------------------
-        # Marcar recibido
-        # ----------------------------------------------------
-
-        fecha_recepcion = fecha_colombia()
-
-        cursor.execute('''
-            UPDATE traslados
-            SET
-                estado='RECIBIDO',
-                recibido_por=?,
-                fecha_recepcion=?
-            WHERE id=?
-        ''', (
-            int(get_jwt_identity()),
-            fecha_recepcion,
-            id
-        ))
 
         conn.commit()
-
-        return jsonify({
-            'mensaje':
-                'Traslado recibido correctamente',
-            'estado':
-                'RECIBIDO'
-        })
 
     except Exception as e:
 
         conn.rollback()
 
         return jsonify({
-            'error': str(e)
-        }), 500
+            "error": str(e)
+        }), 400
 
     finally:
+
         conn.close()
+
+    return jsonify({
+        "mensaje": (
+            "Traslado recibido correctamente"
+        ),
+        "estado": "RECIBIDO"
+    })
+
+
+# ============================================================
+# PUT /api/traslados/<id>/anular
+#
+# SOLO ADMIN
+#
+# El trigger PostgreSQL revierte:
+#   destino → origen
+#   equipo → origen
+#   historial
+# ============================================================
+
+@traslados_bp.route(
+    "/<int:id>/anular",
+    methods=["PUT"]
+)
+@jwt_required()
+def anular_traslado(id):
+
+    claims = get_jwt()
+
+    if claims.get("rol") != "admin":
+
+        return jsonify({
+            "error": (
+                "Solo el administrador "
+                "puede anular traslados"
+            )
+        }), 403
+
+    datos = request.json or {}
+
+    motivo = datos.get(
+        "motivo_anulacion",
+        ""
+    ).strip()
+
+    if not motivo:
+
+        return jsonify({
+            "error": (
+                "El motivo de anulación "
+                "es obligatorio"
+            )
+        }), 400
+
+    usuario_id = int(
+        get_jwt_identity()
+    )
+
+    conn = get_connection()
+
+    try:
+
+        with conn.cursor() as cursor:
+
+            cursor.execute("""
+                SELECT
+                    id,
+                    sede_origen_id,
+                    sede_destino_id,
+                    estado
+
+                FROM traslados
+
+                WHERE id = %s
+
+                FOR UPDATE
+            """, (id,))
+
+            traslado = cursor.fetchone()
+
+            if not traslado:
+
+                return jsonify({
+                    "error": (
+                        "Traslado no encontrado"
+                    )
+                }), 404
+
+            if traslado["estado"] == "ANULADO":
+
+                return jsonify({
+                    "error": (
+                        "El traslado ya está anulado"
+                    )
+                }), 400
+
+            # ------------------------------------------------
+            # Solo se permite anular un traslado que ya fue
+            # recibido o que está pendiente.
+            #
+            # El trigger se encargará de actuar según estado.
+            # ------------------------------------------------
+
+            if traslado["estado"] not in (
+                "PENDIENTE",
+                "RECIBIDO"
+            ):
+
+                return jsonify({
+                    "error": (
+                        "El traslado no puede ser anulado "
+                        f"desde el estado "
+                        f"{traslado['estado']}"
+                    )
+                }), 400
+
+            # ------------------------------------------------
+            # Anular
+            # ------------------------------------------------
+
+            cursor.execute("""
+                UPDATE traslados
+                SET
+                    estado = 'ANULADO',
+                    anulado_por = %s,
+                    fecha_anulacion =
+                        CURRENT_TIMESTAMP,
+                    motivo_anulacion = %s
+                WHERE id = %s
+            """, (
+                usuario_id,
+                motivo,
+                id
+            ))
+
+        conn.commit()
+
+    except Exception as e:
+
+        conn.rollback()
+
+        return jsonify({
+            "error": str(e)
+        }), 400
+
+    finally:
+
+        conn.close()
+
+    return jsonify({
+        "mensaje": (
+            "Traslado anulado correctamente"
+        ),
+        "estado": "ANULADO"
+    })

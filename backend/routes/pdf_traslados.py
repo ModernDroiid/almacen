@@ -1,12 +1,16 @@
 # ============================================================
-# pdf_traslados.py — PDF de traslado entre sedes
+# pdf_traslados.py
+# PDF de traslado entre sedes
+# PostgreSQL
 # ============================================================
 
-from flask import Blueprint, request, send_file
+from flask import Blueprint, request, send_file, jsonify
 from flask_jwt_extended import decode_token
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import cm
+
 from reportlab.platypus import (
     SimpleDocTemplate,
     Table,
@@ -15,141 +19,216 @@ from reportlab.platypus import (
     Spacer,
     Image
 )
+
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
+
 import os
-import sys
 from io import BytesIO
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from database import get_connection
 
 
-pdf_traslados_bp = Blueprint('pdf_traslados', __name__)
+pdf_traslados_bp = Blueprint(
+    "pdf_traslados",
+    __name__
+)
 
 
 # ============================================================
-# GET /api/pdf/traslados/<id>
-# Generar PDF de traslado
-#
-# El token se recibe mediante:
-# ?token=...
+# GET /api/pdf/traslados/<id>?token=...
 # ============================================================
 
-@pdf_traslados_bp.route('/traslados/<int:id>', methods=['GET'])
+@pdf_traslados_bp.route(
+    "/traslados/<int:id>",
+    methods=["GET"]
+)
 def generar_pdf_traslado(id):
 
     # ========================================================
     # VALIDAR TOKEN
     # ========================================================
 
-    token = request.args.get('token')
+    token = request.args.get("token")
 
     if not token:
-        return {
-            'error': 'Token requerido'
-        }, 401
+
+        return jsonify({
+            "error": "Token requerido"
+        }), 401
 
     try:
+
         decode_token(token)
+
     except Exception:
-        return {
-            'error': 'Token inválido o expirado'
-        }, 401
+
+        return jsonify({
+            "error": "Token inválido o expirado"
+        }), 401
 
     # ========================================================
     # CONEXIÓN BD
     # ========================================================
 
     conn = get_connection()
-    cursor = conn.cursor()
 
     try:
 
-        # ====================================================
-        # INFORMACIÓN DEL TRASLADO
-        # ====================================================
+        with conn.cursor() as cursor:
 
-        cursor.execute('''
-            SELECT
-                t.id,
-                t.numero_documento,
-                t.observaciones,
-                t.estado,
-                t.fecha_creacion,
-                t.fecha_recepcion,
+            # =================================================
+            # INFORMACIÓN DEL TRASLADO
+            # =================================================
 
-                so.nombre AS sede_origen_nombre,
-                so.ciudad AS sede_origen_ciudad,
+            cursor.execute("""
+                SELECT
 
-                sd.nombre AS sede_destino_nombre,
-                sd.ciudad AS sede_destino_ciudad,
+                    t.id,
+                    t.numero_documento,
 
-                uc.nombre AS creado_por_nombre,
-                ur.nombre AS recibido_por_nombre
+                    t.sede_origen_id,
+                    t.sede_destino_id,
 
-            FROM traslados t
+                    t.usuario_creador_id,
+                    t.usuario_recibido_id,
 
-            LEFT JOIN sedes so
-                ON so.id = t.sede_origen_id
+                    t.estado,
 
-            LEFT JOIN sedes sd
-                ON sd.id = t.sede_destino_id
+                    t.observaciones,
 
-            LEFT JOIN usuarios uc
-                ON uc.id = t.creado_por
+                    t.fecha_creacion,
+                    t.fecha_recepcion,
 
-            LEFT JOIN usuarios ur
-                ON ur.id = t.recibido_por
+                    t.anulado_por,
+                    t.fecha_anulacion,
+                    t.motivo_anulacion,
 
-            WHERE t.id = ?
-        ''', (id,))
+                    so.nombre
+                        AS sede_origen_nombre,
 
-        traslado = cursor.fetchone()
+                    so.ciudad
+                        AS sede_origen_ciudad,
 
-        if not traslado:
-            return {
-                'error': 'Traslado no encontrado'
-            }, 404
+                    sd.nombre
+                        AS sede_destino_nombre,
 
-        traslado = dict(traslado)
+                    sd.ciudad
+                        AS sede_destino_ciudad,
 
-        # ====================================================
-        # DETALLE DE PRODUCTOS
-        # ====================================================
+                    uc.nombre
+                        AS creado_por_nombre,
 
-        cursor.execute('''
-            SELECT
-                p.nombre,
-                p.codigo,
-                dt.modelo,
-                dt.marca,
-                dt.serial,
-                dt.cantidad,
-                dt.unidad
+                    ur.nombre
+                        AS recibido_por_nombre,
 
-            FROM detalle_traslados dt
+                    ua.nombre
+                        AS anulado_por_nombre
 
-            INNER JOIN productos p
-                ON p.id = dt.producto_origen_id
+                FROM traslados t
 
-            WHERE dt.traslado_id = ?
+                LEFT JOIN sedes so
+                    ON so.id = t.sede_origen_id
 
-            ORDER BY dt.id
-        ''', (id,))
+                LEFT JOIN sedes sd
+                    ON sd.id = t.sede_destino_id
 
-        detalle = [
-            dict(x)
-            for x in cursor.fetchall()
-        ]
+                LEFT JOIN usuarios uc
+                    ON uc.id = t.usuario_creador_id
+
+                LEFT JOIN usuarios ur
+                    ON ur.id = t.usuario_recibido_id
+
+                LEFT JOIN usuarios ua
+                    ON ua.id = t.anulado_por
+
+                WHERE t.id = %s
+            """, (
+                id,
+            ))
+
+            traslado = cursor.fetchone()
+
+            if not traslado:
+
+                return jsonify({
+                    "error": "Traslado no encontrado"
+                }), 404
+
+            # =================================================
+            # DETALLE
+            # =================================================
+
+            cursor.execute("""
+                SELECT
+
+                    dt.id,
+
+                    dt.producto_id,
+                    dt.equipo_id,
+
+                    dt.cantidad,
+                    dt.observaciones
+                        AS detalle_observaciones,
+
+                    p.codigo,
+
+                    p.nombre
+                        AS producto_nombre,
+
+                    p.requiere_serial,
+
+                    un.codigo
+                        AS unidad_codigo,
+
+                    un.nombre
+                        AS unidad_nombre,
+
+                    mo.nombre
+                        AS modelo_nombre,
+
+                    ma.nombre
+                        AS marca_nombre,
+
+                    eq.serial
+
+                FROM detalle_traslados dt
+
+                INNER JOIN productos p
+                    ON p.id = dt.producto_id
+
+                LEFT JOIN unidades un
+                    ON un.id = p.unidad_id
+
+                LEFT JOIN modelos mo
+                    ON mo.id = p.modelo_id
+
+                LEFT JOIN marcas ma
+                    ON ma.id = mo.marca_id
+
+                LEFT JOIN equipos eq
+                    ON eq.id = dt.equipo_id
+
+                WHERE dt.traslado_id = %s
+
+                ORDER BY dt.id
+            """, (
+                id,
+            ))
+
+            detalle = [
+                dict(item)
+                for item in cursor.fetchall()
+            ]
 
     except Exception as e:
 
-        return {
-            'error': str(e)
-        }, 500
+        return jsonify({
+            "error": str(e)
+        }), 500
 
     finally:
+
         conn.close()
 
     # ========================================================
@@ -160,7 +239,9 @@ def generar_pdf_traslado(id):
 
     doc = SimpleDocTemplate(
         buffer,
+
         pagesize=A4,
+
         rightMargin=1.5 * cm,
         leftMargin=1.5 * cm,
         topMargin=1.5 * cm,
@@ -174,49 +255,53 @@ def generar_pdf_traslado(id):
     # ========================================================
 
     estilo_celda = ParagraphStyle(
-        'celda',
+        "celda",
         fontSize=8,
         leading=10
     )
 
     estilo_titulo = ParagraphStyle(
-        'titulo',
+        "titulo",
         fontSize=14,
-        fontName='Helvetica-Bold',
-        textColor=colors.HexColor('#0d2137')
+        fontName="Helvetica-Bold",
+        textColor=colors.HexColor(
+            "#0d2137"
+        )
     )
 
     estilo_encabezado = ParagraphStyle(
-        'encabezado',
+        "encabezado",
         fontSize=7,
-        fontName='Helvetica-Bold',
+        fontName="Helvetica-Bold",
         textColor=colors.white,
         alignment=TA_CENTER
     )
 
     estilo_label = ParagraphStyle(
-        'label',
+        "label",
         fontSize=7,
-        fontName='Helvetica-Bold',
-        textColor=colors.HexColor('#0d2137')
+        fontName="Helvetica-Bold",
+        textColor=colors.HexColor(
+            "#0d2137"
+        )
     )
 
     estilo_valor = ParagraphStyle(
-        'valor',
+        "valor",
         fontSize=8
     )
 
     # ========================================================
-    # LOGO + TITULO
+    # LOGO
     # ========================================================
 
     logo_path = os.path.join(
         os.path.dirname(__file__),
-        '..',
-        '..',
-        'frontend',
-        'img',
-        'occidente.png'
+        "..",
+        "..",
+        "frontend",
+        "img",
+        "occidente.png"
     )
 
     if os.path.exists(logo_path):
@@ -230,130 +315,192 @@ def generar_pdf_traslado(id):
     else:
 
         logo = Paragraph(
-            'OCCIDENTE',
+            "OCCIDENTE",
             estilo_titulo
         )
+
+    # ========================================================
+    # TÍTULO
+    # ========================================================
 
     bloque_titulo = [
 
         Paragraph(
-            'TRASLADO ENTRE SEDES',
+            "TRASLADO ENTRE SEDES",
+
             ParagraphStyle(
-                'tit',
+                "tit",
                 fontSize=16,
-                fontName='Helvetica-Bold',
-                textColor=colors.HexColor('#0d2137'),
+                fontName="Helvetica-Bold",
+                textColor=colors.HexColor(
+                    "#0d2137"
+                ),
                 alignment=TA_CENTER
             )
         ),
 
-        Spacer(1, 0.2 * cm),
+        Spacer(
+            1,
+            0.2 * cm
+        ),
 
         Paragraph(
             f'N° {traslado.get("numero_documento", "")}',
+
             ParagraphStyle(
-                'num',
+                "num",
                 fontSize=9,
                 alignment=TA_CENTER,
-                textColor=colors.HexColor('#1a6fc4')
+                textColor=colors.HexColor(
+                    "#1a6fc4"
+                )
             )
         )
     ]
 
     tabla_header = Table(
-        [[logo, bloque_titulo]],
+        [[
+            logo,
+            bloque_titulo
+        ]],
+
         colWidths=[
             5 * cm,
             13 * cm
         ]
     )
 
-    tabla_header.setStyle(TableStyle([
-        (
-            'VALIGN',
-            (0, 0),
-            (-1, -1),
-            'MIDDLE'
-        ),
-        (
-            'ALIGN',
-            (1, 0),
-            (1, 0),
-            'CENTER'
-        ),
-    ]))
+    tabla_header.setStyle(
+        TableStyle([
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
 
-    elementos.append(tabla_header)
+            (
+                "ALIGN",
+                (1, 0),
+                (1, 0),
+                "CENTER"
+            )
+        ])
+    )
+
     elementos.append(
-        Spacer(1, 0.4 * cm)
+        tabla_header
+    )
+
+    elementos.append(
+        Spacer(
+            1,
+            0.4 * cm
+        )
+    )
+
+    # ========================================================
+    # FECHAS
+    # ========================================================
+
+    fecha_creacion = (
+        str(
+            traslado.get(
+                "fecha_creacion"
+            )
+        )
+        if traslado.get(
+            "fecha_creacion"
+        )
+        else ""
+    )
+
+    fecha_recepcion = (
+        str(
+            traslado.get(
+                "fecha_recepcion"
+            )
+        )
+        if traslado.get(
+            "fecha_recepcion"
+        )
+        else ""
+    )
+
+    # ========================================================
+    # ESTADO
+    # ========================================================
+
+    estado = (
+        traslado.get(
+            "estado"
+        )
+        or "PENDIENTE"
     )
 
     # ========================================================
     # INFORMACIÓN DEL TRASLADO
     # ========================================================
 
-    fecha_creacion = traslado.get(
-        'fecha_creacion'
-    ) or ''
-
-    fecha_recepcion = traslado.get(
-        'fecha_recepcion'
-    ) or ''
-
     info_data = [
 
         [
             Paragraph(
-                'Sede origen:',
+                "Sede origen:",
                 estilo_label
             ),
 
             Paragraph(
-                f'{traslado.get("sede_origen_nombre", "")} '
-                f'— {traslado.get("sede_origen_ciudad", "")}',
+                (
+                    f'{traslado.get("sede_origen_nombre", "")} '
+                    f'— '
+                    f'{traslado.get("sede_origen_ciudad", "")}'
+                ),
                 estilo_valor
             ),
 
             Paragraph(
-                'Sede destino:',
+                "Sede destino:",
                 estilo_label
             ),
 
             Paragraph(
-                f'{traslado.get("sede_destino_nombre", "")} '
-                f'— {traslado.get("sede_destino_ciudad", "")}',
+                (
+                    f'{traslado.get("sede_destino_nombre", "")} '
+                    f'— '
+                    f'{traslado.get("sede_destino_ciudad", "")}'
+                ),
                 estilo_valor
-            ),
+            )
         ],
 
         [
             Paragraph(
-                'Estado:',
+                "Estado:",
                 estilo_label
             ),
 
             Paragraph(
-                traslado.get('estado', ''),
+                estado,
                 estilo_valor
             ),
 
             Paragraph(
-                'Documento:',
+                "Documento:",
                 estilo_label
             ),
 
             Paragraph(
                 traslado.get(
-                    'numero_documento',
-                    ''
-                ),
+                    "numero_documento"
+                ) or "",
                 estilo_valor
-            ),
+            )
         ],
 
         [
             Paragraph(
-                'Inicio traslado:',
+                "Inicio traslado:",
                 estilo_label
             ),
 
@@ -363,48 +510,48 @@ def generar_pdf_traslado(id):
             ),
 
             Paragraph(
-                'Finalización:',
+                "Finalización:",
                 estilo_label
             ),
 
             Paragraph(
                 fecha_recepcion
                 if fecha_recepcion
-                else 'Pendiente',
+                else "Pendiente",
                 estilo_valor
-            ),
+            )
         ],
 
         [
             Paragraph(
-                'Creado por:',
+                "Creado por:",
                 estilo_label
             ),
 
             Paragraph(
                 traslado.get(
-                    'creado_por_nombre'
-                ) or '—',
+                    "creado_por_nombre"
+                ) or "—",
                 estilo_valor
             ),
 
             Paragraph(
-                'Recibido por:',
+                "Recibido por:",
                 estilo_label
             ),
 
             Paragraph(
                 traslado.get(
-                    'recibido_por_nombre'
-                ) or 'Pendiente',
+                    "recibido_por_nombre"
+                ) or "Pendiente",
                 estilo_valor
-            ),
-        ],
-
+            )
+        ]
     ]
 
     tabla_info = Table(
         info_data,
+
         colWidths=[
             3.5 * cm,
             6.0 * cm,
@@ -413,65 +560,185 @@ def generar_pdf_traslado(id):
         ]
     )
 
-    tabla_info.setStyle(TableStyle([
+    tabla_info.setStyle(
+        TableStyle([
 
-        (
-            'GRID',
-            (0, 0),
-            (-1, -1),
-            0.5,
-            colors.HexColor('#dce6f0')
-        ),
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.HexColor(
+                    "#dce6f0"
+                )
+            ),
 
-        (
-            'BACKGROUND',
-            (0, 0),
-            (0, -1),
-            colors.HexColor('#f7f9fc')
-        ),
+            (
+                "BACKGROUND",
+                (0, 0),
+                (0, -1),
+                colors.HexColor(
+                    "#f7f9fc"
+                )
+            ),
 
-        (
-            'BACKGROUND',
-            (2, 0),
-            (2, -1),
-            colors.HexColor('#f7f9fc')
-        ),
+            (
+                "BACKGROUND",
+                (2, 0),
+                (2, -1),
+                colors.HexColor(
+                    "#f7f9fc"
+                )
+            ),
 
-        (
-            'VALIGN',
-            (0, 0),
-            (-1, -1),
-            'MIDDLE'
-        ),
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
 
-        (
-            'PADDING',
-            (0, 0),
-            (-1, -1),
-            5
-        ),
-
-    ]))
-
-    elementos.append(tabla_info)
-    elementos.append(
-        Spacer(1, 0.4 * cm)
+            (
+                "PADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            )
+        ])
     )
+
+    elementos.append(
+        tabla_info
+    )
+
+    elementos.append(
+        Spacer(
+            1,
+            0.4 * cm
+        )
+    )
+
+    # ========================================================
+    # ANULACIÓN
+    # ========================================================
+
+    if estado == "ANULADA":
+
+        anulacion_data = [
+
+            [
+                Paragraph(
+                    "ANULADO",
+
+                    ParagraphStyle(
+                        "anulado",
+                        fontSize=10,
+                        fontName="Helvetica-Bold",
+                        textColor=colors.red
+                    )
+                ),
+
+                Paragraph(
+                    traslado.get(
+                        "motivo_anulacion"
+                    )
+                    or
+                    "Sin motivo registrado",
+
+                    estilo_valor
+                )
+            ],
+
+            [
+                Paragraph(
+                    "Anulado por:",
+                    estilo_label
+                ),
+
+                Paragraph(
+                    traslado.get(
+                        "anulado_por_nombre"
+                    )
+                    or "",
+                    estilo_valor
+                )
+            ]
+        ]
+
+        tabla_anulacion = Table(
+            anulacion_data,
+
+            colWidths=[
+                3.5 * cm,
+                14.5 * cm
+            ]
+        )
+
+        tabla_anulacion.setStyle(
+            TableStyle([
+
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.HexColor(
+                        "#dce6f0"
+                    )
+                ),
+
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (0, 1),
+                    colors.HexColor(
+                        "#f7f9fc"
+                    )
+                ),
+
+                (
+                    "PADDING",
+                    (0, 0),
+                    (-1, -1),
+                    6
+                ),
+
+                (
+                    "VALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "MIDDLE"
+                )
+            ])
+        )
+
+        elementos.append(
+            tabla_anulacion
+        )
+
+        elementos.append(
+            Spacer(
+                1,
+                0.4 * cm
+            )
+        )
 
     # ========================================================
     # OBSERVACIONES
     # ========================================================
 
     observaciones = (
-        traslado.get('observaciones')
-        or 'Sin observaciones'
+        traslado.get(
+            "observaciones"
+        )
+        or "Sin observaciones"
     )
 
     tabla_observaciones = Table(
         [[
 
             Paragraph(
-                'Observaciones:',
+                "Observaciones:",
                 estilo_label
             ),
 
@@ -479,53 +746,61 @@ def generar_pdf_traslado(id):
                 observaciones,
                 estilo_valor
             )
-
         ]],
+
         colWidths=[
             3.5 * cm,
             13.5 * cm
         ]
     )
 
-    tabla_observaciones.setStyle(TableStyle([
+    tabla_observaciones.setStyle(
+        TableStyle([
 
-        (
-            'GRID',
-            (0, 0),
-            (-1, -1),
-            0.5,
-            colors.HexColor('#dce6f0')
-        ),
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.HexColor(
+                    "#dce6f0"
+                )
+            ),
 
-        (
-            'BACKGROUND',
-            (0, 0),
-            (0, 0),
-            colors.HexColor('#f7f9fc')
-        ),
+            (
+                "BACKGROUND",
+                (0, 0),
+                (0, 0),
+                colors.HexColor(
+                    "#f7f9fc"
+                )
+            ),
 
-        (
-            'VALIGN',
-            (0, 0),
-            (-1, -1),
-            'TOP'
-        ),
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "TOP"
+            ),
 
-        (
-            'PADDING',
-            (0, 0),
-            (-1, -1),
-            5
-        ),
-
-    ]))
+            (
+                "PADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            )
+        ])
+    )
 
     elementos.append(
         tabla_observaciones
     )
 
     elementos.append(
-        Spacer(1, 0.4 * cm)
+        Spacer(
+            1,
+            0.4 * cm
+        )
     )
 
     # ========================================================
@@ -535,92 +810,113 @@ def generar_pdf_traslado(id):
     encabezados = [
 
         Paragraph(
-            'Descripción del artículo',
+            "Descripción del artículo",
             estilo_encabezado
         ),
 
         Paragraph(
-            'Modelo',
+            "Modelo",
             estilo_encabezado
         ),
 
         Paragraph(
-            'Marca',
+            "Marca",
             estilo_encabezado
         ),
 
         Paragraph(
-            'N° Serial',
+            "N° Serial",
             estilo_encabezado
         ),
 
         Paragraph(
-            'Cantidad',
+            "Cantidad",
             estilo_encabezado
         ),
 
         Paragraph(
-            'Unidad',
+            "Unidad",
             estilo_encabezado
-        ),
-
+        )
     ]
 
-    filas = [encabezados]
+    filas = [
+        encabezados
+    ]
 
     for item in detalle:
 
         filas.append([
 
             Paragraph(
-                item.get('nombre', ''),
+                item.get(
+                    "producto_nombre"
+                ) or "",
                 estilo_celda
             ),
 
             Paragraph(
-                item.get('modelo') or '',
+                item.get(
+                    "modelo_nombre"
+                ) or "",
                 estilo_celda
             ),
 
             Paragraph(
-                item.get('marca') or '',
+                item.get(
+                    "marca_nombre"
+                ) or "",
                 estilo_celda
             ),
 
             Paragraph(
-                item.get('serial') or '',
+                item.get(
+                    "serial"
+                ) or "",
                 estilo_celda
             ),
 
             Paragraph(
-                str(item.get('cantidad', '')),
+                str(
+                    item.get(
+                        "cantidad",
+                        ""
+                    )
+                ),
                 estilo_celda
             ),
 
             Paragraph(
-                item.get('unidad') or 'UND',
+                item.get(
+                    "unidad_codigo"
+                ) or "UND",
                 estilo_celda
-            ),
-
+            )
         ])
 
-    # Mantener espacio visual aunque haya pocos productos
+    # ========================================================
+    # FILAS VACÍAS
+    # ========================================================
 
     for _ in range(
-        max(0, 10 - len(detalle))
+        max(
+            0,
+            10 - len(detalle)
+        )
     ):
 
         filas.append([
-            '',
-            '',
-            '',
-            '',
-            '',
-            ''
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
         ])
 
     tabla_productos = Table(
         filas,
+
         colWidths=[
             5.0 * cm,
             3.0 * cm,
@@ -635,72 +931,77 @@ def generar_pdf_traslado(id):
         TableStyle([
 
             (
-                'BACKGROUND',
+                "BACKGROUND",
                 (0, 0),
                 (-1, 0),
-                colors.HexColor('#0d2137')
+                colors.HexColor(
+                    "#0d2137"
+                )
             ),
 
             (
-                'TEXTCOLOR',
+                "TEXTCOLOR",
                 (0, 0),
                 (-1, 0),
                 colors.white
             ),
 
             (
-                'FONTNAME',
+                "FONTNAME",
                 (0, 0),
                 (-1, 0),
-                'Helvetica-Bold'
+                "Helvetica-Bold"
             ),
 
             (
-                'FONTSIZE',
+                "FONTSIZE",
                 (0, 0),
                 (-1, 0),
                 8
             ),
 
             (
-                'GRID',
+                "GRID",
                 (0, 0),
                 (-1, -1),
                 0.5,
-                colors.HexColor('#dce6f0')
+                colors.HexColor(
+                    "#dce6f0"
+                )
             ),
 
             (
-                'ROWBACKGROUNDS',
+                "ROWBACKGROUNDS",
                 (0, 1),
                 (-1, -1),
                 [
                     colors.white,
-                    colors.HexColor('#f7f9fc')
+                    colors.HexColor(
+                        "#f7f9fc"
+                    )
                 ]
             ),
 
             (
-                'VALIGN',
+                "VALIGN",
                 (0, 0),
                 (-1, -1),
-                'MIDDLE'
+                "MIDDLE"
             ),
 
             (
-                'PADDING',
+                "PADDING",
                 (0, 0),
                 (-1, -1),
                 5
             ),
 
             (
-                'FONTSIZE',
+                "FONTSIZE",
                 (0, 1),
                 (-1, -1),
                 8
-            ),
-
+            )
         ])
     )
 
@@ -709,7 +1010,10 @@ def generar_pdf_traslado(id):
     )
 
     elementos.append(
-        Spacer(1, 1 * cm)
+        Spacer(
+            1,
+            1 * cm
+        )
     )
 
     # ========================================================
@@ -717,33 +1021,34 @@ def generar_pdf_traslado(id):
     # ========================================================
 
     firmas = Table(
+
         [[
 
             Paragraph(
-                'Entregado por:',
+                "Entregado por:",
                 estilo_label
             ),
 
             Paragraph(
                 traslado.get(
-                    'creado_por_nombre'
-                ) or '',
+                    "creado_por_nombre"
+                ) or "",
                 estilo_valor
             ),
 
             Paragraph(
-                'Recibido por:',
+                "Recibido por:",
                 estilo_label
             ),
 
             Paragraph(
                 traslado.get(
-                    'recibido_por_nombre'
-                ) or '',
+                    "recibido_por_nombre"
+                ) or "",
                 estilo_valor
-            ),
-
+            )
         ]],
+
         colWidths=[
             3 * cm,
             6.5 * cm,
@@ -752,55 +1057,71 @@ def generar_pdf_traslado(id):
         ]
     )
 
-    firmas.setStyle(TableStyle([
+    firmas.setStyle(
+        TableStyle([
 
-        (
-            'GRID',
-            (0, 0),
-            (-1, -1),
-            0.5,
-            colors.HexColor('#dce6f0')
-        ),
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.HexColor(
+                    "#dce6f0"
+                )
+            ),
 
-        (
-            'BACKGROUND',
-            (0, 0),
-            (0, 0),
-            colors.HexColor('#f7f9fc')
-        ),
+            (
+                "BACKGROUND",
+                (0, 0),
+                (0, 0),
+                colors.HexColor(
+                    "#f7f9fc"
+                )
+            ),
 
-        (
-            'BACKGROUND',
-            (2, 0),
-            (2, 0),
-            colors.HexColor('#f7f9fc')
-        ),
+            (
+                "BACKGROUND",
+                (2, 0),
+                (2, 0),
+                colors.HexColor(
+                    "#f7f9fc"
+                )
+            ),
 
-        (
-            'PADDING',
-            (0, 0),
-            (-1, -1),
-            8
-        ),
+            (
+                "PADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            )
+        ])
+    )
 
-    ]))
-
-    elementos.append(firmas)
+    elementos.append(
+        firmas
+    )
 
     # ========================================================
     # GENERAR PDF
     # ========================================================
 
-    doc.build(elementos)
+    doc.build(
+        elementos
+    )
 
     buffer.seek(0)
 
     return send_file(
+
         buffer,
-        mimetype='application/pdf',
+
+        mimetype="application/pdf",
+
         as_attachment=False,
+
         download_name=(
             f'traslado_'
-            f'{traslado.get("numero_documento", id)}.pdf'
+            f'{traslado.get("numero_documento", id)}'
+            f'.pdf'
         )
     )

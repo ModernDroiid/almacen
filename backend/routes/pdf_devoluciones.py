@@ -1,201 +1,1371 @@
 # ============================================================
-# pdf_devoluciones.py — Genera el PDF de devolucion al estilo
-# del formato de Occidente Seguridad Privada
+# pdf_devoluciones.py
+# Genera PDF de una devolución de almacén
+# PostgreSQL
 # ============================================================
 
-from flask import Blueprint, send_file
+from flask import Blueprint, send_file, jsonify
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer,
+    Image
+)
+
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
-import os, sys
+
+import os
 from io import BytesIO
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from database import get_connection
 
-pdf_devoluciones_bp = Blueprint('pdf_devoluciones', __name__)
 
-@pdf_devoluciones_bp.route('/devolucion/<int:id>', methods=['GET'])
+# ============================================================
+# BLUEPRINT
+# ============================================================
+
+pdf_devoluciones_bp = Blueprint(
+    "pdf_devoluciones",
+    __name__
+)
+
+
+# ============================================================
+# GET /api/pdf/devolucion/<id>
+# ============================================================
+
+@pdf_devoluciones_bp.route(
+    "/devolucion/<int:id>",
+    methods=["GET"]
+)
 def generar_pdf_devolucion(id):
+
     conn = get_connection()
-    cursor = conn.cursor()
 
-    # Traemos la devolucion
-    cursor.execute('''
-        SELECT dv.*, s.numero_documento AS salida_numero
-        FROM devoluciones dv
-        LEFT JOIN salidas s ON s.id = dv.salida_id
-        WHERE dv.id = ?
-    ''', (id,))
-    devolucion = dict(cursor.fetchone())
+    try:
 
-    # Traemos el detalle
-    cursor.execute('''
-        SELECT p.nombre, p.codigo,
-               d.modelo, d.marca, d.serial, d.cantidad, d.unidad
-        FROM detalle_devoluciones d
-        INNER JOIN productos p ON p.id = d.producto_id
-        WHERE d.devolucion_id = ?
-    ''', (id,))
-    detalle = [dict(r) for r in cursor.fetchall()]
-    conn.close()
+        with conn.cursor() as cursor:
+
+            # =================================================
+            # DATOS DE LA DEVOLUCIÓN
+            # =================================================
+
+            cursor.execute("""
+                SELECT
+                    dv.id,
+                    dv.numero_documento,
+
+                    dv.sede_id,
+                    dv.salida_id,
+
+                    dv.motivo,
+                    dv.observaciones,
+
+                    dv.usuario_id,
+
+                    dv.estado,
+
+                    dv.fecha,
+                    dv.fecha_anulacion,
+
+                    dv.anulada_por,
+                    dv.motivo_anulacion,
+
+                    sd.nombre AS sede_nombre,
+                    sd.ciudad AS sede_ciudad,
+
+                    u.nombre AS usuario_nombre,
+
+                    ua.nombre AS anulada_por_nombre,
+
+                    s.numero_documento AS salida_numero,
+                    s.destino AS salida_destino
+
+                FROM devoluciones dv
+
+                LEFT JOIN sedes sd
+                    ON sd.id = dv.sede_id
+
+                LEFT JOIN usuarios u
+                    ON u.id = dv.usuario_id
+
+                LEFT JOIN usuarios ua
+                    ON ua.id = dv.anulada_por
+
+                LEFT JOIN salidas s
+                    ON s.id = dv.salida_id
+
+                WHERE dv.id = %s
+            """, (id,))
+
+            devolucion_db = cursor.fetchone()
+
+            if not devolucion_db:
+
+                return jsonify({
+                    "error": "Devolución no encontrada"
+                }), 404
+
+            devolucion = dict(devolucion_db)
+
+
+            # =================================================
+            # DETALLE DE PRODUCTOS
+            #
+            # MODELO / MARCA:
+            #
+            # Si es equipo serializado:
+            # equipos -> modelos -> marcas
+            #
+            # Si NO es serializado:
+            # productos -> modelos -> marcas
+            #
+            # COALESCE toma primero el modelo/marca
+            # del equipo y, si no existe, usa el del producto.
+            # =================================================
+
+            cursor.execute("""
+                SELECT
+                    d.id,
+
+                    d.producto_id,
+                    d.equipo_id,
+
+                    d.cantidad,
+
+                    d.condicion_retorno,
+                    d.observaciones,
+
+                    p.codigo,
+
+                    p.nombre AS producto_nombre,
+
+                    p.requiere_serial,
+
+                    un.codigo AS unidad_codigo,
+
+                    un.nombre AS unidad_nombre,
+
+                    eq.serial AS serial,
+
+                    COALESCE(
+                        me.id,
+                        mp.id
+                    ) AS modelo_id,
+
+                    COALESCE(
+                        me.nombre,
+                        mp.nombre
+                    ) AS modelo_nombre,
+
+                    COALESCE(
+                        mae.id,
+                        map.id
+                    ) AS marca_id,
+
+                    COALESCE(
+                        mae.nombre,
+                        map.nombre
+                    ) AS marca_nombre
+
+                FROM detalle_devoluciones d
+
+                INNER JOIN productos p
+                    ON p.id = d.producto_id
+
+                LEFT JOIN unidades un
+                    ON un.id = p.unidad_id
+
+                LEFT JOIN equipos eq
+                    ON eq.id = d.equipo_id
+
+                -- Modelo del equipo serializado
+                LEFT JOIN modelos me
+                    ON me.id = eq.modelo_id
+
+                -- Marca del modelo del equipo
+                LEFT JOIN marcas mae
+                    ON mae.id = me.marca_id
+
+                -- Modelo del producto no serializado
+                LEFT JOIN modelos mp
+                    ON mp.id = p.modelo_id
+
+                -- Marca del modelo del producto
+                LEFT JOIN marcas map
+                    ON map.id = mp.marca_id
+
+                WHERE d.devolucion_id = %s
+
+                ORDER BY d.id
+            """, (id,))
+
+            detalle = [
+                dict(item)
+                for item in cursor.fetchall()
+            ]
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+    finally:
+
+        conn.close()
+
+
+    # ========================================================
+    # CREAR PDF EN MEMORIA
+    # ========================================================
 
     buffer = BytesIO()
+
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        rightMargin=1.5*cm,
-        leftMargin=1.5*cm,
-        topMargin=1.5*cm,
-        bottomMargin=1.5*cm
+
+        rightMargin=1.5 * cm,
+        leftMargin=1.5 * cm,
+
+        topMargin=1.5 * cm,
+        bottomMargin=1.5 * cm
     )
 
     elementos = []
 
-    estilo_celda = ParagraphStyle('celda', fontSize=8, leading=10)
-    estilo_titulo = ParagraphStyle('titulo', fontSize=14, fontName='Helvetica-Bold',
-                                   textColor=colors.HexColor('#0d2137'))
-    estilo_encabezado = ParagraphStyle('enc', fontSize=7, fontName='Helvetica-Bold',
-                                        textColor=colors.white)
-    estilo_label = ParagraphStyle('label', fontSize=7, fontName='Helvetica-Bold',
-                                   textColor=colors.HexColor('#0d2137'))
-    estilo_valor = ParagraphStyle('valor', fontSize=8)
 
-    # ── Logo + Título ─────────────────────────────────────────
-    logo_path = os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'img', 'occidente.png')
+    # ========================================================
+    # ESTILOS
+    # ========================================================
+
+    estilo_celda = ParagraphStyle(
+        "celda",
+
+        fontSize=8,
+
+        leading=10
+    )
+
+
+    estilo_titulo = ParagraphStyle(
+        "titulo",
+
+        fontSize=14,
+
+        fontName="Helvetica-Bold",
+
+        textColor=colors.HexColor(
+            "#0d2137"
+        )
+    )
+
+
+    estilo_encabezado = ParagraphStyle(
+        "enc",
+
+        fontSize=7,
+
+        fontName="Helvetica-Bold",
+
+        textColor=colors.white,
+
+        alignment=TA_CENTER
+    )
+
+
+    estilo_label = ParagraphStyle(
+        "label",
+
+        fontSize=7,
+
+        fontName="Helvetica-Bold",
+
+        textColor=colors.HexColor(
+            "#0d2137"
+        )
+    )
+
+
+    estilo_valor = ParagraphStyle(
+        "valor",
+
+        fontSize=8,
+
+        leading=10
+    )
+
+
+    # ========================================================
+    # LOGO
+    # ========================================================
+
+    logo_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+
+            "..",
+            "..",
+
+            "frontend",
+
+            "img",
+
+            "occidente.png"
+        )
+    )
+
+
     if os.path.exists(logo_path):
-        logo = Image(logo_path, width=4*cm, height=2.5*cm)
+
+        logo = Image(
+            logo_path,
+
+            width=4 * cm,
+
+            height=2.5 * cm
+        )
+
     else:
-        logo = Paragraph('OCCIDENTE', estilo_titulo)
+
+        logo = Paragraph(
+            "OCCIDENTE",
+
+            estilo_titulo
+        )
+
+
+    # ========================================================
+    # TÍTULO
+    # ========================================================
 
     bloque_titulo = [
-        Paragraph('DEVOLUCION ALMACEN', ParagraphStyle(
-            'tit', fontSize=16, fontName='Helvetica-Bold',
-            textColor=colors.HexColor('#0d2137'), alignment=TA_CENTER
-        )),
-        Spacer(1, 0.2*cm),
-        Paragraph(f'N° {devolucion.get("numero_documento", "")}',
-            ParagraphStyle('num', fontSize=9, alignment=TA_CENTER,
-                           textColor=colors.HexColor('#1a6fc4'))
+
+        Paragraph(
+
+            "DEVOLUCIÓN ALMACÉN",
+
+            ParagraphStyle(
+
+                "tit",
+
+                fontSize=16,
+
+                fontName="Helvetica-Bold",
+
+                textColor=colors.HexColor(
+                    "#0d2137"
+                ),
+
+                alignment=TA_CENTER
+            )
         ),
+
+
+        Spacer(
+            1,
+            0.2 * cm
+        ),
+
+
+        Paragraph(
+
+            f'N° {devolucion.get("numero_documento", "")}',
+
+            ParagraphStyle(
+
+                "num",
+
+                fontSize=9,
+
+                alignment=TA_CENTER,
+
+                textColor=colors.HexColor(
+                    "#1a6fc4"
+                )
+            )
+        )
     ]
+
 
     tabla_header = Table(
-        [[logo, bloque_titulo]],
-        colWidths=[5*cm, 13*cm]
-    )
-    tabla_header.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('ALIGN',  (1,0), (1,0),   'CENTER'),
-    ]))
-    elementos.append(tabla_header)
-    elementos.append(Spacer(1, 0.4*cm))
 
-    # ── Info de la devolucion ─────────────────────────────────
-    fecha_str = devolucion.get('fecha', '')[:10] if devolucion.get('fecha') else ''
+        [[
+            logo,
+            bloque_titulo
+        ]],
+
+        colWidths=[
+            5 * cm,
+            13 * cm
+        ]
+    )
+
+
+    tabla_header.setStyle(
+
+        TableStyle([
+
+            (
+                "VALIGN",
+
+                (0, 0),
+
+                (-1, -1),
+
+                "MIDDLE"
+            ),
+
+
+            (
+                "ALIGN",
+
+                (1, 0),
+
+                (1, 0),
+
+                "CENTER"
+            )
+        ])
+    )
+
+
+    elementos.append(
+        tabla_header
+    )
+
+
+    elementos.append(
+
+        Spacer(
+            1,
+            0.4 * cm
+        )
+    )
+
+
+    # ========================================================
+    # FECHA
+    # ========================================================
+
+    fecha = devolucion.get(
+        "fecha"
+    )
+
+
+    if fecha:
+
+        fecha_str = str(fecha)[:19]
+
+    else:
+
+        fecha_str = "—"
+
+
+    # ========================================================
+    # ESTADO
+    # ========================================================
+
+    estado = (
+        devolucion.get("estado")
+        or "ACTIVA"
+    )
+
+
+    # ========================================================
+    # INFORMACIÓN GENERAL
+    # ========================================================
 
     info_data = [
+
         [
-            Paragraph('Procede de:', estilo_label),
-            Paragraph(devolucion.get('origen', ''), estilo_valor),
-            Paragraph('Fecha:', estilo_label),
-            Paragraph(fecha_str, estilo_valor),
+
+            Paragraph(
+                "Sede:",
+                estilo_label
+            ),
+
+
+            Paragraph(
+
+                devolucion.get(
+                    "sede_nombre"
+                ) or "Almacén",
+
+                estilo_valor
+            ),
+
+
+            Paragraph(
+                "Fecha:",
+                estilo_label
+            ),
+
+
+            Paragraph(
+                fecha_str,
+                estilo_valor
+            )
         ],
+
+
         [
-            Paragraph('Con destino a:', estilo_label),
-            Paragraph(devolucion.get('destino', 'Almacen'), estilo_valor),
-            Paragraph('Salida origen:', estilo_label),
-            Paragraph(devolucion.get('salida_numero', '—'), estilo_valor),
+
+            Paragraph(
+                "Procede de:",
+                estilo_label
+            ),
+
+
+            Paragraph(
+
+                devolucion.get(
+                    "salida_destino"
+                ) or "—",
+
+                estilo_valor
+            ),
+
+
+            Paragraph(
+                "Salida origen:",
+                estilo_label
+            ),
+
+
+            Paragraph(
+
+                devolucion.get(
+                    "salida_numero"
+                ) or "—",
+
+                estilo_valor
+            )
         ],
+
+
         [
-            Paragraph('Motivo:', estilo_label),
-            Paragraph(devolucion.get('motivo', ''), estilo_valor),
-            Paragraph('Observaciones:', estilo_label),
-            Paragraph(devolucion.get('observaciones', ''), estilo_valor),
+
+            Paragraph(
+                "Motivo:",
+                estilo_label
+            ),
+
+
+            Paragraph(
+
+                devolucion.get(
+                    "motivo"
+                ) or "—",
+
+                estilo_valor
+            ),
+
+
+            Paragraph(
+                "Estado:",
+                estilo_label
+            ),
+
+
+            Paragraph(
+                estado,
+                estilo_valor
+            )
         ],
+
+
+        [
+
+            Paragraph(
+                "Registrado por:",
+                estilo_label
+            ),
+
+
+            Paragraph(
+
+                devolucion.get(
+                    "usuario_nombre"
+                ) or "—",
+
+                estilo_valor
+            ),
+
+
+            Paragraph(
+                "Observaciones:",
+                estilo_label
+            ),
+
+
+            Paragraph(
+
+                devolucion.get(
+                    "observaciones"
+                ) or "—",
+
+                estilo_valor
+            )
+        ]
     ]
 
-    tabla_info = Table(info_data, colWidths=[3.5*cm, 7*cm, 3*cm, 4.5*cm])
-    tabla_info.setStyle(TableStyle([
-        ('GRID',      (0,0), (-1,-1), 0.5, colors.HexColor('#dce6f0')),
-        ('BACKGROUND',(0,0), (0,-1),  colors.HexColor('#f7f9fc')),
-        ('BACKGROUND',(2,0), (2,-1),  colors.HexColor('#f7f9fc')),
-        ('VALIGN',    (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING',   (0,0), (-1,-1), 5),
-    ]))
-    elementos.append(tabla_info)
-    elementos.append(Spacer(1, 0.4*cm))
 
-    # ── Tabla de productos ────────────────────────────────────
+    tabla_info = Table(
+
+        info_data,
+
+        colWidths=[
+
+            3.5 * cm,
+
+            7 * cm,
+
+            3 * cm,
+
+            4.5 * cm
+        ]
+    )
+
+
+    tabla_info.setStyle(
+
+        TableStyle([
+
+            (
+                "GRID",
+
+                (0, 0),
+
+                (-1, -1),
+
+                0.5,
+
+                colors.HexColor(
+                    "#dce6f0"
+                )
+            ),
+
+
+            (
+                "BACKGROUND",
+
+                (0, 0),
+
+                (0, -1),
+
+                colors.HexColor(
+                    "#f7f9fc"
+                )
+            ),
+
+
+            (
+                "BACKGROUND",
+
+                (2, 0),
+
+                (2, -1),
+
+                colors.HexColor(
+                    "#f7f9fc"
+                )
+            ),
+
+
+            (
+                "VALIGN",
+
+                (0, 0),
+
+                (-1, -1),
+
+                "MIDDLE"
+            ),
+
+
+            (
+                "PADDING",
+
+                (0, 0),
+
+                (-1, -1),
+
+                5
+            )
+        ])
+    )
+
+
+    elementos.append(
+        tabla_info
+    )
+
+
+    elementos.append(
+
+        Spacer(
+            1,
+            0.4 * cm
+        )
+    )
+
+
+    # ========================================================
+    # INFORMACIÓN DE ANULACIÓN
+    # ========================================================
+
+    if estado == "ANULADA":
+
+        fecha_anulacion = devolucion.get(
+            "fecha_anulacion"
+        )
+
+
+        if fecha_anulacion:
+
+            fecha_anulacion_str = str(
+                fecha_anulacion
+            )[:19]
+
+        else:
+
+            fecha_anulacion_str = "—"
+
+
+        anulacion_data = [
+
+            [
+
+                Paragraph(
+                    "ESTADO:",
+                    estilo_label
+                ),
+
+
+                Paragraph(
+
+                    "ANULADA",
+
+                    ParagraphStyle(
+
+                        "anulada",
+
+                        fontSize=9,
+
+                        fontName="Helvetica-Bold",
+
+                        textColor=colors.red
+                    )
+                )
+            ],
+
+
+            [
+
+                Paragraph(
+                    "Anulada por:",
+                    estilo_label
+                ),
+
+
+                Paragraph(
+
+                    devolucion.get(
+                        "anulada_por_nombre"
+                    ) or "—",
+
+                    estilo_valor
+                )
+            ],
+
+
+            [
+
+                Paragraph(
+                    "Fecha de anulación:",
+                    estilo_label
+                ),
+
+
+                Paragraph(
+                    fecha_anulacion_str,
+                    estilo_valor
+                )
+            ],
+
+
+            [
+
+                Paragraph(
+                    "Motivo:",
+                    estilo_label
+                ),
+
+
+                Paragraph(
+
+                    devolucion.get(
+                        "motivo_anulacion"
+                    ) or "Sin motivo registrado",
+
+                    estilo_valor
+                )
+            ]
+        ]
+
+
+        tabla_anulacion = Table(
+
+            anulacion_data,
+
+            colWidths=[
+
+                5 * cm,
+
+                13 * cm
+            ]
+        )
+
+
+        tabla_anulacion.setStyle(
+
+            TableStyle([
+
+                (
+                    "GRID",
+
+                    (0, 0),
+
+                    (-1, -1),
+
+                    0.5,
+
+                    colors.HexColor(
+                        "#dce6f0"
+                    )
+                ),
+
+
+                (
+                    "BACKGROUND",
+
+                    (0, 0),
+
+                    (0, -1),
+
+                    colors.HexColor(
+                        "#fff4f4"
+                    )
+                ),
+
+
+                (
+                    "PADDING",
+
+                    (0, 0),
+
+                    (-1, -1),
+
+                    6
+                ),
+
+
+                (
+                    "VALIGN",
+
+                    (0, 0),
+
+                    (-1, -1),
+
+                    "MIDDLE"
+                )
+            ])
+        )
+
+
+        elementos.append(
+            tabla_anulacion
+        )
+
+
+        elementos.append(
+
+            Spacer(
+                1,
+                0.4 * cm
+            )
+        )
+
+
+    # ========================================================
+    # TABLA DE PRODUCTOS
+    # ========================================================
+
     encabezados = [
-        Paragraph('Descripcion del articulo', estilo_encabezado),
-        Paragraph('Modelo',    estilo_encabezado),
-        Paragraph('N° Serial', estilo_encabezado),
-        Paragraph('Marca',     estilo_encabezado),
-        Paragraph('Cantidad',  estilo_encabezado),
-        Paragraph('Unidad',    estilo_encabezado),
+
+        Paragraph(
+            "Descripción del artículo",
+            estilo_encabezado
+        ),
+
+
+        Paragraph(
+            "Modelo",
+            estilo_encabezado
+        ),
+
+
+        Paragraph(
+            "N° Serial",
+            estilo_encabezado
+        ),
+
+
+        Paragraph(
+            "Marca",
+            estilo_encabezado
+        ),
+
+
+        Paragraph(
+            "Cantidad",
+            estilo_encabezado
+        ),
+
+
+        Paragraph(
+            "Unidad",
+            estilo_encabezado
+        )
     ]
 
-    filas = [encabezados]
+
+    filas = [
+        encabezados
+    ]
+
+
+    # ========================================================
+    # PRODUCTOS
+    # ========================================================
+
     for item in detalle:
+
+        serial = (
+            item.get("serial")
+            or ""
+        )
+
+
+        # Si requiere serial pero no quedó asociado
+        # mostramos una advertencia.
+
+        if (
+            not serial
+            and item.get("requiere_serial")
+        ):
+
+            serial = "SIN SERIAL"
+
+
         filas.append([
-            Paragraph(item.get('nombre', ''), estilo_celda),
-            Paragraph(item.get('modelo', '') or '', estilo_celda),
-            Paragraph(item.get('serial', '') or '', estilo_celda),
-            Paragraph(item.get('marca',  '') or '', estilo_celda),
-            Paragraph(str(item.get('cantidad', '')), estilo_celda),
-            Paragraph(item.get('unidad', ''), estilo_celda),
+
+            Paragraph(
+
+                item.get(
+                    "producto_nombre"
+                ) or "",
+
+                estilo_celda
+            ),
+
+
+            Paragraph(
+
+                item.get(
+                    "modelo_nombre"
+                ) or "—",
+
+                estilo_celda
+            ),
+
+
+            Paragraph(
+                serial,
+                estilo_celda
+            ),
+
+
+            Paragraph(
+
+                item.get(
+                    "marca_nombre"
+                ) or "—",
+
+                estilo_celda
+            ),
+
+
+            Paragraph(
+
+                str(
+
+                    item.get(
+                        "cantidad",
+                        ""
+                    )
+                ),
+
+                estilo_celda
+            ),
+
+
+            Paragraph(
+
+                item.get(
+                    "unidad_codigo"
+                ) or "UND",
+
+                estilo_celda
+            )
         ])
 
-    for _ in range(max(0, 10 - len(detalle))):
-        filas.append(['', '', '', '', '', ''])
+
+    # ========================================================
+    # FILAS VACÍAS
+    # ========================================================
+
+    for _ in range(
+
+        max(
+            0,
+            10 - len(detalle)
+        )
+    ):
+
+        filas.append([
+
+            "",
+
+            "",
+
+            "",
+
+            "",
+
+            "",
+
+            ""
+        ])
+
+
+    # ========================================================
+    # TABLA PRODUCTOS
+    # ========================================================
 
     tabla_productos = Table(
+
         filas,
-        colWidths=[5.5*cm, 3*cm, 3*cm, 2.5*cm, 2*cm, 2*cm]
-    )
-    tabla_productos.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0),  colors.HexColor('#0d2137')),
-        ('TEXTCOLOR',  (0,0), (-1,0),  colors.white),
-        ('FONTNAME',   (0,0), (-1,0),  'Helvetica-Bold'),
-        ('FONTSIZE',   (0,0), (-1,0),  8),
-        ('GRID',       (0,0), (-1,-1), 0.5, colors.HexColor('#dce6f0')),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f7f9fc')]),
-        ('VALIGN',     (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING',    (0,0), (-1,-1), 5),
-        ('FONTSIZE',   (0,1), (-1,-1), 8),
-    ]))
-    elementos.append(tabla_productos)
-    elementos.append(Spacer(1, 1*cm))
 
-    # ── Firmas ────────────────────────────────────────────────
+        colWidths=[
+
+            5.5 * cm,
+
+            3 * cm,
+
+            3 * cm,
+
+            2.5 * cm,
+
+            2 * cm,
+
+            2 * cm
+        ],
+
+        repeatRows=1
+    )
+
+
+    tabla_productos.setStyle(
+
+        TableStyle([
+
+            (
+                "BACKGROUND",
+
+                (0, 0),
+
+                (-1, 0),
+
+                colors.HexColor(
+                    "#0d2137"
+                )
+            ),
+
+
+            (
+                "TEXTCOLOR",
+
+                (0, 0),
+
+                (-1, 0),
+
+                colors.white
+            ),
+
+
+            (
+                "FONTNAME",
+
+                (0, 0),
+
+                (-1, 0),
+
+                "Helvetica-Bold"
+            ),
+
+
+            (
+                "GRID",
+
+                (0, 0),
+
+                (-1, -1),
+
+                0.5,
+
+                colors.HexColor(
+                    "#dce6f0"
+                )
+            ),
+
+
+            (
+                "ROWBACKGROUNDS",
+
+                (0, 1),
+
+                (-1, -1),
+
+                [
+
+                    colors.white,
+
+                    colors.HexColor(
+                        "#f7f9fc"
+                    )
+                ]
+            ),
+
+
+            (
+                "VALIGN",
+
+                (0, 0),
+
+                (-1, -1),
+
+                "MIDDLE"
+            ),
+
+
+            (
+                "PADDING",
+
+                (0, 0),
+
+                (-1, -1),
+
+                5
+            ),
+
+
+            (
+                "FONTSIZE",
+
+                (0, 1),
+
+                (-1, -1),
+
+                8
+            )
+        ])
+    )
+
+
+    elementos.append(
+        tabla_productos
+    )
+
+
+    elementos.append(
+
+        Spacer(
+            1,
+            1 * cm
+        )
+    )
+
+
+    # ========================================================
+    # FIRMAS
+    # ========================================================
+
     firmas = Table(
-        [[
-            Paragraph('Entregado por:', estilo_label),
-            Paragraph('', estilo_valor),
-            Paragraph('Recibido por:', estilo_label),
-            Paragraph('', estilo_valor),
-        ]],
-        colWidths=[3*cm, 6.5*cm, 3*cm, 5.5*cm]
-    )
-    firmas.setStyle(TableStyle([
-        ('GRID',      (0,0), (-1,-1), 0.5, colors.HexColor('#dce6f0')),
-        ('BACKGROUND',(0,0), (0,0),   colors.HexColor('#f7f9fc')),
-        ('BACKGROUND',(2,0), (2,0),   colors.HexColor('#f7f9fc')),
-        ('PADDING',   (0,0), (-1,-1), 8),
-        ('MINROWHEIGHT', (0,0), (-1,-1), 1.5*cm),
-    ]))
-    elementos.append(firmas)
 
-    doc.build(elementos)
+        [[
+
+            Paragraph(
+                "Entregado por:",
+                estilo_label
+            ),
+
+
+            Paragraph(
+                "",
+                estilo_valor
+            ),
+
+
+            Paragraph(
+                "Recibido por:",
+                estilo_label
+            ),
+
+
+            Paragraph(
+
+                devolucion.get(
+                    "usuario_nombre"
+                ) or "",
+
+                estilo_valor
+            )
+        ]],
+
+        colWidths=[
+
+            3 * cm,
+
+            6.5 * cm,
+
+            3 * cm,
+
+            5.5 * cm
+        ]
+    )
+
+
+    firmas.setStyle(
+
+        TableStyle([
+
+            (
+                "GRID",
+
+                (0, 0),
+
+                (-1, -1),
+
+                0.5,
+
+                colors.HexColor(
+                    "#dce6f0"
+                )
+            ),
+
+
+            (
+                "BACKGROUND",
+
+                (0, 0),
+
+                (0, 0),
+
+                colors.HexColor(
+                    "#f7f9fc"
+                )
+            ),
+
+
+            (
+                "BACKGROUND",
+
+                (2, 0),
+
+                (2, 0),
+
+                colors.HexColor(
+                    "#f7f9fc"
+                )
+            ),
+
+
+            (
+                "PADDING",
+
+                (0, 0),
+
+                (-1, -1),
+
+                8
+            ),
+
+
+            (
+                "MINROWHEIGHT",
+
+                (0, 0),
+
+                (-1, -1),
+
+                1.5 * cm
+            )
+        ])
+    )
+
+
+    elementos.append(
+        firmas
+    )
+
+
+    # ========================================================
+    # GENERAR PDF
+    # ========================================================
+
+    doc.build(
+        elementos
+    )
+
+
     buffer.seek(0)
 
+
     return send_file(
+
         buffer,
-        mimetype='application/pdf',
+
+        mimetype="application/pdf",
+
         as_attachment=False,
-        download_name=f'devolucion_{devolucion.get("numero_documento", id)}.pdf'
+
+        download_name=(
+
+            f'devolucion_'
+
+            f'{devolucion.get("numero_documento", id)}'
+
+            f'.pdf'
+        )
     )

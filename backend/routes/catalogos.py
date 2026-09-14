@@ -3,7 +3,11 @@
 #
 # ROLES:
 #   admin     → ver, crear, editar y eliminar
-#   sede      → consultar
+#   sede      → ver, y crear marcas/modelos nuevos "sobre la
+#               marcha" (por ejemplo al registrar un equipo
+#               serializado con una marca/modelo que aún no
+#               existe en el catálogo) — pero NO puede editar
+#               ni eliminar
 #   consulta  → consultar
 #
 # PostgreSQL
@@ -35,6 +39,32 @@ def requiere_admin():
     """
 
     if not es_admin():
+        return jsonify({
+            'error': 'No tienes permisos para realizar esta acción'
+        }), 403
+
+    return None
+
+
+def requiere_admin_o_sede():
+    """
+    Verifica que el usuario sea admin O de sede (almacenista).
+
+    Se usa SOLO para crear (POST) marcas/modelos: un almacenista
+    necesita poder dar de alta una marca/modelo nuevo al registrar
+    un equipo serializado que no coincide con nada del catálogo,
+    sin tener que pedirle el favor al admin cada vez.
+
+    Editar y eliminar catálogo sigue siendo exclusivo de admin
+    (ver requiere_admin) — esto no le abre esa puerta.
+
+    Devuelve None si puede continuar.
+    Devuelve una respuesta HTTP si no tiene permisos.
+    """
+
+    claims = get_jwt()
+
+    if claims.get('rol') not in ('admin', 'sede'):
         return jsonify({
             'error': 'No tienes permisos para realizar esta acción'
         }), 403
@@ -83,7 +113,7 @@ def listar_marcas():
 @jwt_required()
 def agregar_marca():
 
-    permiso = requiere_admin()
+    permiso = requiere_admin_o_sede()
 
     if permiso:
         return permiso
@@ -343,7 +373,7 @@ def listar_modelos():
 @jwt_required()
 def agregar_modelo():
 
-    permiso = requiere_admin()
+    permiso = requiere_admin_o_sede()
 
     if permiso:
         return permiso

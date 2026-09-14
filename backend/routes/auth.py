@@ -133,7 +133,7 @@ def listar_sedes():
     claims = get_jwt()
 
     # Admin y usuarios de sede pueden consultar las sedes
-    if claims.get('rol') not in ('admin', 'sede'):
+    if claims.get('rol') not in ('admin', 'sede', 'consulta'):
         return jsonify({
             'error': 'No tienes permisos para consultar las sedes'
         }), 403

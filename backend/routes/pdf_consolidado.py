@@ -37,6 +37,60 @@ pdf_consolidado_bp = Blueprint(
 
 
 # ============================================================
+# FUNCIONES AUXILIARES
+# ============================================================
+
+def formatear_fecha(fecha):
+
+    if not fecha:
+        return "—"
+
+    try:
+
+        if hasattr(fecha, "strftime"):
+
+            return fecha.strftime(
+                "%d/%m/%Y %H:%M"
+            )
+
+        fecha_texto = str(fecha)
+
+        try:
+
+            fecha_dt = datetime.fromisoformat(
+                fecha_texto.replace(
+                    "Z",
+                    "+00:00"
+                )
+            )
+
+            return fecha_dt.strftime(
+                "%d/%m/%Y %H:%M"
+            )
+
+        except Exception:
+
+            return fecha_texto[:16]
+
+    except Exception:
+
+        return str(fecha)
+
+
+def limpiar_texto(valor):
+
+    if valor is None:
+        return "—"
+
+    texto = str(valor).strip()
+
+    if not texto:
+        return "—"
+
+    return texto
+
+
+# ============================================================
 # GET /api/pdf/consolidado
 # ============================================================
 
@@ -88,20 +142,20 @@ def generar_pdf_consolidado():
             # SALIDAS
             # =================================================
 
-            if sede_id:
+            if sede_id is not None:
 
                 cursor.execute("""
                     SELECT
-
                         s.id,
                         s.numero_documento,
                         s.fecha,
                         s.observaciones,
                         s.destino,
                         s.estado,
+                        s.sede_id,
 
-                        se.nombre
-                            AS sede_nombre
+                        se.nombre AS sede_nombre,
+                        se.ciudad
 
                     FROM salidas s
 
@@ -109,10 +163,8 @@ def generar_pdf_consolidado():
                         ON se.id = s.sede_id
 
                     WHERE s.destino = %s
-
-                    AND s.sede_id = %s
-
-                    AND s.estado = 'ACTIVA'
+                      AND s.sede_id = %s
+                      AND s.estado = 'ACTIVA'
 
                     ORDER BY s.fecha DESC
                 """, (
@@ -124,16 +176,16 @@ def generar_pdf_consolidado():
 
                 cursor.execute("""
                     SELECT
-
                         s.id,
                         s.numero_documento,
                         s.fecha,
                         s.observaciones,
                         s.destino,
                         s.estado,
+                        s.sede_id,
 
-                        se.nombre
-                            AS sede_nombre
+                        se.nombre AS sede_nombre,
+                        se.ciudad
 
                     FROM salidas s
 
@@ -141,8 +193,7 @@ def generar_pdf_consolidado():
                         ON se.id = s.sede_id
 
                     WHERE s.destino = %s
-
-                    AND s.estado = 'ACTIVA'
+                      AND s.estado = 'ACTIVA'
 
                     ORDER BY s.fecha DESC
                 """, (
@@ -154,6 +205,7 @@ def generar_pdf_consolidado():
                 for row in cursor.fetchall()
             ]
 
+
             # =================================================
             # DETALLE DE SALIDAS
             # =================================================
@@ -163,24 +215,42 @@ def generar_pdf_consolidado():
                 cursor.execute("""
                     SELECT
 
-                        p.nombre,
-                        p.codigo,
-
+                        d.id,
+                        d.producto_id,
+                        d.equipo_id,
                         d.cantidad,
+                        d.observaciones,
 
-                        un.codigo
-                            AS unidad_codigo,
+                        p.nombre AS nombre,
+                        p.codigo,
+                        p.descripcion,
 
-                        un.nombre
-                            AS unidad_nombre,
+                        un.codigo AS unidad_codigo,
+                        un.nombre AS unidad_nombre,
 
-                        mo.nombre
-                            AS modelo,
+                        COALESCE(
+                            me.id,
+                            mp.id
+                        ) AS modelo_id,
 
-                        ma.nombre
-                            AS marca,
+                        COALESCE(
+                            me.nombre,
+                            mp.nombre
+                        ) AS modelo,
 
-                        eq.serial
+                        COALESCE(
+                            mae.id,
+                            map.id
+                        ) AS marca_id,
+
+                        COALESCE(
+                            mae.nombre,
+                            map.nombre
+                        ) AS marca,
+
+                        eq.serial,
+                        eq.condicion AS equipo_condicion,
+                        eq.estado AS equipo_estado
 
                     FROM detalle_salidas d
 
@@ -190,14 +260,20 @@ def generar_pdf_consolidado():
                     LEFT JOIN unidades un
                         ON un.id = p.unidad_id
 
-                    LEFT JOIN modelos mo
-                        ON mo.id = p.modelo_id
-
-                    LEFT JOIN marcas ma
-                        ON ma.id = mo.marca_id
-
                     LEFT JOIN equipos eq
                         ON eq.id = d.equipo_id
+
+                    LEFT JOIN modelos me
+                        ON me.id = eq.modelo_id
+
+                    LEFT JOIN marcas mae
+                        ON mae.id = me.marca_id
+
+                    LEFT JOIN modelos mp
+                        ON mp.id = p.modelo_id
+
+                    LEFT JOIN marcas map
+                        ON map.id = mp.marca_id
 
                     WHERE d.salida_id = %s
 
@@ -211,21 +287,23 @@ def generar_pdf_consolidado():
                     for row in cursor.fetchall()
                 ]
 
+
             # =================================================
             # DEVOLUCIONES
             # =================================================
 
-            if sede_id:
+            if sede_id is not None:
 
                 cursor.execute("""
                     SELECT
 
                         dv.id,
                         dv.numero_documento,
-                        dv.fecha_creacion,
+                        dv.fecha,
                         dv.motivo,
                         dv.observaciones,
                         dv.estado,
+                        dv.sede_id,
 
                         s.numero_documento
                             AS salida_numero,
@@ -234,7 +312,9 @@ def generar_pdf_consolidado():
                             AS salida_destino,
 
                         se.nombre
-                            AS sede_nombre
+                            AS sede_nombre,
+
+                        se.ciudad
 
                     FROM devoluciones dv
 
@@ -245,12 +325,10 @@ def generar_pdf_consolidado():
                         ON se.id = dv.sede_id
 
                     WHERE s.destino = %s
+                      AND dv.sede_id = %s
+                      AND dv.estado = 'ACTIVA'
 
-                    AND dv.sede_id = %s
-
-                    AND dv.estado = 'ACTIVA'
-
-                    ORDER BY dv.fecha_creacion DESC
+                    ORDER BY dv.fecha DESC
                 """, (
                     destino,
                     sede_id
@@ -263,10 +341,11 @@ def generar_pdf_consolidado():
 
                         dv.id,
                         dv.numero_documento,
-                        dv.fecha_creacion,
+                        dv.fecha,
                         dv.motivo,
                         dv.observaciones,
                         dv.estado,
+                        dv.sede_id,
 
                         s.numero_documento
                             AS salida_numero,
@@ -275,7 +354,9 @@ def generar_pdf_consolidado():
                             AS salida_destino,
 
                         se.nombre
-                            AS sede_nombre
+                            AS sede_nombre,
+
+                        se.ciudad
 
                     FROM devoluciones dv
 
@@ -286,10 +367,9 @@ def generar_pdf_consolidado():
                         ON se.id = dv.sede_id
 
                     WHERE s.destino = %s
+                      AND dv.estado = 'ACTIVA'
 
-                    AND dv.estado = 'ACTIVA'
-
-                    ORDER BY dv.fecha_creacion DESC
+                    ORDER BY dv.fecha DESC
                 """, (
                     destino,
                 ))
@@ -298,6 +378,7 @@ def generar_pdf_consolidado():
                 dict(row)
                 for row in cursor.fetchall()
             ]
+
 
             # =================================================
             # DETALLE DE DEVOLUCIONES
@@ -308,24 +389,43 @@ def generar_pdf_consolidado():
                 cursor.execute("""
                     SELECT
 
-                        p.nombre,
-                        p.codigo,
-
+                        d.id,
+                        d.producto_id,
+                        d.equipo_id,
                         d.cantidad,
+                        d.condicion_retorno,
+                        d.observaciones,
 
-                        un.codigo
-                            AS unidad_codigo,
+                        p.nombre AS nombre,
+                        p.codigo,
+                        p.descripcion,
 
-                        un.nombre
-                            AS unidad_nombre,
+                        un.codigo AS unidad_codigo,
+                        un.nombre AS unidad_nombre,
 
-                        mo.nombre
-                            AS modelo,
+                        COALESCE(
+                            me.id,
+                            mp.id
+                        ) AS modelo_id,
 
-                        ma.nombre
-                            AS marca,
+                        COALESCE(
+                            me.nombre,
+                            mp.nombre
+                        ) AS modelo,
 
-                        eq.serial
+                        COALESCE(
+                            mae.id,
+                            map.id
+                        ) AS marca_id,
+
+                        COALESCE(
+                            mae.nombre,
+                            map.nombre
+                        ) AS marca,
+
+                        eq.serial,
+                        eq.condicion AS equipo_condicion,
+                        eq.estado AS equipo_estado
 
                     FROM detalle_devoluciones d
 
@@ -335,14 +435,20 @@ def generar_pdf_consolidado():
                     LEFT JOIN unidades un
                         ON un.id = p.unidad_id
 
-                    LEFT JOIN modelos mo
-                        ON mo.id = p.modelo_id
-
-                    LEFT JOIN marcas ma
-                        ON ma.id = mo.marca_id
-
                     LEFT JOIN equipos eq
                         ON eq.id = d.equipo_id
+
+                    LEFT JOIN modelos me
+                        ON me.id = eq.modelo_id
+
+                    LEFT JOIN marcas mae
+                        ON mae.id = me.marca_id
+
+                    LEFT JOIN modelos mp
+                        ON mp.id = p.modelo_id
+
+                    LEFT JOIN marcas map
+                        ON map.id = mp.marca_id
 
                     WHERE d.devolucion_id = %s
 
@@ -356,21 +462,30 @@ def generar_pdf_consolidado():
                     for row in cursor.fetchall()
                 ]
 
+
     except Exception as e:
 
+        print(
+            "ERROR PDF CONSOLIDADO:",
+            repr(e)
+        )
+
         return jsonify({
-            "error": str(e)
+            "error": "Error al generar el PDF",
+            "detalle": str(e)
         }), 500
 
     finally:
 
         conn.close()
 
+
     # ========================================================
     # CALCULAR RESUMEN NETO
     # ========================================================
 
     neto = {}
+
 
     # ========================================================
     # SUMAR SALIDAS
@@ -381,8 +496,8 @@ def generar_pdf_consolidado():
         for item in salida["detalle"]:
 
             clave = (
-                item["nombre"],
-                item.get("modelo") or "",
+                item.get("producto_id"),
+                item.get("modelo_id"),
                 item.get("serial") or ""
             )
 
@@ -391,7 +506,12 @@ def generar_pdf_consolidado():
                 neto[clave] = {
 
                     "nombre":
-                        item["nombre"],
+                        item.get("nombre")
+                        or "—",
+
+                    "codigo":
+                        item.get("codigo")
+                        or "—",
 
                     "modelo":
                         item.get("modelo")
@@ -428,6 +548,7 @@ def generar_pdf_consolidado():
 
             neto[clave]["neto"] += cantidad
 
+
     # ========================================================
     # RESTAR DEVOLUCIONES
     # ========================================================
@@ -437,26 +558,65 @@ def generar_pdf_consolidado():
         for item in dev["detalle"]:
 
             clave = (
-                item["nombre"],
-                item.get("modelo") or "",
+                item.get("producto_id"),
+                item.get("modelo_id"),
                 item.get("serial") or ""
             )
 
-            # Si existe una salida correspondiente
-            if clave in neto:
+            cantidad = (
+                item.get("cantidad")
+                or 0
+            )
 
-                cantidad = (
-                    item.get("cantidad")
-                    or 0
-                )
+            if clave in neto:
 
                 neto[clave]["devuelto"] += cantidad
 
                 neto[clave]["neto"] -= cantidad
 
+            else:
+
+                neto[clave] = {
+
+                    "nombre":
+                        item.get("nombre")
+                        or "—",
+
+                    "codigo":
+                        item.get("codigo")
+                        or "—",
+
+                    "modelo":
+                        item.get("modelo")
+                        or "—",
+
+                    "serial":
+                        item.get("serial")
+                        or "—",
+
+                    "marca":
+                        item.get("marca")
+                        or "—",
+
+                    "unidad":
+                        item.get("unidad_codigo")
+                        or "UND",
+
+                    "salidas":
+                        0,
+
+                    "devuelto":
+                        cantidad,
+
+                    "neto":
+                        -cantidad
+                }
+
+
     resumen = list(
         neto.values()
     )
+
 
     # ========================================================
     # CREAR PDF
@@ -477,6 +637,7 @@ def generar_pdf_consolidado():
     )
 
     elementos = []
+
 
     # ========================================================
     # ESTILOS
@@ -528,20 +689,47 @@ def generar_pdf_consolidado():
         )
     )
 
+
     # ========================================================
     # LOGO
     # ========================================================
 
-    logo_path = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "..",
-        "frontend",
-        "img",
-        "occidente.png"
+    base_dir = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            ".."
+        )
     )
 
-    if os.path.exists(logo_path):
+    posibles_logos = [
+
+        os.path.join(
+            base_dir,
+            "frontend",
+            "img",
+            "logoocci.png"
+        ),
+
+        os.path.join(
+            base_dir,
+            "frontend",
+            "img",
+            "occidente.png"
+        )
+    ]
+
+    logo_path = None
+
+    for ruta in posibles_logos:
+
+        if os.path.exists(ruta):
+
+            logo_path = ruta
+            break
+
+
+    if logo_path:
 
         logo = Image(
             logo_path,
@@ -555,6 +743,7 @@ def generar_pdf_consolidado():
             "OCCIDENTE",
             estilo_titulo
         )
+
 
     # ========================================================
     # TÍTULO
@@ -582,7 +771,7 @@ def generar_pdf_consolidado():
         ),
 
         Paragraph(
-            destino,
+            limpiar_texto(destino),
 
             ParagraphStyle(
                 "dest",
@@ -595,6 +784,7 @@ def generar_pdf_consolidado():
             )
         )
     ]
+
 
     tabla_header = Table(
         [[
@@ -610,6 +800,7 @@ def generar_pdf_consolidado():
 
     tabla_header.setStyle(
         TableStyle([
+
             (
                 "VALIGN",
                 (0, 0),
@@ -636,6 +827,7 @@ def generar_pdf_consolidado():
             0.3 * cm
         )
     )
+
 
     # ========================================================
     # FECHA DE GENERACIÓN
@@ -667,6 +859,7 @@ def generar_pdf_consolidado():
         )
     )
 
+
     # ========================================================
     # RESUMEN NETO
     # ========================================================
@@ -684,6 +877,7 @@ def generar_pdf_consolidado():
             0.3 * cm
         )
     )
+
 
     if not resumen:
 
@@ -738,37 +932,48 @@ def generar_pdf_consolidado():
             encabezados_resumen
         ]
 
+
         for r in resumen:
 
             filas_resumen.append([
 
                 Paragraph(
-                    r["nombre"],
+                    limpiar_texto(
+                        r.get("nombre")
+                    ),
                     estilo_celda
                 ),
 
                 Paragraph(
-                    r["modelo"],
+                    limpiar_texto(
+                        r.get("modelo")
+                    ),
                     estilo_celda
                 ),
 
                 Paragraph(
-                    r["serial"],
+                    limpiar_texto(
+                        r.get("serial")
+                    ),
                     estilo_celda
                 ),
 
                 Paragraph(
-                    r["marca"],
+                    limpiar_texto(
+                        r.get("marca")
+                    ),
                     estilo_celda
                 ),
 
                 Paragraph(
-                    f'{r["salidas"]} {r["unidad"]}',
+                    f'{r["salidas"]} '
+                    f'{r["unidad"]}',
                     estilo_celda
                 ),
 
                 Paragraph(
-                    f'{r["devuelto"]} {r["unidad"]}',
+                    f'{r["devuelto"]} '
+                    f'{r["unidad"]}',
 
                     ParagraphStyle(
                         "dev_color",
@@ -780,7 +985,8 @@ def generar_pdf_consolidado():
                 ),
 
                 Paragraph(
-                    f'{r["neto"]} {r["unidad"]}',
+                    f'{r["neto"]} '
+                    f'{r["unidad"]}',
 
                     ParagraphStyle(
                         "neto_color",
@@ -792,6 +998,7 @@ def generar_pdf_consolidado():
                     )
                 )
             ])
+
 
         tabla_resumen = Table(
 
@@ -807,6 +1014,7 @@ def generar_pdf_consolidado():
                 2.2 * cm
             ]
         )
+
 
         tabla_resumen.setStyle(
             TableStyle([
@@ -895,6 +1103,7 @@ def generar_pdf_consolidado():
             ])
         )
 
+
         elementos.append(
             tabla_resumen
         )
@@ -905,6 +1114,7 @@ def generar_pdf_consolidado():
                 0.5 * cm
             )
         )
+
 
     # ========================================================
     # DEVOLUCIONES
@@ -924,6 +1134,7 @@ def generar_pdf_consolidado():
         )
     )
 
+
     if not devoluciones:
 
         elementos.append(
@@ -937,69 +1148,56 @@ def generar_pdf_consolidado():
 
         for dev in devoluciones:
 
-            fecha = dev.get(
-                "fecha_creacion"
+            fecha_str = formatear_fecha(
+                dev.get("fecha")
             )
 
-            if fecha:
-
-                fecha_str = str(
-                    fecha
-                )[:10]
-
-            else:
-
-                fecha_str = ""
-
-            sede_str = (
-                dev.get(
-                    "sede_nombre"
-                )
-                or ""
+            sede_str = limpiar_texto(
+                dev.get("sede_nombre")
             )
 
-            motivo_str = (
-                dev.get(
-                    "motivo"
-                )
-                or ""
+            motivo_str = limpiar_texto(
+                dev.get("motivo")
             )
 
-            salida_str = (
-                dev.get(
-                    "salida_numero"
-                )
-                or ""
+            salida_str = limpiar_texto(
+                dev.get("salida_numero")
             )
+
+
+            # =================================================
+            # ENCABEZADO DE DEVOLUCIÓN
+            # =================================================
 
             elementos.append(
                 Paragraph(
 
                     (
-                        f'{dev["numero_documento"]}'
+                        f'{limpiar_texto(dev.get("numero_documento"))}'
                         f' · '
                         f'{fecha_str}'
-
-                        + (
-                            f' · {sede_str}'
-                            if sede_str
-                            else ""
-                        )
+                        f' · '
+                        f'{sede_str}'
                     ),
 
                     estilo_sub
                 )
             )
 
+
+            # =================================================
+            # MOTIVO Y SALIDA ORIGEN
+            # =================================================
+
             elementos.append(
                 Paragraph(
 
                     (
                         f"Motivo: "
-                        f"{motivo_str or '—'}"
+                        f"{motivo_str}"
                         f"   "
                         f"Salida origen: "
-                        f"{salida_str or '—'}"
+                        f"{salida_str}"
                     ),
 
                     ParagraphStyle(
@@ -1011,12 +1209,19 @@ def generar_pdf_consolidado():
                     )
                 )
             )
+
+
             elementos.append(
                 Spacer(
                     1,
                     0.15 * cm
                 )
             )
+
+
+            # =================================================
+            # TABLA DE DETALLE
+            # =================================================
 
             encabezados = [
 
@@ -1051,65 +1256,62 @@ def generar_pdf_consolidado():
                 )
             ]
 
+
             filas = [
                 encabezados
             ]
+
 
             for item in dev["detalle"]:
 
                 filas.append([
 
                     Paragraph(
-                        item.get(
-                            "nombre",
-                            ""
+                        limpiar_texto(
+                            item.get("nombre")
                         ),
                         estilo_celda
                     ),
 
                     Paragraph(
-                        item.get(
-                            "modelo",
-                            ""
-                        ) or "",
+                        limpiar_texto(
+                            item.get("modelo")
+                        ),
                         estilo_celda
                     ),
 
                     Paragraph(
-                        item.get(
-                            "serial",
-                            ""
-                        ) or "",
+                        limpiar_texto(
+                            item.get("serial")
+                        ),
                         estilo_celda
                     ),
 
                     Paragraph(
-                        item.get(
-                            "marca",
-                            ""
-                        ) or "",
+                        limpiar_texto(
+                            item.get("marca")
+                        ),
                         estilo_celda
                     ),
 
                     Paragraph(
                         str(
-                            item.get(
-                                "cantidad",
-                                ""
-                            )
+                            item.get("cantidad")
+                            or 0
                         ),
                         estilo_celda
                     ),
 
                     Paragraph(
-                        item.get(
-                            "unidad_codigo",
-                            ""
-                        )
-                        or "UND",
+                        limpiar_texto(
+                            item.get(
+                                "unidad_codigo"
+                            )
+                        ),
                         estilo_celda
                     )
                 ])
+
 
             tabla = Table(
 
@@ -1124,6 +1326,7 @@ def generar_pdf_consolidado():
                     2.2 * cm
                 ]
             )
+
 
             tabla.setStyle(
                 TableStyle([
@@ -1203,6 +1406,7 @@ def generar_pdf_consolidado():
                 ])
             )
 
+
             elementos.append(
                 tabla
             )
@@ -1214,6 +1418,7 @@ def generar_pdf_consolidado():
                 )
             )
 
+
     # ========================================================
     # GENERAR PDF
     # ========================================================
@@ -1224,10 +1429,36 @@ def generar_pdf_consolidado():
 
     buffer.seek(0)
 
+
+    # ========================================================
+    # NOMBRE DEL ARCHIVO
+    # ========================================================
+
+    nombre_limpio = (
+        destino
+        .replace(
+            " ",
+            "_"
+        )
+        .replace(
+            "/",
+            "_"
+        )
+        .replace(
+            "\\",
+            "_"
+        )
+    )
+
     nombre_archivo = (
         "consolidado_"
-        f'{destino.replace(" ", "_")}.pdf'
+        f"{nombre_limpio}.pdf"
     )
+
+
+    # ========================================================
+    # RESPUESTA
+    # ========================================================
 
     return send_file(
 

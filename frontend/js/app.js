@@ -1,4 +1,4 @@
-const API = '/api';
+﻿const API = '/api';
 
 function sanitizar(texto) {
     if (!texto) return '—';
@@ -73,19 +73,38 @@ function cerrarSesion() {
 let sedeActual = usuario.rol === 'admin' ? null : (parseInt(localStorage.getItem('sedeActual')) || usuario.sede_id || 1);
 
 async function inicializarSelectorSede() {
-    if (usuario.rol !== 'admin') return;
+
+    // Solo admin y consulta pueden seleccionar sedes
+    if (
+        usuario.rol !== 'admin' &&
+        usuario.rol !== 'consulta'
+    ) {
+        return;
+    }
 
     const select = document.getElementById('selector-sede');
-    const res    = await apiFetch(`${API}/auth/sedes`);
-    if (!res) return;
-    const sedes  = await res.json();
 
-    select.innerHTML = '<option value="">— Todas las sedes —</option>'; // ✅
-    select.innerHTML += sedes.map(s =>
-        `<option value="${s.id}">${s.nombre} — ${s.ciudad}</option>`
+    if (!select) return;
+
+    const res = await apiFetch(`${API}/auth/sedes`);
+
+    if (!res) return;
+
+    const sedes = await res.json();
+
+    select.innerHTML =
+        '<option value="">&#8212; Todas las sedes &#8212;</option>';
+
+    select.innerHTML += sedes.map(sede =>
+        `<option value="${sede.id}">
+            ${sede.nombre}
+        </option>`
     ).join('');
-    select.value = '';  // ✅ por default muestra todas
-    sedeActual = null;  // ✅
+
+    select.value = '';
+
+    sedeActual = null;
+
     select.style.display = 'block';
 }
 
@@ -97,14 +116,15 @@ function cambiarSedeActual() {
 }
 
 function urlConSede(base) {
-    if (usuario.rol === 'admin' && sedeActual) {
+    if (
+        (usuario.rol === 'admin' || usuario.rol === 'consulta') &&
+        sedeActual
+    ) {
         const sep = base.includes('?') ? '&' : '?';
         return `${base}${sep}sede_id=${sedeActual}`;
     }
     return base;
 }
-
-// ══ NAVEGACIÓN ══════════════════════════════════════════════
 
 function mostrarSeccion(nombre, btn) {
     if (nombre === 'usuarios' && usuario.rol !== 'admin') return;
@@ -126,8 +146,6 @@ function mostrarSeccion(nombre, btn) {
     if (nombre === 'usuarios')      cargarUsuarios();
 }
 
-// ══ MODALES ═════════════════════════════════════════════════
-
 function abrirModal(id) {
     document.getElementById(id).classList.add('visible');
 
@@ -140,9 +158,9 @@ function abrirModal(id) {
     if (id === 'modal-entrada' && usuario.rol === 'admin') {
         apiFetch(`${API}/auth/sedes`).then(r => r.json()).then(sedes => {
             const sel = document.getElementById('ent-sede');
-            sel.innerHTML = '<option value="">— Selecciona la sede —</option>';
+            sel.innerHTML = '<option value="">&#8212; Selecciona la sede &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre} — ${s.ciudad}</option>`
+                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre}</option>`
             ));
             document.getElementById('campo-sede-entrada').style.display = 'block';
         });
@@ -158,9 +176,9 @@ function abrirModal(id) {
     if (id === 'modal-salida' && usuario.rol === 'admin') {
             apiFetch(`${API}/auth/sedes`).then(r => r.json()).then(sedes => {
                 const sel = document.getElementById('sal-sede');
-                sel.innerHTML = '<option value="">— Selecciona la sede —</option>';
+                sel.innerHTML = '<option value="">&#8212; Selecciona la sede &#8212;</option>';
                 sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                    `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre} — ${s.ciudad}</option>`
+                    `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre}</option>`
                 ));
                 document.getElementById('campo-sede-salida').style.display = 'block';
             });
@@ -176,9 +194,9 @@ function abrirModal(id) {
     if (id === 'modal-devolucion' && usuario.rol === 'admin') {
         apiFetch(`${API}/auth/sedes`).then(r => r.json()).then(sedes => {
             const sel = document.getElementById('dev-sede');
-            sel.innerHTML = '<option value="">— Selecciona la sede —</option>';
+            sel.innerHTML = '<option value="">&#8212; Selecciona la sede &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre} — ${s.ciudad}</option>`
+                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre}</option>`
             ));
             document.getElementById('campo-sede-devolucion').style.display = 'block';
         });
@@ -187,30 +205,34 @@ function abrirModal(id) {
     }
 
     if (id === 'modal-traslado') {
-        const ahora = new Date();
 
+        // Limpiar completamente el formulario antes de abrirlo
+        limpiarFormTraslado();
+        
+        const ahora = new Date();
+        
         const fecha =
             ahora.getFullYear().toString() +
             String(ahora.getMonth() + 1).padStart(2, '0') +
             String(ahora.getDate()).padStart(2, '0');
-
+        
         const hora =
             String(ahora.getHours()).padStart(2, '0') +
             String(ahora.getMinutes()).padStart(2, '0') +
             String(ahora.getSeconds()).padStart(2, '0');
-
+        
         document.getElementById('tras-numero').value =
             `TR-${fecha}-${hora}`;
-
+        
         cargarSedesTraslado();
     }
     
     if (id === 'modal-producto' && usuario.rol === 'admin') {
         apiFetch(`${API}/auth/sedes`).then(r => r.json()).then(sedes => {
             const sel = document.getElementById('prod-sede');
-            sel.innerHTML = '<option value="">— Selecciona la sede —</option>';
+            sel.innerHTML = '<option value="">&#8212; Selecciona la sede &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre} — ${s.ciudad}</option>`
+                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre}</option>`
             ));
             document.getElementById('campo-sede-producto').style.display = 'block';
         });
@@ -541,6 +563,7 @@ function limpiarFormMarca() {
 // ══ PRODUCTOS/SERIALES (separados por sede) ════════════════════════════
 
 async function cargarProductos() {
+
     const respuesta = await apiFetch(
         urlConSede(`${API}/productos/`)
     );
@@ -549,44 +572,83 @@ async function cargarProductos() {
 
     const productos = await respuesta.json();
 
-    const total    = productos.length;
-    const agotados = productos.filter(p => p.stock === 0).length;
-    const bajos    = productos.filter(
-        p => p.stock > 0 && p.stock <= 5
-    ).length;
-    const enstock  = total - agotados - bajos;
+    // Guardar productos para búsqueda y filtro
+    productosFiltrables = productos;
 
-    document.getElementById('stat-total').textContent =
-        total;
+    // Estadísticas
+    const total = productos.length;
 
-    document.getElementById('stat-enstock').textContent =
-        enstock;
+    const agotados =
+        productos.filter(
+            p => p.stock === 0
+        ).length;
 
-    document.getElementById('stat-bajo').textContent =
-        bajos;
+    const bajos =
+        productos.filter(
+            p => p.stock > 0 && p.stock <= 5
+        ).length;
 
-    document.getElementById('stat-agotados').textContent =
-        agotados;
+    const enstock =
+        total - agotados - bajos;
+
+    document.getElementById(
+        'stat-total'
+    ).textContent = total;
+
+    document.getElementById(
+        'stat-enstock'
+    ).textContent = enstock;
+
+    document.getElementById(
+        'stat-bajo'
+    ).textContent = bajos;
+
+    document.getElementById(
+        'stat-agotados'
+    ).textContent = agotados;
 
     document.getElementById(
         'subtitulo-productos'
     ).textContent =
         `${total} productos registrados`;
 
+    // Pintar todos los productos
+    pintarProductos(productos);
+}
+
+
+// ============================================================
+// PINTAR TABLA DE PRODUCTOS
+// ============================================================
+
+function pintarProductos(productos) {
+
     const tbody =
-        document.getElementById('tabla-productos');
+        document.getElementById(
+            'tabla-productos'
+        );
+
+    if (!tbody) return;
 
     tbody.innerHTML = '';
 
-    if (total === 0) {
+    if (productos.length === 0) {
+
         tbody.innerHTML = `
             <tr>
-                <td colspan="7"
-                    style="text-align:center;color:#6b8aab;padding:2rem">
+                <td
+                    colspan="7"
+                    style="
+                        text-align:center;
+                        color:#6b8aab;
+                        padding:2rem
+                    "
+                >
                     Sin productos registrados
                 </td>
             </tr>
         `;
+
         return;
     }
 
@@ -596,18 +658,23 @@ async function cargarProductos() {
         let badgeTexto;
 
         if (p.stock === 0) {
+
             badgeClase = 'badge-agotado';
             badgeTexto = 'Agotado';
 
         } else if (p.stock <= 5) {
+
             badgeClase = 'badge-minimo';
             badgeTexto = 'Stock bajo';
 
         } else {
+
             badgeClase = 'badge-ok';
             badgeTexto = 'En stock';
         }
 
+
+        // Botón para productos serializados
         const botonEquipos =
             p.requiere_serial
                 ? `
@@ -619,6 +686,8 @@ async function cargarProductos() {
                   `
                 : '';
 
+
+        // Crear fila
         tbody.insertAdjacentHTML(
             'beforeend',
             `
@@ -631,7 +700,8 @@ async function cargarProductos() {
                             font-size:12px;
                             color:#1a6fc4;
                             font-weight:600
-                        ">
+                        "
+                    >
                         ${p.codigo || '—'}
                     </span>
                 </td>
@@ -651,13 +721,18 @@ async function cargarProductos() {
                         style="
                             font-size:11px;
                             color:#4a6080
-                        ">
-                        ${sanitizar(p.sede_nombre || '—')}
+                        "
+                    >
+                        ${sanitizar(
+                            p.sede_nombre || '—'
+                        )}
                     </span>
                 </td>
 
                 <td>
-                    ${sanitizar(p.unidad || 'UND')}
+                    ${sanitizar(
+                        p.unidad || 'UND'
+                    )}
                 </td>
 
                 <td>
@@ -665,7 +740,9 @@ async function cargarProductos() {
                 </td>
 
                 <td>
-                    <span class="badge ${badgeClase}">
+                    <span
+                        class="badge ${badgeClase}"
+                    >
                         ${badgeTexto}
                     </span>
                 </td>
@@ -680,7 +757,8 @@ async function cargarProductos() {
                                 ? `
                                     <button
                                         class="btn-accion"
-                                        onclick="editarProducto(${p.id})">
+                                        onclick="editarProducto(${p.id})"
+                                    >
                                         ✏️ Editar
                                     </button>
 
@@ -690,8 +768,12 @@ async function cargarProductos() {
                                             ${p.id},
                                             '${String(
                                                 p.nombre || ''
-                                            ).replace(/'/g, "\\'")}'
-                                        )">
+                                            ).replace(
+                                                /'/g,
+                                                "\\'"
+                                            )}'
+                                        )"
+                                    >
                                         🗑️ Eliminar
                                     </button>
                                   `
@@ -707,25 +789,59 @@ async function cargarProductos() {
     });
 }
 
+// Cuando el producto es serializado, el "Stock inicial" no se
+// pone aquí (cada unidad necesita su propio serial), sino con
+// una Entrada. Este ajuste visual desactiva y limpia ESE campo
+// nada más (el de "Stock mínimo" no se toca, sigue siendo
+// editable siempre — es solo el umbral de alerta, no depende de
+// si el producto es serializado).
+function actualizarCampoStockProducto() {
+    const requiereSerial = document.getElementById('prod-requiere-serial').checked;
+    const inputStockInicial = document.getElementById('prod-stock-inicial');
+    const nota = document.getElementById('nota-stock-serializado');
+
+    inputStockInicial.disabled = requiereSerial;
+    nota.style.display = requiereSerial ? 'block' : 'none';
+
+    if (requiereSerial) {
+        inputStockInicial.value = '0';
+    }
+}
+
 async function guardarProducto(event) {
     event.preventDefault();
     const id = document.getElementById('prod-id').value;
-    
+
     const sede_id = parseInt(document.getElementById('prod-sede').value) || sedeActual;
-    
+
     if (usuario.rol === 'admin' && !sede_id) {
         alert('Selecciona una sede para el producto');
         return;
     }
 
+    const requiereSerial = document.getElementById('prod-requiere-serial').checked;
+
+    // "Stock inicial" (cantidad con la que nace el producto) y
+    // "Stock mínimo" (umbral para la alerta de "Stock bajo") son
+    // dos cosas distintas en la base de datos, así que van en
+    // campos separados. El backend solo usa "stock" al CREAR
+    // (POST); al editar (PUT) lo ignora, así que no importa qué
+    // se mande ahí en ese caso.
+    const stockInicial = requiereSerial
+        ? 0
+        : parseInt(document.getElementById('prod-stock-inicial').value) || 0;
+
+    const stockMinimo = parseInt(document.getElementById('prod-stock-minimo').value) || 0;
+
     const datos = {
-        codigo:       document.getElementById('prod-codigo').value,
-        nombre:       document.getElementById('prod-nombre').value,
-        descripcion:  document.getElementById('prod-descripcion').value,
-        unidad:       document.getElementById('prod-unidad').value,
-        stock:        parseInt(document.getElementById('prod-stock-minimo').value) || 0,
-        stock_minimo: parseInt(document.getElementById('prod-stock-minimo').value) || 0,
-        sede_id:      sede_id,
+        codigo:          document.getElementById('prod-codigo').value,
+        nombre:          document.getElementById('prod-nombre').value,
+        descripcion:     document.getElementById('prod-descripcion').value,
+        unidad:          document.getElementById('prod-unidad').value,
+        stock:           stockInicial,
+        stock_minimo:    stockMinimo,
+        sede_id:         sede_id,
+        requiere_serial: requiereSerial,
     };
 
     const url    = id ? `${API}/productos/${id}` : urlConSede(`${API}/productos/`);
@@ -763,24 +879,131 @@ async function editarProducto(id) {
     document.getElementById('prod-descripcion').value  = p.descripcion || '';
     document.getElementById('prod-unidad').value       = p.unidad;
     document.getElementById('prod-stock-minimo').value = p.stock_minimo;
+
+    // El "Stock inicial" solo tiene sentido al CREAR (el backend
+    // lo ignora al editar), así que se esconde por completo aquí
+    // para no dar a entender que cambiarlo hace algo.
+    document.getElementById('campo-stock-inicial-producto').style.display = 'none';
+
+    // El "requiere serial" de un producto ya creado no se deja
+    // cambiar desde aquí: si ya tiene stock o equipos registrados
+    // de una forma, cambiarlo a mitad de camino puede dejar datos
+    // inconsistentes. Solo se muestra cómo quedó al crearlo.
+    const chkSerial = document.getElementById('prod-requiere-serial');
+    chkSerial.checked  = !!p.requiere_serial;
+    chkSerial.disabled = true;
+
+    document.getElementById('nota-stock-serializado').style.display = 'none';
+
     abrirModal('modal-producto');
 }
 
 async function eliminarProducto(id, nombre) {
-    if (!await mostrarConfirm(`¿Eliminar "${nombre}"? Esta accion no se puede deshacer.`)) return;
-    await apiFetch(`${API}/productos/${id}`, { method: 'DELETE' });
-    cargarProductos();
+
+    // Confirmar antes de eliminar
+    if (!await mostrarConfirm(
+        `¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`
+    )) {
+        return;
+    }
+
+    try {
+
+        // Intentar eliminar el producto
+        const respuesta = await apiFetch(
+            `${API}/productos/${id}`,
+            {
+                method: 'DELETE'
+            }
+        );
+
+        if (!respuesta) return;
+
+        // Leer respuesta del servidor
+        const datos = await respuesta.json();
+
+        // ------------------------------------------------
+        // EL SERVIDOR RECHAZÓ EL BORRADO
+        // ------------------------------------------------
+
+        if (!respuesta.ok) {
+
+            if (datos.detalle) {
+
+                const entradas =
+                    datos.detalle.entradas || 0;
+
+                const salidas =
+                    datos.detalle.salidas || 0;
+
+                const devoluciones =
+                    datos.detalle.devoluciones || 0;
+
+                await mostrarConfirm(
+                    `⚠️ No se puede eliminar "${nombre}".\n\n` +
+                    `Este producto tiene movimientos históricos asociados.\n\n` +
+                    `📥 Entradas: ${entradas}\n` +
+                    `📤 Salidas: ${salidas}\n` +
+                    `↩️ Devoluciones: ${devoluciones}\n\n` +
+                    `El historial del almacén debe conservarse.`
+                );
+
+            } else {
+
+                await mostrarConfirm(
+                    `❌ No se pudo eliminar "${nombre}".\n\n` +
+                    `${datos.error || 'El servidor rechazó la eliminación.'}`
+                );
+            }
+
+            return;
+        }
+
+        // ------------------------------------------------
+        // ELIMINACIÓN CORRECTA
+        // ------------------------------------------------
+
+        await mostrarConfirm(
+            `✅ Producto eliminado correctamente.\n\n` +
+            `"${nombre}" ya no aparece en el inventario.`
+        );
+
+        // Actualizar la tabla
+        await cargarProductos();
+
+    } catch (error) {
+
+        console.error(
+            'Error al eliminar producto:',
+            error
+        );
+
+        await mostrarConfirm(
+            `❌ Ocurrió un error al intentar eliminar "${nombre}".`
+        );
+    }
 }
 
 function limpiarFormProducto() {
-    document.getElementById('prod-id').value           = '';
-    document.getElementById('prod-codigo').value       = '';
-    document.getElementById('prod-nombre').value       = '';
-    document.getElementById('prod-descripcion').value  = '';
-    document.getElementById('prod-unidad').value       = 'UND';
-    document.getElementById('prod-stock-minimo').value = '0';
+    document.getElementById('prod-id').value            = '';
+    document.getElementById('prod-codigo').value        = '';
+    document.getElementById('prod-nombre').value         = '';
+    document.getElementById('prod-descripcion').value   = '';
+    document.getElementById('prod-unidad').value         = 'UND';
+    document.getElementById('prod-stock-inicial').value = '0';
+    document.getElementById('prod-stock-minimo').value  = '0';
     document.getElementById('modal-producto-titulo').textContent = 'Nuevo producto';
     document.getElementById('prod-sede').value = '';
+
+    // El campo de "Stock inicial" solo se esconde al EDITAR
+    // (ver editarProducto); al abrir para un producto nuevo
+    // siempre debe volver a verse.
+    document.getElementById('campo-stock-inicial-producto').style.display = '';
+
+    const chkSerial = document.getElementById('prod-requiere-serial');
+    chkSerial.checked  = false;
+    chkSerial.disabled = false;
+    actualizarCampoStockProducto();
 }
 
 // ══ ENTRADAS ════════════════════════════════════════════════
@@ -830,16 +1053,16 @@ async function cargarEntradas() {
     if (!res) return;
     entradasCache = await res.json();
 
-    if (usuario.rol === 'admin') {
+    if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
         const sel = document.getElementById('filtro-sede-entradas');
         const valorActual = sel.value; // ✅ guardamos el valor antes de recargar
 
         const resSedes = await apiFetch(`${API}/auth/sedes`);
         if (resSedes) {
             const sedes = await resSedes.json();
-            sel.innerHTML = '<option value="">— Todas las sedes —</option>';
+            sel.innerHTML = '<option value="">&#8212; Todas las sedes &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}">${s.nombre} — ${s.ciudad}</option>`
+                `<option value="${s.id}">${s.nombre}</option>`
             ));
             sel.style.display = 'block';
             sel.value = valorActual; // ✅ restauramos el valor después
@@ -877,7 +1100,7 @@ function renderizarEntradas(entradas) {
                 <td>
                     <div class="acciones">
                         <button class="btn-accion" onclick="verPDFEntrada(${e.id})">📄 PDF</button>
-                        ${usuario.rol !== 'consulta' ? `
+                        ${usuario.rol === 'admin' ? `
                             <button class="btn-accion danger" onclick="eliminarEntrada(${e.id}, '${e.numero_documento}')">🗑️ Eliminar</button>
                         ` : ''}
                     </div>
@@ -971,16 +1194,47 @@ async function agregarItemEntrada() {
     `;
 
     item.innerHTML = `
-        <select
-            class="select-producto"
-            style="
-                width:100%;
-                padding:8px;
-                border:1px solid #ccd8e5;
-                border-radius:6px;
-            ">
-            ${opciones}
-        </select>
+        <div style="position:relative;">
+
+            <input
+                type="text"
+                class="buscador-producto"
+                placeholder="Escribe código o nombre..."
+                autocomplete="off"
+                style="
+                    width:100%;
+                    padding:8px;
+                    border:1px solid #ccd8e5;
+                    border-radius:6px;
+                    box-sizing:border-box;
+                ">
+
+            <div
+                class="resultados-producto"
+                style="
+                    display:none;
+                    position:absolute;
+                    left:0;
+                    right:0;
+                    top:100%;
+                    background:white;
+                    border:1px solid #ccd8e5;
+                    border-radius:8px;
+                    margin-top:4px;
+                    max-height:220px;
+                    overflow-y:auto;
+                    z-index:50;
+                    box-shadow:0 4px 15px rgba(0,0,0,.12);
+                ">
+            </div>
+
+            <select
+                class="select-producto"
+                style="display:none">
+                ${opciones}
+            </select>
+
+        </div>
 
         <select
             class="select-unidad"
@@ -1048,6 +1302,12 @@ async function agregarItemEntrada() {
 
     const serialesContainer =
         item.querySelector('.seriales-container');
+
+    inicializarBuscadorProducto(
+        item,
+        selectProducto,
+        productosCache
+    );
 
 
     // =========================================================
@@ -1999,16 +2259,16 @@ async function cargarSalidas() {
     if (!res) return;
     salidasCache = await res.json();
 
-    if (usuario.rol === 'admin') {
+    if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
         const sel = document.getElementById('filtro-sede-salidas');
         const valorActual = sel.value;
 
         const resSedes = await apiFetch(`${API}/auth/sedes`);
         if (resSedes) {
             const sedes = await resSedes.json();
-            sel.innerHTML = '<option value="">— Todas las sedes —</option>';
+            sel.innerHTML = '<option value="">&#8212; Todas las sedes &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}">${s.nombre} — ${s.ciudad}</option>`
+                `<option value="${s.id}">${s.nombre}</option>`
             ));
             sel.style.display = 'block';
             sel.value = valorActual;
@@ -2046,7 +2306,7 @@ function renderizarSalidas(salidas) {
                 <td>
                     <div class="acciones">
                         <button class="btn-accion" onclick="verPDFSalida(${s.id})">📄 PDF</button>
-                        ${usuario.rol !== 'consulta' ? `
+                        ${usuario.rol === 'admin' ? `
                             <button class="btn-accion danger" onclick="eliminarSalida(${s.id}, '${s.numero_documento}')">🗑️ Eliminar</button>
                         ` : ''}
                     </div>
@@ -2141,19 +2401,50 @@ async function agregarItemSalida() {
             align-items:start;
         ">
 
-            <select
-                class="select-producto"
-                style="
-                    border:0.5px solid #c8d8ea;
-                    border-radius:8px;
-                    padding:6px 8px;
-                    font-size:12px;
-                    color:#0d2137;
-                    width:100%;
-                    height:32px;
-                ">
-                ${opciones}
-            </select>
+            <div style="position:relative;">
+
+                <input
+                    type="text"
+                    class="buscador-producto"
+                    placeholder="Escribe código o nombre..."
+                    autocomplete="off"
+                    style="
+                        border:0.5px solid #c8d8ea;
+                        border-radius:8px;
+                        padding:6px 8px;
+                        font-size:12px;
+                        color:#0d2137;
+                        width:100%;
+                        height:32px;
+                        box-sizing:border-box;
+                    ">
+
+                <div
+                    class="resultados-producto"
+                    style="
+                        display:none;
+                        position:absolute;
+                        left:0;
+                        right:0;
+                        top:100%;
+                        background:white;
+                        border:0.5px solid #c8d8ea;
+                        border-radius:8px;
+                        margin-top:4px;
+                        max-height:220px;
+                        overflow-y:auto;
+                        z-index:50;
+                        box-shadow:0 4px 15px rgba(0,0,0,.12);
+                    ">
+                </div>
+
+                <select
+                    class="select-producto"
+                    style="display:none">
+                    ${opciones}
+                </select>
+
+            </div>
 
             <select
                 class="select-unidad"
@@ -2250,6 +2541,12 @@ async function agregarItemSalida() {
         item.querySelector('.btn-quitar-salida');
 
     let equiposDisponibles = [];
+
+    inicializarBuscadorProducto(
+        item,
+        selectProducto,
+        productosCacheSalida
+    );
 
     botonQuitar.addEventListener('click', () => {
         item.remove();
@@ -3426,22 +3723,181 @@ async function cargarSelectorSalidas() {
     });
 }
 
-function filtrarPuntos() {
-    const texto = document.getElementById('buscar-punto').value.trim().toLowerCase();
-    const select = document.getElementById('selector-punto');
-    const opciones = select.querySelectorAll('option');
+// Normaliza texto para comparar búsquedas sin que le afecten
+// espacios "raros" (espacios de ancho fijo, NBSP, etc.) ni
+// caracteres invisibles de ancho cero que a veces quedan
+// pegados en datos digitados o copiados desde Word/otras apps.
+// Visualmente son indistinguibles de un espacio normal, pero
+// una comparación exacta de texto los trata como diferentes.
+function normalizarBusqueda(texto) {
+    return String(texto || '')
+        .normalize('NFKC')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+}
 
-    opciones.forEach(op => {
-        if (op.value === '') return;
-        op.style.display = op.text.toLowerCase().includes(texto) ? '' : 'none';
+// ================================================================
+// BUSCADOR DE PRODUCTOS (Entradas, Salidas, Traslados)
+//
+// Convierte un <select> normal (oculto) en un campo donde se
+// puede escribir el c\u00F3digo o el nombre del producto para
+// filtrarlo, en vez de tener que buscarlo uno por uno en una
+// lista larga.
+//
+// El <select> original NO se toca ni se elimina: sigue teniendo
+// todas sus <option> con sus data-* (unidad, stock, serializado,
+// etc.), as\u00ED que todo el c\u00F3digo que ya lee ese <select> (unidad
+// autom\u00E1tica, seriales, stock disponible...) sigue funcionando
+// igual. Solo se oculta visualmente y se controla desde el
+// campo de texto de al lado.
+// ================================================================
+
+function inicializarBuscadorProducto(fila, selectOculto, listaProductos) {
+
+    const buscador =
+        fila.querySelector('.buscador-producto');
+
+    const resultados =
+        fila.querySelector('.resultados-producto');
+
+    if (!buscador || !resultados || !selectOculto) return;
+
+    function sincronizarTexto() {
+
+        const opcion =
+            selectOculto.options[selectOculto.selectedIndex];
+
+        buscador.value = opcion
+            ? opcion.textContent.replace(/\s+/g, ' ').trim()
+            : '';
+    }
+
+    function cerrarResultados() {
+        resultados.style.display = 'none';
+        resultados.innerHTML = '';
+    }
+
+    function seleccionarProducto(producto) {
+
+        selectOculto.value = producto.id;
+        selectOculto.dispatchEvent(new Event('change'));
+
+        sincronizarTexto();
+        cerrarResultados();
+    }
+
+    function filtrar() {
+
+        const texto = normalizarBusqueda(buscador.value);
+
+        if (!texto) {
+            cerrarResultados();
+            return;
+        }
+
+        const coincidencias = listaProductos.filter(p =>
+            normalizarBusqueda(p.codigo).includes(texto) ||
+            normalizarBusqueda(p.nombre).includes(texto)
+        );
+
+        resultados.innerHTML = '';
+
+        if (coincidencias.length === 0) {
+            resultados.innerHTML = `
+                <div style="
+                    padding:10px 12px;
+                    font-size:12px;
+                    color:#6b8aab;
+                ">
+                    No se encontraron productos con ese c\u00F3digo o nombre.
+                </div>
+            `;
+            resultados.style.display = 'block';
+            return;
+        }
+
+        coincidencias.slice(0, 50).forEach(p => {
+
+            const opcionDiv = document.createElement('div');
+
+            opcionDiv.style.cssText = `
+                padding:8px 10px;
+                cursor:pointer;
+                border-bottom:0.5px solid #edf2f7;
+                font-size:12.5px;
+                color:#0d2137;
+            `;
+
+            opcionDiv.innerHTML = `
+                <strong>[${sanitizar(p.codigo || '\u2014')}]</strong>
+                ${sanitizar(p.nombre)}
+                ${p.stock !== undefined
+                    ? `<span style="color:#6b8aab;font-size:11px"> (disp: ${p.stock || 0})</span>`
+                    : ''}
+            `;
+
+            opcionDiv.onmouseenter = () => {
+                opcionDiv.style.background = '#f5f8fc';
+            };
+
+            opcionDiv.onmouseleave = () => {
+                opcionDiv.style.background = 'white';
+            };
+
+            // mousedown (no click) para que se dispare antes
+            // del "blur" del campo de texto
+            opcionDiv.onmousedown = (ev) => {
+                ev.preventDefault();
+                seleccionarProducto(p);
+            };
+
+            resultados.appendChild(opcionDiv);
+        });
+
+        resultados.style.display = 'block';
+    }
+
+    buscador.addEventListener('input', filtrar);
+
+    buscador.addEventListener('focus', () => {
+        buscador.select();
+        filtrar();
     });
 
-    // Si el punto actualmente seleccionado ya no coincide, lo reseteamos
-    const seleccionado = select.options[select.selectedIndex];
-    if (seleccionado && seleccionado.value && seleccionado.style.display === 'none') {
-        select.value = '';
-        document.getElementById('consolidado-contenido').innerHTML =
-            '<p style="color:#6b8aab;font-size:13px;padding:2rem 0">Selecciona un punto arriba para ver su historial.</p>';
+    buscador.addEventListener('blur', () => {
+        setTimeout(() => {
+            cerrarResultados();
+            sincronizarTexto();
+        }, 150);
+    });
+
+    sincronizarTexto();
+}
+
+function filtrarPuntos() {
+    const texto = normalizarBusqueda(
+        document.getElementById('buscar-punto').value
+    );
+
+    const filtrados = !texto
+        ? puntosCache
+        : puntosCache.filter(p =>
+            normalizarBusqueda(p.destino).includes(texto) ||
+            normalizarBusqueda(p.sede_nombre).includes(texto)
+        );
+
+    pintarSelectorPuntos(filtrados);
+
+    // Si al escribir queda un solo punto que coincide, se
+    // selecciona y se carga su historial automáticamente,
+    // sin que el usuario tenga que abrir el desplegable y
+    // elegirlo a mano.
+    if (texto && filtrados.length === 1) {
+        const select = document.getElementById('selector-punto');
+        select.value = filtrados[0].destino;
+        cargarHistorialPunto();
     }
 }
 
@@ -3867,7 +4323,7 @@ async function cargarDevoluciones() {
 
     devolucionesCache = await res.json();
 
-    if (usuario.rol === 'admin') {
+    if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
         const sel = document.getElementById('filtro-sede-devoluciones');
 
         if (sel) {
@@ -3880,13 +4336,13 @@ async function cargarDevoluciones() {
                 const sedes = await resSedes.json();
 
                 sel.innerHTML =
-                    '<option value="">— Todas las sedes —</option>';
+                    '<option value="">&#8212; Todas las sedes &#8212;</option>';
 
                 sedes.forEach(s => {
                     sel.insertAdjacentHTML(
                         'beforeend',
                         `<option value="${s.id}">
-                            ${s.nombre} — ${s.ciudad}
+                            ${s.nombre}
                         </option>`
                     );
                 });
@@ -4451,13 +4907,63 @@ function resolverConfirm(valor) {
 
 // ══ INICIO ══════════════════════════════════════════════════
 
-document.addEventListener('DOMContentLoaded', () => {
-    inicializarSelectorSede();
-    cargarProductos();
+document.addEventListener('DOMContentLoaded', async () => {
+    // IMPORTANTE: hay que esperar a que el selector de sede termine
+    // de inicializarse (y de resetear sedeActual) ANTES de cargar
+    // productos. Si no, cargarProductos() se dispara con el
+    // sedeActual viejo (guardado en el navegador de una sesión
+    // anterior) mientras inicializarSelectorSede() todavía está
+    // resolviendo su petición al backend, y la tabla queda "pegada"
+    // con el filtro de sede antiguo aunque el selector ya muestre
+    // "Todas las sedes".
+    await inicializarSelectorSede();
+    await cargarProductos();
     cargarCatalogos();
 
     if (usuario.rol === 'consulta') {
         document.body.classList.add('rol-consulta');
+    }
+
+    // Los filtros de "— Todas las sedes —" son solo para admin y
+    // consulta. Para almacenistas (rol "sede") y cualquier otro
+    // rol se ocultan de forma explícita aquí, sin depender de que
+    // el CSS ya los tenga ocultos por defecto.
+    if (usuario.rol !== 'admin' && usuario.rol !== 'consulta') {
+        [
+            'selector-sede',
+            'filtro-sede-productos',
+            'filtro-sede-entradas',
+            'filtro-sede-salidas',
+            'filtro-sede-devoluciones',
+            'filtro-sede-consolidado',
+            'filtro-sede-traslados',
+        ].forEach(id => {
+            const el = document.getElementById(id);
+            // Se usa setProperty(..., 'important') porque hay una
+            // regla en el CSS con !important que, si no, le gana
+            // a un simple el.style.display = 'none' y el cuadro
+            // se seguiría viendo aunque aquí digamos que se oculte.
+            if (el) el.style.setProperty('display', 'none', 'important');
+        });
+    }
+
+    // Elementos marcados con la clase "admin-only" (el menú de
+    // "Usuarios", "+ Nuevo modelo", "+ Nueva marca" y
+    // "+ Nuevo usuario") son solo para admin.
+    if (usuario.rol !== 'admin') {
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.setProperty('display', 'none', 'important');
+        });
+    }
+
+    // Elementos marcados con "no-consulta" ("+ Nuevo producto",
+    // "+ Nueva entrada", "+ Nueva salida", "+ Nuevo traslado") sí
+    // los puede usar el almacenista (rol "sede"), pero no un
+    // usuario de consulta, que es de solo lectura.
+    if (usuario.rol === 'consulta') {
+        document.querySelectorAll('.no-consulta').forEach(el => {
+            el.style.setProperty('display', 'none', 'important');
+        });
     }
 
     const nom = usuario.nombre || 'Usuario';
@@ -4560,7 +5066,7 @@ async function abrirModalUsuario() {
     select.innerHTML = '<option value="">— Sin sede —</option>';
     sedes.forEach(s => {
         select.insertAdjacentHTML('beforeend',
-            `<option value="${s.id}">${s.nombre} — ${s.ciudad}</option>`
+            `<option value="${s.id}">${s.nombre}</option>`
         );
     });
     abrirModal('modal-usuario');
@@ -4581,7 +5087,7 @@ async function editarUsuario(id) {
     selectSede.innerHTML = '<option value="">— Sin sede —</option>';
     sedes.forEach(s => {
         selectSede.insertAdjacentHTML('beforeend',
-            `<option value="${s.id}" ${s.id === u.sede_id ? 'selected' : ''}>${s.nombre} — ${s.ciudad}</option>`
+            `<option value="${s.id}" ${s.id === u.sede_id ? 'selected' : ''}>${s.nombre}</option>`
         );
     });
 
@@ -4674,17 +5180,19 @@ function limpiarFormUsuario() {
 
 // ══ CONSOLIDADO POR PUNTO ════════════════════════════════════
 
+let puntosCache = [];
+
 async function cargarPuntos() {
-    // Carga sedes en filtro si es admin
-    if (usuario.rol === 'admin') {
+    // Carga sedes en filtro si es admin o consulta
+    if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
         const sel = document.getElementById('filtro-sede-consolidado');
         const valorActual = sel.value;
         const resSedes = await apiFetch(`${API}/auth/sedes`);
         if (resSedes) {
             const sedes = await resSedes.json();
-            sel.innerHTML = '<option value="">— Todas las sedes —</option>';
+            sel.innerHTML = '<option value="">&#8212; Todas las sedes &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}">${s.nombre} — ${s.ciudad}</option>`
+                `<option value="${s.id}">${s.nombre}</option>`
             ));
             sel.style.display = 'block';
             sel.value = valorActual;
@@ -4700,19 +5208,41 @@ async function cargarPuntos() {
     if (!res) return;
     const puntos = await res.json();
 
+    puntosCache = puntos;
+
+    document.getElementById('subtitulo-consolidado').textContent =
+        `${puntos.length} puntos con movimientos`;
+
+    // Vuelve a pintar el selector aplicando el texto de
+    // búsqueda actual (si había algo escrito antes de recargar).
+    filtrarPuntos();
+}
+
+function pintarSelectorPuntos(lista) {
     const select = document.getElementById('selector-punto');
     const valorActual = select.value;
+
     select.innerHTML = '<option value="">— Selecciona un punto —</option>';
-    puntos.forEach(p => {
+
+    lista.forEach(p => {
         const sede = p.sede_nombre ? ` (${p.sede_nombre})` : '';
         select.insertAdjacentHTML('beforeend',
             `<option value="${p.destino}">${p.destino}${sede} — ${p.total_salidas} salida(s)</option>`
         );
     });
-    select.value = valorActual;
 
-    document.getElementById('subtitulo-consolidado').textContent =
-        `${puntos.length} puntos con movimientos`;
+    // Si el punto que estaba seleccionado ya no está en la
+    // lista filtrada, se pierde la selección y se limpia el
+    // historial mostrado.
+    const sigueExistiendo = lista.some(p => p.destino === valorActual);
+
+    if (valorActual && sigueExistiendo) {
+        select.value = valorActual;
+    } else if (valorActual) {
+        select.value = '';
+        document.getElementById('consolidado-contenido').innerHTML =
+            '<p style="color:#6b8aab;font-size:13px;padding:2rem 0">Selecciona un punto arriba para ver su historial.</p>';
+    }
 }
 
 async function cargarHistorialPunto() {
@@ -4725,93 +5255,257 @@ async function cargarHistorialPunto() {
     }
 
     const sedeFiltro = document.getElementById('filtro-sede-consolidado')?.value;
+
     const url = sedeFiltro
         ? `${API}/consolidado/punto?destino=${encodeURIComponent(destino)}&sede_id=${sedeFiltro}`
         : `${API}/consolidado/punto?destino=${encodeURIComponent(destino)}`;
 
     const res = await apiFetch(url);
+
     if (!res) return;
+
     const data = await res.json();
 
     let html = '';
 
-    // ── RESUMEN NETO ─────────────────────────────────────────
+
+    // ========================================================
+    // RESUMEN NETO
+    // ========================================================
+
     if (data.resumen && data.resumen.length > 0) {
-        html += `<h3 style="font-size:13px;color:#0d2137;margin:1rem 0 0.5rem">📦 Equipos en "${destino}"</h3>`;
-        html += `<div style="background:white;border:0.5px solid #dce6f0;border-radius:10px;padding:12px 16px;margin-bottom:16px">
-            <table style="width:100%;border-collapse:collapse">
-                <thead>
-                    <tr>
-                        <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Producto</th>
-                        <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Modelo</th>
-                        <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Serial</th>
-                        <th style="font-size:10px;color:#6b8aab;text-align:right;padding:4px 8px;background:#f7f9fc">Entro</th>
-                        <th style="font-size:10px;color:#c0392b;text-align:right;padding:4px 8px;background:#f7f9fc">Salió</th>
-                        <th style="font-size:10px;color:#1a7a4a;text-align:right;padding:4px 8px;background:#f7f9fc">En obra</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${data.resumen.map(r => `
+
+        html += `
+            <h3 style="font-size:13px;color:#0d2137;margin:1rem 0 0.5rem">
+                📦 Equipos en "${destino}"
+            </h3>
+
+            <div style="background:white;border:0.5px solid #dce6f0;border-radius:10px;padding:12px 16px;margin-bottom:16px">
+
+                <table style="width:100%;border-collapse:collapse">
+
+                    <thead>
                         <tr>
-                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8">${r.nombre}</td>
-                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">${r.modelo}</td>
-                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">${r.serial}</td>
-                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right">${r.salidas} ${r.unidad}</td>
-                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right;color:#c0392b">${r.devuelto} ${r.unidad}</td>
-                            <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right;font-weight:600;color:#1a7a4a">${r.neto} ${r.unidad}</td>
+
+                            <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">
+                                Producto
+                            </th>
+
+                            <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">
+                                Modelo
+                            </th>
+
+                            <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">
+                                Serial
+                            </th>
+
+                            <th style="font-size:10px;color:#6b8aab;text-align:right;padding:4px 8px;background:#f7f9fc">
+                                Salió
+                            </th>
+
+                            <th style="font-size:10px;color:#c0392b;text-align:right;padding:4px 8px;background:#f7f9fc">
+                                Devuelto
+                            </th>
+
+                            <th style="font-size:10px;color:#1a7a4a;text-align:right;padding:4px 8px;background:#f7f9fc">
+                                En obra
+                            </th>
+
                         </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>`;
+                    </thead>
+
+                    <tbody>
+
+                        ${data.resumen.map(r => `
+
+                            <tr>
+
+                                <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8">
+                                    ${r.nombre || '—'}
+                                </td>
+
+                                <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">
+                                    ${r.modelo || '—'}
+                                </td>
+
+                                <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">
+                                    ${r.serial || '—'}
+                                </td>
+
+                                <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right">
+                                    ${r.salidas || 0} ${r.unidad || 'UND'}
+                                </td>
+
+                                <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right;color:#c0392b">
+                                    ${r.devuelto || 0} ${r.unidad || 'UND'}
+                                </td>
+
+                                <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right;font-weight:600;color:#1a7a4a">
+                                    ${r.neto || 0} ${r.unidad || 'UND'}
+                                </td>
+
+                            </tr>
+
+                        `).join('')}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+        `;
     }
 
 
-    // ── DEVOLUCIONES ─────────────────────────────────────────
-    html += `<h3 style="font-size:13px;color:#0d2137;margin:1.5rem 0 0.5rem">🔄 Devoluciones desde "${destino}"</h3>`;
+    // ========================================================
+    // DEVOLUCIONES
+    // ========================================================
 
-    if (data.devoluciones.length === 0) {
-        html += '<p style="font-size:12px;color:#6b8aab">Sin devoluciones registradas.</p>';
+    html += `
+        <h3 style="font-size:13px;color:#0d2137;margin:1.5rem 0 0.5rem">
+            🔄 Devoluciones desde "${destino}"
+        </h3>
+    `;
+
+
+    if (!data.devoluciones || data.devoluciones.length === 0) {
+
+        html += `
+            <p style="font-size:12px;color:#6b8aab">
+                Sin devoluciones registradas.
+            </p>
+        `;
+
     } else {
+
         data.devoluciones.forEach(d => {
-            const fecha = new Date(d.fecha).toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit',year:'numeric'});
+
+            const fecha = d.fecha
+                ? new Date(d.fecha).toLocaleDateString(
+                    'es-CO',
+                    {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    }
+                )
+                : '—';
+
+
             html += `
+
                 <div style="background:white;border:0.5px solid #dce6f0;border-radius:10px;padding:12px 16px;margin-bottom:10px">
+
                     <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-                        <strong style="font-size:13px;color:#0d2137">${d.numero_documento}</strong>
-                        <span style="font-size:11px;color:#6b8aab">${fecha}${d.sede_nombre ? ' · ' + d.sede_nombre : ''}</span>
+
+                        <strong style="font-size:13px;color:#0d2137">
+                            ${d.numero_documento || '—'}
+                        </strong>
+
+                        <span style="font-size:11px;color:#6b8aab">
+                            ${fecha}${d.sede_nombre ? ' · ' + d.sede_nombre : ''}
+                        </span>
+
                     </div>
+
+
                     <div style="font-size:11px;color:#6b8aab;margin-bottom:8px">
-                        Motivo: ${d.motivo || '—'} · Salida origen: ${d.salida_numero || '—'}
+
+                        Motivo: ${d.motivo || '—'}
+                        ·
+                        Salida origen: ${d.salida_numero || '—'}
+
                     </div>
+
+
                     <table style="width:100%;border-collapse:collapse">
+
                         <thead>
+
                             <tr>
-                                <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Producto</th>
-                                <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Modelo</th>
-                                <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">Serial</th>
-                                <th style="font-size:10px;color:#6b8aab;text-align:right;padding:4px 8px;background:#f7f9fc">Cant.</th>
+
+                                <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">
+                                    Producto
+                                </th>
+
+                                <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">
+                                    Modelo
+                                </th>
+
+                                <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">
+                                    Marca
+                                </th>
+
+                                <th style="font-size:10px;color:#6b8aab;text-align:left;padding:4px 8px;background:#f7f9fc">
+                                    Serial
+                                </th>
+
+                                <th style="font-size:10px;color:#6b8aab;text-align:right;padding:4px 8px;background:#f7f9fc">
+                                    Cant.
+                                </th>
+
                             </tr>
+
                         </thead>
+
+
                         <tbody>
-                            ${d.detalle.map(item => `
+
+                            ${(d.detalle || []).map(item => `
+
                                 <tr>
-                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8">${item.nombre}</td>
-                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">${item.modelo || '—'}</td>
-                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">${item.serial || '—'}</td>
-                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right">${item.cantidad} ${item.unidad}</td>
+
+                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8">
+                                        ${item.producto_nombre || item.nombre || '—'}
+                                    </td>
+
+                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">
+                                        ${item.modelo_nombre || item.modelo || '—'}
+                                    </td>
+
+                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">
+                                        ${item.marca_nombre || item.marca || '—'}
+                                    </td>
+
+                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">
+                                        ${item.serial || '—'}
+                                    </td>
+
+                                    <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right">
+                                        ${item.cantidad || 0} ${item.unidad || 'UND'}
+                                    </td>
+
                                 </tr>
+
                             `).join('')}
+
                         </tbody>
+
                     </table>
+
                 </div>
+
             `;
         });
     }
 
-    html = `<div style="margin-bottom:1rem">
-        <button onclick="descargarPDFConsolidado('${destino}')" class="btn-primario">📄 Exportar PDF</button>
-    </div>` + html;
+
+    // ========================================================
+    // BOTÓN PDF
+    // ========================================================
+
+    html = `
+        <div style="margin-bottom:1rem">
+
+            <button
+                onclick="descargarPDFConsolidado('${destino}')"
+                class="btn-primario">
+                📄 Exportar PDF
+            </button>
+
+        </div>
+    ` + html;
+
 
     contenedor.innerHTML = html;
 }
@@ -4949,259 +5643,1510 @@ async function cargarProductosTraslado() {
     agregarItemTraslado();
 }
 
+async function agregarItemTraslado() {
 
-function agregarItemTraslado() {
-
-    const contenedor = document.getElementById('tras-items');
+    const contenedor =
+        document.getElementById('tras-items');
 
     if (!productosCacheTraslado.length) {
         alert('Primero selecciona una sede de origen.');
         return;
     }
 
-    const opciones = productosCacheTraslado
-        .map(p => `
-            <option
-                value="${p.id}"
-                data-stock="${p.stock || 0}"
-                data-unidad="${p.unidad || 'UND'}">
-                [${p.codigo || '—'}] ${sanitizar(p.nombre)}
-                (disp: ${p.stock || 0})
-            </option>
-        `)
-        .join('');
+    const opciones =
+        productosCacheTraslado
+            .map(p => `
+                <option
+                    value="${p.id}"
+                    data-stock="${p.stock || 0}"
+                    data-unidad="${p.unidad || 'UND'}"
+                    data-serializado="${p.requiere_serial ? '1' : '0'}">
+                    [${p.codigo || '—'}] ${sanitizar(p.nombre)}
+                    (disp: ${p.stock || 0})
+                </option>
+            `)
+            .join('');
 
-    const item = document.createElement('div');
+    const unidadesDisponibles = [
+        'UND',
+        'MTS',
+        'KG',
+        'CAJA',
+        'ROLLO',
+        'LITRO'
+    ];
+
+    const opcionesUnidad =
+        unidadesDisponibles
+            .map(u => `
+                <option value="${u}">
+                    ${u}
+                </option>
+            `)
+            .join('');
+
+    const item =
+        document.createElement('div');
+
+    item.className =
+        'item-traslado';
 
     item.style.cssText = `
-        display:grid;
-        grid-template-columns:2fr 1fr 1fr 1fr 70px 55px 30px;
-        gap:6px;
-        align-items:start;
+        border:1px solid #d5e2f0;
+        border-radius:8px;
+        padding:8px;
+        margin-bottom:8px;
+        background:#f8fbff;
     `;
 
     item.innerHTML = `
-        <select
-            class="tras-producto"
-            style="border:0.5px solid #c8d8ea;border-radius:8px;
-                   padding:6px 8px;font-size:12px;color:#0d2137;
-                   width:100%;height:32px">
-            ${opciones}
-        </select>
+        <div style="
+            display:grid;
+            grid-template-columns:1.6fr 70px 70px;
+            gap:6px;
+            align-items:start;
+        ">
 
-        <input
-            type="text"
-            class="tras-modelo"
-            placeholder="Modelo"
-            style="border:0.5px solid #c8d8ea;border-radius:8px;
-                   padding:6px 8px;font-size:12px;width:100%;
-                   height:32px;box-sizing:border-box">
+            <div style="position:relative;">
 
-        <input
-            type="text"
-            class="tras-marca"
-            placeholder="Marca"
-            style="border:0.5px solid #c8d8ea;border-radius:8px;
-                   padding:6px 8px;font-size:12px;width:100%;
-                   height:32px;box-sizing:border-box">
+                <input
+                    type="text"
+                    class="buscador-producto"
+                    placeholder="Escribe código o nombre..."
+                    autocomplete="off"
+                    style="
+                        border:0.5px solid #c8d8ea;
+                        border-radius:8px;
+                        padding:6px 8px;
+                        font-size:12px;
+                        color:#0d2137;
+                        width:100%;
+                        height:32px;
+                        box-sizing:border-box;
+                    ">
 
-        <input
-            type="text"
-            class="tras-serial"
-            placeholder="Serial"
-            style="border:0.5px solid #c8d8ea;border-radius:8px;
-                   padding:6px 8px;font-size:12px;width:100%;
-                   height:32px;box-sizing:border-box">
+                <div
+                    class="resultados-producto"
+                    style="
+                        display:none;
+                        position:absolute;
+                        left:0;
+                        right:0;
+                        top:100%;
+                        background:white;
+                        border:0.5px solid #c8d8ea;
+                        border-radius:8px;
+                        margin-top:4px;
+                        max-height:220px;
+                        overflow-y:auto;
+                        z-index:50;
+                        box-shadow:0 4px 15px rgba(0,0,0,.12);
+                    ">
+                </div>
 
-        <select
-            class="tras-unidad"
-            style="border:0.5px solid #c8d8ea;border-radius:8px;
-                   padding:6px 4px;font-size:12px;color:#0d2137;
-                   width:100%;height:32px">
-            <option value="UND">UND</option>
-            <option value="MTS">MTS</option>
-            <option value="KG">KG</option>
-            <option value="CAJA">CAJA</option>
-            <option value="ROLLO">ROLLO</option>
-            <option value="LITRO">LITRO</option>
-        </select>
+                <select
+                    class="tras-producto"
+                    style="display:none">
+                    ${opciones}
+                </select>
 
-        <input
-            type="number"
-            class="tras-cantidad"
-            min="1"
-            value="1"
-            style="border:0.5px solid #c8d8ea;border-radius:8px;
-                   padding:6px 8px;font-size:12px;text-align:center;
-                   width:100%;height:32px;box-sizing:border-box">
+            </div>
 
-        <button
-            type="button"
-            style="background:#fdecea;border:none;border-radius:6px;
-                   color:#c0392b;cursor:pointer;font-size:14px;
-                   width:30px;height:32px"
-            onclick="this.parentElement.remove()">
-            ✕
-        </button>
+            <select
+                class="tras-unidad"
+                style="
+                    border:0.5px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 4px;
+                    font-size:12px;
+                    color:#0d2137;
+                    width:100%;
+                    height:32px;
+                ">
+                ${opcionesUnidad}
+            </select>
+
+            <input
+                type="number"
+                class="tras-cantidad"
+                min="1"
+                value="1"
+                style="
+                    border:0.5px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 8px;
+                    font-size:12px;
+                    text-align:center;
+                    width:100%;
+                    height:32px;
+                    box-sizing:border-box;
+                ">
+        </div>
+
+        <div
+            class="tras-equipos-container"
+            style="
+                display:none;
+                margin-top:8px;
+                border-top:1px solid #dce7f2;
+                padding-top:8px;
+            ">
+
+            <div style="
+                font-weight:600;
+                color:#315b87;
+                font-size:13px;
+                margin-bottom:7px;
+            ">
+                📦 Equipos serializados
+            </div>
+
+            <div class="tras-equipos-lista"></div>
+        </div>
+
+        <div style="
+            margin-top:8px;
+            display:flex;
+            justify-content:flex-start;
+        ">
+            <button
+                type="button"
+                class="btn-quitar-traslado"
+                style="
+                    background:#fdecea;
+                    border:none;
+                    border-radius:6px;
+                    color:#c0392b;
+                    cursor:pointer;
+                    font-size:12px;
+                    padding:6px 10px;
+                ">
+                ✕ Quitar producto
+            </button>
+        </div>
     `;
 
     contenedor.appendChild(item);
 
-    const producto = item.querySelector('.tras-producto');
-    const unidad = item.querySelector('.tras-unidad');
+    const producto =
+        item.querySelector('.tras-producto');
+
+    const unidad =
+        item.querySelector('.tras-unidad');
+
+    const cantidad =
+        item.querySelector('.tras-cantidad');
+
+    const contenedorEquipos =
+        item.querySelector(
+            '.tras-equipos-container'
+        );
+
+    const listaEquipos =
+        item.querySelector(
+            '.tras-equipos-lista'
+        );
+
+    let equiposDisponibles = [];
+
+    inicializarBuscadorProducto(
+        item,
+        producto,
+        productosCacheTraslado
+    );
+
+    // ============================================================
+    // QUITAR PRODUCTO
+    // ============================================================
+
+    item.querySelector(
+        '.btn-quitar-traslado'
+    ).addEventListener(
+        'click',
+        () => item.remove()
+    );
+
+
+    // ============================================================
+    // UNIDAD
+    // ============================================================
 
     function actualizarUnidad() {
+
         const opcion =
-            producto.options[producto.selectedIndex];
+            producto.options[
+                producto.selectedIndex
+            ];
 
         unidad.value =
-            opcion?.dataset.unidad || 'UND';
+            opcion?.dataset?.unidad || 'UND';
     }
+
+
+    // ============================================================
+    // BUSCAR EQUIPO POR SERIAL
+    // ============================================================
+
+    function buscarEquipoPorSerial(serial) {
+
+        const serialBuscado =
+            String(serial || '')
+                .trim()
+                .toLowerCase();
+
+        if (!serialBuscado) {
+            return null;
+        }
+
+        return equiposDisponibles.find(
+            equipo =>
+                String(equipo.serial || '')
+                    .trim()
+                    .toLowerCase() ===
+                serialBuscado
+        );
+    }
+
+
+    // ============================================================
+    // VERIFICAR SERIAL REPETIDO
+    // ============================================================
+
+    function serialYaSeleccionado(
+        serial,
+        filaActual
+    ) {
+
+        const serialBuscado =
+            String(serial || '')
+                .trim()
+                .toLowerCase();
+
+        if (!serialBuscado) {
+            return false;
+        }
+
+        const inputs =
+            listaEquipos.querySelectorAll(
+                '.input-serial-traslado'
+            );
+
+        let cantidadEncontrada = 0;
+
+        inputs.forEach(input => {
+
+            if (input === filaActual) {
+                return;
+            }
+
+            const valor =
+                String(input.value || '')
+                    .trim()
+                    .toLowerCase();
+
+            if (
+                valor ===
+                serialBuscado
+            ) {
+                cantidadEncontrada++;
+            }
+        });
+
+        return cantidadEncontrada > 0;
+    }
+
+
+    // ============================================================
+    // ACTUALIZAR DATOS DE UNA FILA
+    // ============================================================
+
+    function actualizarEquipoFila(fila) {
+
+        const inputSerial =
+            fila.querySelector(
+                '.input-serial-traslado'
+            );
+
+        const inputEquipoId =
+            fila.querySelector(
+                '.select-equipo-traslado'
+            );
+
+        const inputMarca =
+            fila.querySelector(
+                '.input-marca-traslado'
+            );
+
+        const inputModelo =
+            fila.querySelector(
+                '.input-modelo-traslado'
+            );
+
+        const serial =
+            inputSerial.value.trim();
+
+        if (!serial) {
+
+            inputEquipoId.value = '';
+            inputMarca.value = '';
+            inputModelo.value = '';
+
+            inputSerial.style.borderColor =
+                '#c8d8ea';
+
+            return;
+        }
+
+        const equipo =
+            buscarEquipoPorSerial(serial);
+
+        if (!equipo) {
+
+            inputEquipoId.value = '';
+            inputMarca.value = '';
+            inputModelo.value = '';
+
+            inputSerial.style.borderColor =
+                '#e74c3c';
+
+            return;
+        }
+
+        if (
+            serialYaSeleccionado(
+                serial,
+                inputSerial
+            )
+        ) {
+
+            mostrarNotificacionSalida(
+                `El serial "${equipo.serial}" ya fue seleccionado.`,
+                'error'
+            );
+
+            inputSerial.value = '';
+            inputEquipoId.value = '';
+            inputMarca.value = '';
+            inputModelo.value = '';
+
+            inputSerial.style.borderColor =
+                '#e74c3c';
+
+            inputSerial.focus();
+
+            return;
+        }
+
+        inputEquipoId.value =
+            equipo.id;
+
+        inputMarca.value =
+            equipo.marca_nombre || '';
+
+        inputModelo.value =
+            equipo.modelo_nombre || '';
+
+        inputSerial.style.borderColor =
+            '#27ae60';
+    }
+
+
+    // ============================================================
+    // CREAR FILA DE EQUIPO
+    // ============================================================
+
+    function crearFilaEquipo(
+        indice,
+        equipoId = null
+    ) {
+
+        const fila =
+            document.createElement('div');
+
+        fila.className =
+            'fila-equipo-traslado';
+
+        fila.style.cssText = `
+            display:grid;
+            grid-template-columns:45px 1.2fr 1fr 1fr;
+            gap:6px;
+            align-items:start;
+            margin-bottom:6px;
+        `;
+
+        const idDatalist =
+            `lista-seriales-traslado-${Date.now()}-${indice}-${Math.random()
+                .toString(36)
+                .slice(2, 7)}`;
+
+        const opcionesSeriales =
+            equiposDisponibles
+                .filter(
+                    equipo =>
+                        equipo.estado ===
+                        'DISPONIBLE'
+                )
+                .map(
+                    equipo => `
+                        <option
+                            value="${equipo.serial || ''}">
+                            ${equipo.serial || 'SIN SERIAL'}
+                        </option>
+                    `
+                )
+                .join('');
+
+        fila.innerHTML = `
+            <div style="
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                height:32px;
+                background:#e8f1fa;
+                border-radius:6px;
+                color:#315b87;
+                font-size:12px;
+                font-weight:600;
+            ">
+                #${indice}
+            </div>
+
+            <!-- ID INTERNO -->
+            <input
+                type="hidden"
+                class="select-equipo-traslado"
+                value=""
+            >
+
+            <!-- SERIAL -->
+            <div>
+                <input
+                    type="text"
+                    class="input-serial-traslado"
+                    list="${idDatalist}"
+                    placeholder="Escribe o escanea el serial"
+                    autocomplete="off"
+                    style="
+                        width:100%;
+                        height:32px;
+                        box-sizing:border-box;
+                        border:1px solid #c8d8ea;
+                        border-radius:8px;
+                        padding:6px 8px;
+                        font-size:12px;
+                        color:#0d2137;
+                        background:white;
+                    "
+                >
+
+                <datalist id="${idDatalist}">
+                    ${opcionesSeriales}
+                </datalist>
+            </div>
+
+            <!-- MARCA -->
+            <input
+                type="text"
+                class="input-marca-traslado"
+                placeholder="Marca"
+                readonly
+                style="
+                    width:100%;
+                    height:32px;
+                    box-sizing:border-box;
+                    border:1px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 8px;
+                    font-size:12px;
+                    color:#0d2137;
+                    background:#f1f5f9;
+                "
+            >
+
+            <!-- MODELO -->
+            <input
+                type="text"
+                class="input-modelo-traslado"
+                placeholder="Modelo"
+                readonly
+                style="
+                    width:100%;
+                    height:32px;
+                    box-sizing:border-box;
+                    border:1px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 8px;
+                    font-size:12px;
+                    color:#0d2137;
+                    background:#f1f5f9;
+                "
+            >
+        `;
+
+        listaEquipos.appendChild(fila);
+
+        const inputSerial =
+            fila.querySelector(
+                '.input-serial-traslado'
+            );
+
+        // --------------------------------------------------------
+        // ESCRIBIR / ESCANEAR
+        // --------------------------------------------------------
+
+        inputSerial.addEventListener(
+            'input',
+            () => {
+                actualizarEquipoFila(fila);
+            }
+        );
+
+        inputSerial.addEventListener(
+            'change',
+            () => {
+                actualizarEquipoFila(fila);
+            }
+        );
+
+        inputSerial.addEventListener(
+            'blur',
+            () => {
+
+                if (
+                    inputSerial.value.trim()
+                ) {
+                    actualizarEquipoFila(
+                        fila
+                    );
+                }
+            }
+        );
+
+        // --------------------------------------------------------
+        // RESTAURAR EQUIPO
+        // --------------------------------------------------------
+
+        if (equipoId) {
+
+            const equipo =
+                equiposDisponibles.find(
+                    e =>
+                        Number(e.id) ===
+                        Number(equipoId)
+                );
+
+            if (equipo) {
+
+                inputSerial.value =
+                    equipo.serial || '';
+
+                const inputEquipoId =
+                    fila.querySelector(
+                        '.select-equipo-traslado'
+                    );
+
+                inputEquipoId.value =
+                    equipo.id;
+
+                fila.querySelector(
+                    '.input-marca-traslado'
+                ).value =
+                    equipo.marca_nombre || '';
+
+                fila.querySelector(
+                    '.input-modelo-traslado'
+                ).value =
+                    equipo.modelo_nombre || '';
+
+                inputSerial.style.borderColor =
+                    '#27ae60';
+            }
+        }
+    }
+
+
+    // ============================================================
+    // RENDERIZAR EQUIPOS
+    // ============================================================
+
+    function renderizarEquipos(cantidadDeseada) {
+
+        if (!equiposDisponibles.length) {
+            listaEquipos.innerHTML = '';
+            return;
+        }
+
+        let cantidadNueva =
+            parseInt(
+                cantidadDeseada,
+                10
+            );
+
+        if (
+            Number.isNaN(cantidadNueva) ||
+            cantidadNueva < 1
+        ) {
+            cantidadNueva = 1;
+        }
+
+        if (
+            cantidadNueva >
+            equiposDisponibles.length
+        ) {
+
+            cantidadNueva =
+                equiposDisponibles.length;
+
+            cantidad.value =
+                cantidadNueva;
+        }
+
+        // --------------------------------------------------------
+        // GUARDAR SELECCIONES ACTUALES
+        // --------------------------------------------------------
+
+        const anteriores =
+            Array.from(
+                listaEquipos.querySelectorAll(
+                    '.select-equipo-traslado'
+                )
+            )
+                .map(
+                    input =>
+                        parseInt(
+                            input.value,
+                            10
+                        ) || null
+                );
+
+        // --------------------------------------------------------
+        // AGREGAR / QUITAR SOLO LO NECESARIO
+        // --------------------------------------------------------
+
+        const cantidadActual =
+            listaEquipos.querySelectorAll(
+                '.fila-equipo-traslado'
+            ).length;
+
+        // Agregar
+        if (
+            cantidadNueva >
+            cantidadActual
+        ) {
+
+            for (
+                let i = cantidadActual + 1;
+                i <= cantidadNueva;
+                i++
+            ) {
+
+                crearFilaEquipo(
+                    i,
+                    anteriores[i - 1] || null
+                );
+            }
+        }
+
+        // Quitar
+        if (
+            cantidadNueva <
+            cantidadActual
+        ) {
+
+            for (
+                let i = cantidadActual;
+                i > cantidadNueva;
+                i--
+            ) {
+
+                const fila =
+                    listaEquipos.querySelector(
+                        `.fila-equipo-traslado:nth-child(${i})`
+                    );
+
+                if (fila) {
+                    fila.remove();
+                }
+            }
+        }
+    }
+
+
+    // ============================================================
+    // CARGAR EQUIPOS DEL PRODUCTO
+    // ============================================================
+
+    async function cargarEquipos() {
+
+        const opcion =
+            producto.options[
+                producto.selectedIndex
+            ];
+
+        if (!opcion) return;
+
+        actualizarUnidad();
+
+        const serializado =
+            opcion.dataset.serializado === '1';
+
+        // --------------------------------------------------------
+        // PRODUCTO NORMAL
+        // --------------------------------------------------------
+
+        if (!serializado) {
+
+            contenedorEquipos.style.display =
+                'none';
+
+            listaEquipos.innerHTML = '';
+
+            cantidad.min = 1;
+
+            cantidad.max =
+                parseInt(
+                    opcion.dataset.stock,
+                    10
+                ) || '';
+
+            return;
+        }
+
+        // --------------------------------------------------------
+        // PRODUCTO SERIALIZADO
+        // --------------------------------------------------------
+
+        contenedorEquipos.style.display =
+            'block';
+
+        const productoId =
+            parseInt(
+                producto.value,
+                10
+            );
+
+        const respuesta =
+            await apiFetch(
+                `${API}/productos/${productoId}/equipos`
+            );
+
+        if (!respuesta) return;
+
+        const datos =
+            await respuesta.json();
+
+        equiposDisponibles =
+            (datos.equipos || [])
+                .filter(
+                    equipo =>
+                        equipo.estado ===
+                        'DISPONIBLE'
+                );
+
+        if (!equiposDisponibles.length) {
+
+            listaEquipos.innerHTML = `
+                <div style="
+                    color:#c0392b;
+                    font-size:12px;
+                    padding:5px;
+                ">
+                    No hay equipos disponibles para trasladar.
+                </div>
+            `;
+
+            cantidad.value = 0;
+            cantidad.min = 0;
+            cantidad.max = 0;
+
+            return;
+        }
+
+        cantidad.min = 1;
+
+        cantidad.max =
+            equiposDisponibles.length;
+
+        let valor =
+            parseInt(
+                cantidad.value,
+                10
+            );
+
+        if (
+            Number.isNaN(valor) ||
+            valor < 1
+        ) {
+            valor = 1;
+        }
+
+        if (
+            valor >
+            equiposDisponibles.length
+        ) {
+
+            valor =
+                equiposDisponibles.length;
+
+            cantidad.value =
+                valor;
+        }
+
+        renderizarEquipos(
+            valor
+        );
+    }
+
+
+    // ============================================================
+    // CAMBIO DE CANTIDAD
+    // ============================================================
+
+    cantidad.addEventListener(
+        'input',
+        () => {
+
+            const opcion =
+                producto.options[
+                    producto.selectedIndex
+                ];
+
+            const serializado =
+                opcion?.dataset?.serializado === '1';
+
+            if (!serializado) {
+                return;
+            }
+
+            // Al borrar el número no destruimos
+            // los equipos existentes.
+            if (
+                cantidad.value === ''
+            ) {
+                return;
+            }
+
+            let valor =
+                parseInt(
+                    cantidad.value,
+                    10
+                );
+
+            if (Number.isNaN(valor)) {
+                return;
+            }
+
+            if (
+                equiposDisponibles.length &&
+                valor >
+                    equiposDisponibles.length
+            ) {
+
+                valor =
+                    equiposDisponibles.length;
+
+                cantidad.value =
+                    valor;
+            }
+
+            renderizarEquipos(
+                valor
+            );
+        }
+    );
+
+
+    // ============================================================
+    // CAMBIO DE PRODUCTO
+    // ============================================================
 
     producto.addEventListener(
         'change',
-        actualizarUnidad
+        async () => {
+
+            equiposDisponibles = [];
+
+            cantidad.value = 1;
+
+            await cargarEquipos();
+        }
     );
 
-    actualizarUnidad();
-}
 
+    actualizarUnidad();
+
+    await cargarEquipos();
+}
 
 async function guardarTraslado(event) {
 
     event.preventDefault();
 
+    // ============================================================
+    // DATOS GENERALES DEL TRASLADO
+    // ============================================================
+
+    const campoNumero =
+        document.getElementById('tras-numero');
+
+    const campoSedeOrigen =
+        document.getElementById('tras-sede-origen');
+
+    const campoSedeDestino =
+        document.getElementById('tras-sede-destino');
+
+    const campoObservaciones =
+        document.getElementById('tras-observaciones');
+
+    const contenedorItems =
+        document.getElementById('tras-items');
+
     const numero =
-        document.getElementById('tras-numero').value.trim();
+        campoNumero?.value?.trim() || '';
 
     const sedeOrigen =
         parseInt(
-            document.getElementById('tras-sede-origen').value
-        );
+            campoSedeOrigen?.value,
+            10
+        ) || 0;
 
     const sedeDestino =
         parseInt(
-            document.getElementById('tras-sede-destino').value
-        );
+            campoSedeDestino?.value,
+            10
+        ) || 0;
 
     const observaciones =
-        document.getElementById('tras-observaciones').value.trim();
+        campoObservaciones?.value?.trim() || '';
+
+    // ============================================================
+    // VALIDACIONES GENERALES
+    // ============================================================
 
     if (!numero) {
-        alert('Ingresa el número de documento.');
+        alert(
+            'Ingresa el número de documento.'
+        );
         return;
     }
 
     if (!sedeOrigen || !sedeDestino) {
-        alert('Selecciona la sede de origen y la sede de destino.');
+        alert(
+            'Selecciona la sede de origen y la sede de destino.'
+        );
         return;
     }
 
-    if (sedeOrigen === sedeDestino) {
-        alert('La sede de origen y destino no pueden ser iguales.');
+    if (
+        sedeOrigen ===
+        sedeDestino
+    ) {
+        alert(
+            'La sede de origen y destino no pueden ser iguales.'
+        );
+        return;
+    }
+
+    if (!contenedorItems) {
+        alert(
+            'No se encontró el contenedor de productos del traslado.'
+        );
         return;
     }
 
     const filas =
-        document
-            .getElementById('tras-items')
-            .querySelectorAll(':scope > div');
+        contenedorItems.querySelectorAll(
+            ':scope > .item-traslado'
+        );
 
-    if (filas.length === 0) {
-        alert('Agrega al menos un producto.');
+    if (!filas.length) {
+        alert(
+            'Agrega al menos un producto.'
+        );
         return;
     }
 
     const detalle = [];
 
+    // ============================================================
+    // PROCESAR CADA PRODUCTO
+    // ============================================================
+
     for (const fila of filas) {
 
         const producto =
-            fila.querySelector('.tras-producto');
+            fila.querySelector(
+                '.tras-producto'
+            );
 
-        const cantidad =
-            parseInt(
-                fila.querySelector('.tras-cantidad').value
-            ) || 0;
+        const campoCantidad =
+            fila.querySelector(
+                '.tras-cantidad'
+            );
 
-        const opcion =
-            producto.options[producto.selectedIndex];
+        const campoUnidad =
+            fila.querySelector(
+                '.tras-unidad'
+            );
 
-        const stock =
-            parseInt(opcion?.dataset.stock) || 0;
-
-        if (!producto.value) {
-            alert('Selecciona un producto.');
-            return;
-        }
-
-        if (cantidad <= 0) {
-            alert('La cantidad debe ser mayor que cero.');
-            return;
-        }
-
-        if (cantidad > stock) {
+        if (!producto) {
             alert(
-                `Stock insuficiente para ${producto.options[producto.selectedIndex].text}. ` +
-                `Disponible: ${stock}.`
+                'Hay una fila de producto sin selector de producto.'
             );
             return;
         }
 
-        detalle.push({
-            producto_id: parseInt(producto.value),
-            cantidad: cantidad,
-            serial:
-                fila.querySelector('.tras-serial')?.value.trim() || '',
-            modelo:
-                fila.querySelector('.tras-modelo')?.value.trim() || '',
-            marca:
-                fila.querySelector('.tras-marca')?.value.trim() || '',
-            unidad:
-                fila.querySelector('.tras-unidad')?.value || 'UND'
-        });
+        if (!campoCantidad) {
+            alert(
+                'Hay una fila de producto sin cantidad.'
+            );
+            return;
+        }
+
+        const cantidad =
+            parseInt(
+                campoCantidad.value,
+                10
+            ) || 0;
+
+        const opcion =
+            producto.options[
+                producto.selectedIndex
+            ];
+
+        if (!producto.value) {
+            alert(
+                'Selecciona un producto.'
+            );
+            return;
+        }
+
+        if (!opcion) {
+            alert(
+                'No se pudo identificar el producto seleccionado.'
+            );
+            return;
+        }
+
+        if (cantidad <= 0) {
+            alert(
+                'La cantidad debe ser mayor que cero.'
+            );
+            campoCantidad.focus();
+            return;
+        }
+
+        const serializado =
+            opcion.dataset?.serializado === '1';
+
+        // ========================================================
+        // PRODUCTO SERIALIZADO
+        // ========================================================
+
+        if (serializado) {
+
+            const filasEquipos =
+                fila.querySelectorAll(
+                    '.fila-equipo-traslado'
+                );
+
+            if (
+                filasEquipos.length !==
+                cantidad
+            ) {
+                alert(
+                    `El producto "${opcion.text}" tiene ` +
+                    `${filasEquipos.length} equipo(s) seleccionado(s), ` +
+                    `pero la cantidad indicada es ${cantidad}.`
+                );
+                return;
+            }
+
+            const unidades = [];
+
+            const idsSeleccionados =
+                new Set();
+
+            const serialesSeleccionados =
+                new Set();
+
+            // ----------------------------------------------------
+            // PROCESAR EQUIPOS
+            // ----------------------------------------------------
+
+            for (
+                const filaEquipo
+                of filasEquipos
+            ) {
+
+                const inputEquipoId =
+                    filaEquipo.querySelector(
+                        '.select-equipo-traslado'
+                    );
+
+                const inputSerial =
+                    filaEquipo.querySelector(
+                        '.input-serial-traslado'
+                    );
+
+                const equipoId =
+                    parseInt(
+                        inputEquipoId?.value,
+                        10
+                    ) || 0;
+
+                const serial =
+                    inputSerial?.value?.trim() || '';
+
+                // ------------------------------------------------
+                // SERIAL OBLIGATORIO
+                // ------------------------------------------------
+
+                if (!serial) {
+
+                    alert(
+                        'Debes escribir o escanear un serial para cada equipo.'
+                    );
+
+                    inputSerial?.focus();
+
+                    return;
+                }
+
+                // ------------------------------------------------
+                // EQUIPO OBLIGATORIO
+                // ------------------------------------------------
+
+                if (!equipoId) {
+
+                    alert(
+                        `El serial "${serial}" no corresponde a un equipo disponible.`
+                    );
+
+                    inputSerial?.focus();
+
+                    return;
+                }
+
+                // ------------------------------------------------
+                // NO REPETIR ID
+                // ------------------------------------------------
+
+                if (
+                    idsSeleccionados.has(
+                        equipoId
+                    )
+                ) {
+
+                    alert(
+                        `El equipo con serial "${serial}" está repetido.`
+                    );
+
+                    inputSerial?.focus();
+
+                    return;
+                }
+
+                // ------------------------------------------------
+                // NO REPETIR SERIAL
+                // ------------------------------------------------
+
+                const serialNormalizado =
+                    serial.toLowerCase();
+
+                if (
+                    serialesSeleccionados.has(
+                        serialNormalizado
+                    )
+                ) {
+
+                    alert(
+                        `El serial "${serial}" está repetido.`
+                    );
+
+                    inputSerial?.focus();
+
+                    return;
+                }
+
+                idsSeleccionados.add(
+                    equipoId
+                );
+
+                serialesSeleccionados.add(
+                    serialNormalizado
+                );
+
+                unidades.push({
+                    equipo_id:
+                        equipoId,
+
+                    serial:
+                        serial
+                });
+            }
+
+            // ----------------------------------------------------
+            // AGREGAR PRODUCTO SERIALIZADO
+            // ----------------------------------------------------
+
+            detalle.push({
+
+                producto_id:
+                    parseInt(
+                        producto.value,
+                        10
+                    ),
+
+                cantidad:
+                    cantidad,
+
+                unidad:
+                    campoUnidad?.value ||
+                    'UND',
+
+                unidades:
+                    unidades,
+
+                observaciones:
+                    ''
+            });
+
+        } else {
+
+            // ====================================================
+            // PRODUCTO NORMAL
+            // ====================================================
+
+            const stock =
+                parseInt(
+                    opcion.dataset?.stock,
+                    10
+                ) || 0;
+
+            if (
+                cantidad >
+                stock
+            ) {
+
+                alert(
+                    `Stock insuficiente para ${opcion.text}. ` +
+                    `Disponible: ${stock}.`
+                );
+
+                campoCantidad.focus();
+
+                return;
+            }
+
+            detalle.push({
+
+                producto_id:
+                    parseInt(
+                        producto.value,
+                        10
+                    ),
+
+                cantidad:
+                    cantidad,
+
+                unidad:
+                    campoUnidad?.value ||
+                    'UND',
+
+                unidades:
+                    [],
+
+                observaciones:
+                    ''
+            });
+        }
     }
 
-    const datos = {
-        numero_documento: numero,
-        sede_origen_id: sedeOrigen,
-        sede_destino_id: sedeDestino,
-        observaciones: observaciones,
-        detalle: detalle
-    };
+    // ============================================================
+    // VALIDAR QUE HAYA DETALLE
+    // ============================================================
 
-    const res = await apiFetch(`${API}/traslados/`, {
-        method: 'POST',
-        body: JSON.stringify(datos)
-    });
-
-    if (!res) return;
-
-    const resultado = await res.json();
-
-    if (!res.ok) {
+    if (!detalle.length) {
         alert(
-            'Error al crear traslado:\n\n' +
-            (resultado.error || 'Error desconocido')
+            'No hay productos válidos para trasladar.'
         );
         return;
     }
 
+    // ============================================================
+    // DATOS QUE SE ENVÍAN AL BACKEND
+    // ============================================================
+
+    const datos = {
+
+        numero_documento:
+            numero,
+
+        sede_origen_id:
+            sedeOrigen,
+
+        sede_destino_id:
+            sedeDestino,
+
+        observaciones:
+            observaciones,
+
+        detalle:
+            detalle
+    };
+
+    console.log(
+        'DATOS ENVIADOS TRASLADO:',
+        datos
+    );
+
+    // ============================================================
+    // ENVIAR AL BACKEND
+    // ============================================================
+
+    const res =
+        await apiFetch(
+            `${API}/traslados/`,
+            {
+                method: 'POST',
+
+                body:
+                    JSON.stringify(
+                        datos
+                    )
+            }
+        );
+
+    if (!res) {
+        return;
+    }
+
+    let resultado = {};
+
+    try {
+
+        resultado =
+            await res.json();
+
+    } catch (error) {
+
+        console.error(
+            'No se pudo leer la respuesta del servidor:',
+            error
+        );
+    }
+
+    // ============================================================
+    // ERROR
+    // ============================================================
+
+    if (!res.ok) {
+
+        alert(
+            'Error al crear traslado:\n\n' +
+            (
+                resultado.error ||
+                `Error HTTP ${res.status}`
+            )
+        );
+
+        return;
+    }
+
+    // ============================================================
+    // ÉXITO
+    // ============================================================
+
     await mostrarConfirm(
-        `El traslado ${numero} fue creado correctamente.`,
+        `El traslado ${
+            resultado.numero_documento ||
+            numero
+        } fue creado correctamente.`,
         'Traslado creado',
         '✓',
         'Aceptar'
     );
 
-    cerrarModal('modal-traslado');
+    cerrarModal(
+        'modal-traslado'
+    );
 
     limpiarFormTraslado();
 
-    cargarTraslados();
-    cargarProductos();
+    await cargarTraslados();
+
+    if (
+        typeof cargarProductos ===
+        'function'
+    ) {
+        await cargarProductos();
+    }
 }
 
+let productosFiltrables = [];
+
+function filtrarProductos() {
+
+    const texto =
+        (
+            document.getElementById(
+                'buscar-productos'
+            )?.value || ''
+        )
+        .trim()
+        .toLowerCase();
+
+    const sede =
+        (
+            document.getElementById(
+                'filtro-sede-productos'
+            )?.value || ''
+        )
+        .trim();
+
+    const productosFiltrados =
+        productosFiltrables.filter(
+            p => {
+
+                const codigo =
+                    String(
+                        p.codigo || ''
+                    ).toLowerCase();
+
+                const nombre =
+                    String(
+                        p.nombre || ''
+                    ).toLowerCase();
+
+                const descripcion =
+                    String(
+                        p.descripcion || ''
+                    ).toLowerCase();
+
+                const coincideTexto =
+                    !texto ||
+                    codigo.includes(texto) ||
+                    nombre.includes(texto) ||
+                    descripcion.includes(texto);
+
+                const coincideSede =
+                    !sede ||
+                    String(
+                        p.sede_id || ''
+                    ) === sede;
+
+                return (
+                    coincideTexto &&
+                    coincideSede
+                );
+            }
+        );
+
+    pintarProductos(
+        productosFiltrados
+    );
+}
 
 function limpiarFormTraslado() {
 
@@ -5224,6 +7169,7 @@ function limpiarFormTraslado() {
 
 // TRASLADOS ENTRE SEDES
 let trasladosData = [];
+let sedesTrasladosMap = {};
 
 async function cargarTraslados() {
     const res = await apiFetch(`${API}/traslados/`);
@@ -5231,16 +7177,91 @@ async function cargarTraslados() {
 
     trasladosData = await res.json();
 
+    if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
+        const sel = document.getElementById('filtro-sede-traslados');
+
+        if (sel) {
+            const valorActual = sel.value;
+
+            const resSedes = await apiFetch(`${API}/auth/sedes`);
+
+            if (resSedes) {
+                const sedes = await resSedes.json();
+
+                sedesTrasladosMap = {};
+                sedes.forEach(s => {
+                    sedesTrasladosMap[s.id] = s.nombre;
+                });
+
+                sel.innerHTML = '<option value="">&#8212; Todas las sedes &#8212;</option>';
+                sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
+                    `<option value="${s.id}">${s.nombre}</option>`
+                ));
+                sel.style.display = 'block';
+                sel.value = valorActual;
+            }
+        }
+    }
+
     renderizarTraslados(trasladosData);
 
-    const subtitulo = document.getElementById('subtitulo-traslados');
-    if (subtitulo) {
-        subtitulo.textContent =
-            `${trasladosData.length} traslado${trasladosData.length !== 1 ? 's' : ''} registrado${trasladosData.length !== 1 ? 's' : ''}`;
+    filtrarTraslados();
+}
+
+function formatearFechaTraslado(fechaTexto) {
+    if (!fechaTexto) return '—';
+
+    const texto = String(fechaTexto).trim();
+
+    const dias = {
+        Sun: 'dom',
+        Mon: 'lun',
+        Tue: 'mar',
+        Wed: 'mié',
+        Thu: 'jue',
+        Fri: 'vie',
+        Sat: 'sáb'
+    };
+
+    const meses = {
+        Jan: 'ene',
+        Feb: 'feb',
+        Mar: 'mar',
+        Apr: 'abr',
+        May: 'may',
+        Jun: 'jun',
+        Jul: 'jul',
+        Aug: 'ago',
+        Sep: 'sep',
+        Oct: 'oct',
+        Nov: 'nov',
+        Dec: 'dic'
+    };
+
+    const partes = texto.match(
+        /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat),\s*(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})\s+(\d{2}:\d{2}:\d{2})/
+    );
+
+    if (!partes) {
+        return texto.replace(/\s+GMT$/i, '');
     }
+
+    const diaSemana = partes[1];
+    const dia = partes[2].padStart(2, '0');
+    const mes = partes[3];
+    const anio = partes[4];
+    const hora = partes[5];
+
+    return `${dias[diaSemana]}, ${dia} ${meses[mes]} ${anio} ${hora}`;
 }
 
 function renderizarTraslados(lista) {
+    const subtitulo = document.getElementById('subtitulo-traslados');
+    if (subtitulo) {
+        subtitulo.textContent =
+            `${lista.length} traslado${lista.length !== 1 ? 's' : ''} registrado${lista.length !== 1 ? 's' : ''}`;
+    }
+
     const tbody = document.getElementById('tabla-traslados');
 
     if (!tbody) return;
@@ -5275,6 +7296,9 @@ function renderizarTraslados(lista) {
             badgeClase = 'badge-danger';
         }
 
+        // Formatear fecha del traslado
+        const fechaCreacion = formatearFechaTraslado(t.fecha_creacion);
+   
         tbody.insertAdjacentHTML('beforeend', `
             <tr>
                 <td>
@@ -5300,7 +7324,7 @@ function renderizarTraslados(lista) {
                 </td>
 
                 <td>
-                    ${sanitizar(t.fecha_creacion || '—')}
+                    ${sanitizar(fechaCreacion)}
                 </td>
 
                 <td>
@@ -5342,77 +7366,228 @@ function filtrarTraslados() {
         .trim()
         .toLowerCase();
 
-    const filtrados = trasladosData.filter(t =>
+    const sedeFiltro = document.getElementById('filtro-sede-traslados')?.value || '';
+
+    // Nombre de la sede seleccionada (respaldo por si el backend
+    // no devuelve sede_origen_id / sede_destino_id en el listado)
+    const nombreSedeFiltro =
+        sedeFiltro
+            ? String(sedesTrasladosMap[sedeFiltro] || '').toLowerCase()
+            : '';
+
+    let filtrados = trasladosData.filter(t =>
         String(t.numero_documento || '').toLowerCase().includes(texto) ||
         String(t.sede_origen_nombre || '').toLowerCase().includes(texto) ||
         String(t.sede_destino_nombre || '').toLowerCase().includes(texto) ||
         String(t.estado || '').toLowerCase().includes(texto)
     );
 
+    if (sedeFiltro) {
+        filtrados = filtrados.filter(t => {
+
+            const coincideOrigenId =
+                t.sede_origen_id != null &&
+                String(t.sede_origen_id) === String(sedeFiltro);
+
+            const coincideDestinoId =
+                t.sede_destino_id != null &&
+                String(t.sede_destino_id) === String(sedeFiltro);
+
+            const coincideOrigenNombre =
+                nombreSedeFiltro &&
+                String(t.sede_origen_nombre || '').toLowerCase() === nombreSedeFiltro;
+
+            const coincideDestinoNombre =
+                nombreSedeFiltro &&
+                String(t.sede_destino_nombre || '').toLowerCase() === nombreSedeFiltro;
+
+            // La sede coincide si el traslado la tiene como origen o como destino
+            return (
+                coincideOrigenId ||
+                coincideDestinoId ||
+                coincideOrigenNombre ||
+                coincideDestinoNombre
+            );
+        });
+    }
+
     renderizarTraslados(filtrados);
 }
 
 async function verTraslado(id) {
-    const res = await apiFetch(`${API}/traslados/${id}`);
+
+    const res =
+        await apiFetch(
+            `${API}/traslados/${id}`
+        );
 
     if (!res) return;
 
-    const traslado = await res.json();
+    const traslado =
+        await res.json();
 
-    console.log('Traslado:', traslado);
+    console.log(
+        'Traslado recibido:',
+        traslado
+    );
 
-    // Número
-    document.getElementById('ver-tras-numero').textContent =
+    // ============================================================
+    // EL SERVIDOR RECHAZÓ O NO ENCONTRÓ EL TRASLADO
+    // ============================================================
+    //
+    // Antes esto seguía de largo y pintaba el modal con todos los
+    // campos vacíos (mostrando "—" en todo), sin avisar que la
+    // petición había fallado. Ahora se detiene y avisa.
+    // ============================================================
+
+    if (!res.ok || !traslado || !traslado.numero_documento) {
+
+        console.error(
+            'No se pudo cargar el detalle del traslado:',
+            res.status,
+            traslado
+        );
+
+        alert(
+            traslado?.error ||
+            'No se pudo cargar el detalle de este traslado. ' +
+            'Puede que tu usuario no tenga permiso para verlo, ' +
+            'o que el traslado no exista.'
+        );
+
+        return;
+    }
+
+    // ============================================================
+    // INFORMACIÓN GENERAL
+    // ============================================================
+
+    document.getElementById(
+        'ver-tras-numero'
+    ).textContent =
         `Traslado ${traslado.numero_documento || '—'}`;
 
-    // Origen
-    document.getElementById('ver-tras-origen').textContent =
+    // ------------------------------------------------------------
+    // ORIGEN
+    // ------------------------------------------------------------
+
+    document.getElementById(
+        'ver-tras-origen'
+    ).textContent =
         traslado.sede_origen_nombre || '—';
 
-    document.getElementById('ver-tras-origen-ciudad').textContent =
+    document.getElementById(
+        'ver-tras-origen-ciudad'
+    ).textContent =
         traslado.sede_origen_ciudad || '—';
 
-    // Destino
-    document.getElementById('ver-tras-destino').textContent =
+    // ------------------------------------------------------------
+    // DESTINO
+    // ------------------------------------------------------------
+
+    document.getElementById(
+        'ver-tras-destino'
+    ).textContent =
         traslado.sede_destino_nombre || '—';
 
-    document.getElementById('ver-tras-destino-ciudad').textContent =
+    document.getElementById(
+        'ver-tras-destino-ciudad'
+    ).textContent =
         traslado.sede_destino_ciudad || '—';
 
-    // Estado
-    document.getElementById('ver-tras-estado').textContent =
+    // ------------------------------------------------------------
+    // ESTADO
+    // ------------------------------------------------------------
+
+    document.getElementById(
+        'ver-tras-estado'
+    ).textContent =
         traslado.estado || '—';
 
-    // Fecha
-    document.getElementById('ver-tras-fecha').textContent =
-        traslado.fecha_creacion || '—';
+    // ------------------------------------------------------------
+    // FECHA DE CREACIÓN
+    // ------------------------------------------------------------
 
-        // Finalización
-    document.getElementById('ver-tras-finalizacion').textContent =
-        traslado.fecha_recepcion || 'Pendiente';
+    document.getElementById(
+        'ver-tras-fecha'
+    ).textContent =
+        formatearFechaTraslado(
+            traslado.fecha_creacion
+        );
 
-    // Creado por
-    document.getElementById('ver-tras-creado').textContent =
-        traslado.creado_por_nombre || '—';
+    // ------------------------------------------------------------
+    // FECHA DE RECEPCIÓN
+    // ------------------------------------------------------------
 
-    // Recibido por
-    document.getElementById('ver-tras-recibido').textContent =
-        traslado.recibido_por_nombre || '—';
+    document.getElementById(
+        'ver-tras-finalizacion'
+    ).textContent =
+        traslado.fecha_recepcion
+            ? formatearFechaTraslado(
+                traslado.fecha_recepcion
+            )
+            : 'Pendiente';
 
-    // Observaciones
-    document.getElementById('ver-tras-observaciones').textContent =
-        traslado.observaciones || 'Sin observaciones';
+    // ------------------------------------------------------------
+    // CREADO POR
+    //
+    // El backend devuelve:
+    // creador_nombre
+    // ------------------------------------------------------------
 
-    // Productos
-    const tbody = document.getElementById('ver-tras-productos');
+    document.getElementById(
+        'ver-tras-creado'
+    ).textContent =
+        traslado.creador_nombre || '—';
+
+    // ------------------------------------------------------------
+    // RECIBIDO POR
+    //
+    // El backend devuelve:
+    // recibido_nombre
+    // ------------------------------------------------------------
+
+    document.getElementById(
+        'ver-tras-recibido'
+    ).textContent =
+        traslado.recibido_nombre || '—';
+
+    // ------------------------------------------------------------
+    // OBSERVACIONES
+    // ------------------------------------------------------------
+
+    document.getElementById(
+        'ver-tras-observaciones'
+    ).textContent =
+        traslado.observaciones ||
+        'Sin observaciones';
+
+    // ============================================================
+    // PRODUCTOS
+    // ============================================================
+
+    const tbody =
+        document.getElementById(
+            'ver-tras-productos'
+        );
 
     tbody.innerHTML = '';
 
-    if (!traslado.detalle || traslado.detalle.length === 0) {
+    if (
+        !traslado.detalle ||
+        traslado.detalle.length === 0
+    ) {
 
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" style="text-align:center;color:#6b8aab;padding:20px">
+                <td
+                    colspan="6"
+                    style="
+                        text-align:center;
+                        color:#6b8aab;
+                        padding:20px;
+                    "
+                >
                     No hay productos registrados.
                 </td>
             </tr>
@@ -5420,27 +7595,107 @@ async function verTraslado(id) {
 
     } else {
 
-        traslado.detalle.forEach(item => {
+        traslado.detalle.forEach(
+            item => {
 
-            const tr = document.createElement('tr');
+                const tr =
+                    document.createElement(
+                        'tr'
+                    );
 
-            tr.innerHTML = `
-                <td>${sanitizar(item.nombre || '—')}</td>
-                <td>${sanitizar(item.modelo || '—')}</td>
-                <td>${sanitizar(item.marca || '—')}</td>
-                <td>${sanitizar(item.serial || '—')}</td>
-                <td>${sanitizar(item.unidad || 'UND')}</td>
-                <td>${item.cantidad || 0}</td>
-            `;
+                // ------------------------------------------------
+                // PRODUCTO
+                // ------------------------------------------------
 
-            tbody.appendChild(tr);
-        });
+                const producto =
+                    item.producto_nombre ||
+                    '—';
+
+                // ------------------------------------------------
+                // MODELO
+                // ------------------------------------------------
+
+                const modelo =
+                    item.modelo_nombre ||
+                    '—';
+
+                // ------------------------------------------------
+                // MARCA
+                // ------------------------------------------------
+
+                const marca =
+                    item.marca_nombre ||
+                    '—';
+
+                // ------------------------------------------------
+                // SERIAL
+                // ------------------------------------------------
+
+                const serial =
+                    item.equipo_serial ||
+                    '—';
+
+                // ------------------------------------------------
+                // UNIDAD
+                // ------------------------------------------------
+
+                const unidad =
+                    item.unidad ||
+                    item.unidad_nombre ||
+                    'UND';
+
+                // ------------------------------------------------
+                // CANTIDAD
+                // ------------------------------------------------
+
+                const cantidad =
+                    item.cantidad ||
+                    0;
+
+                tr.innerHTML = `
+                    <td>
+                        ${sanitizar(producto)}
+                    </td>
+
+                    <td>
+                        ${sanitizar(modelo)}
+                    </td>
+
+                    <td>
+                        ${sanitizar(marca)}
+                    </td>
+
+                    <td>
+                        ${sanitizar(serial)}
+                    </td>
+
+                    <td>
+                        ${sanitizar(unidad)}
+                    </td>
+
+                    <td>
+                        ${cantidad}
+                    </td>
+                `;
+
+                tbody.appendChild(
+                    tr
+                );
+            }
+        );
     }
 
-    // Abrir modal
+    // ============================================================
+    // ABRIR MODAL
+    // ============================================================
+
     document
-        .getElementById('modal-ver-traslado')
-        .classList.add('visible');
+        .getElementById(
+            'modal-ver-traslado'
+        )
+        .classList.add(
+            'visible'
+        );
 }
 
 async function recibirTraslado(id) {

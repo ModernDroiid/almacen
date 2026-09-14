@@ -36,6 +36,51 @@ pdf_traslados_bp = Blueprint(
 
 
 # ============================================================
+# FORMATEAR FECHA EN ESPAÑOL
+# ============================================================
+
+def formatear_fecha_es(fecha):
+
+    if not fecha:
+        return ""
+
+    meses = {
+        1: "ene",
+        2: "feb",
+        3: "mar",
+        4: "abr",
+        5: "may",
+        6: "jun",
+        7: "jul",
+        8: "ago",
+        9: "sep",
+        10: "oct",
+        11: "nov",
+        12: "dic"
+    }
+
+    dias = {
+        0: "lun",
+        1: "mar",
+        2: "mié",
+        3: "jue",
+        4: "vie",
+        5: "sáb",
+        6: "dom"
+    }
+
+    return (
+        f"{dias[fecha.weekday()]}, "
+        f"{fecha.day:02d} "
+        f"{meses[fecha.month]} "
+        f"{fecha.year} "
+        f"{fecha.hour:02d}:"
+        f"{fecha.minute:02d}:"
+        f"{fecha.second:02d}"
+    )
+
+
+# ============================================================
 # GET /api/pdf/traslados/<id>?token=...
 # ============================================================
 
@@ -168,6 +213,7 @@ def generar_pdf_traslado(id):
                     dt.equipo_id,
 
                     dt.cantidad,
+
                     dt.observaciones
                         AS detalle_observaciones,
 
@@ -184,13 +230,14 @@ def generar_pdf_traslado(id):
                     un.nombre
                         AS unidad_nombre,
 
+                    eq.serial
+                        AS serial,
+
                     mo.nombre
                         AS modelo_nombre,
 
                     ma.nombre
-                        AS marca_nombre,
-
-                    eq.serial
+                        AS marca_nombre
 
                 FROM detalle_traslados dt
 
@@ -200,14 +247,17 @@ def generar_pdf_traslado(id):
                 LEFT JOIN unidades un
                     ON un.id = p.unidad_id
 
+                LEFT JOIN equipos eq
+                    ON eq.id = dt.equipo_id
+
                 LEFT JOIN modelos mo
-                    ON mo.id = p.modelo_id
+                    ON mo.id = COALESCE(
+                        eq.modelo_id,
+                        p.modelo_id
+                    )
 
                 LEFT JOIN marcas ma
                     ON ma.id = mo.marca_id
-
-                LEFT JOIN equipos eq
-                    ON eq.id = dt.equipo_id
 
                 WHERE dt.traslado_id = %s
 
@@ -403,28 +453,12 @@ def generar_pdf_traslado(id):
     # FECHAS
     # ========================================================
 
-    fecha_creacion = (
-        str(
-            traslado.get(
-                "fecha_creacion"
-            )
-        )
-        if traslado.get(
-            "fecha_creacion"
-        )
-        else ""
+    fecha_creacion = formatear_fecha_es(
+        traslado.get("fecha_creacion")
     )
 
-    fecha_recepcion = (
-        str(
-            traslado.get(
-                "fecha_recepcion"
-            )
-        )
-        if traslado.get(
-            "fecha_recepcion"
-        )
-        else ""
+    fecha_recepcion = formatear_fecha_es(
+        traslado.get("fecha_recepcion")
     )
 
     # ========================================================

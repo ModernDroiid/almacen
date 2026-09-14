@@ -23,6 +23,8 @@
 #   revertir_traslado_anulado()
 # ============================================================
 
+from datetime import datetime
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import (
     jwt_required,
@@ -47,12 +49,25 @@ def obtener_sede_actual():
 
     claims = get_jwt()
 
-    if claims.get("rol") == "admin":
+    rol = claims.get("rol")
+
+    # ------------------------------------------------------
+    # Admin y consulta siempre pueden elegir la sede que
+    # quieran consultar con ?sede_id (o ninguna, para ver
+    # todas), tengan o no una sede propia asignada — igual
+    # que en productos.py y consolidado.py.
+    # ------------------------------------------------------
+
+    if rol == "admin" or rol == "consulta":
 
         return request.args.get(
             "sede_id",
             type=int
         )
+
+    # ------------------------------------------------------
+    # Sede: siempre trabaja con su propia sede.
+    # ------------------------------------------------------
 
     return claims.get("sede_id")
 
@@ -62,13 +77,20 @@ def usuario_puede_ver_traslado(traslado):
     claims = get_jwt()
 
     rol = claims.get("rol")
-    sede_id = claims.get("sede_id")
 
-    if rol == "admin":
+    # ------------------------------------------------------
+    # Admin y consulta pueden ver cualquier traslado, tengan
+    # o no una sede propia asignada — igual que en
+    # obtener_sede_actual(), para que este chequeo y el
+    # LISTADO (listar_traslados) se comporten igual y no
+    # bloqueen con 403 un traslado que el usuario sí podía
+    # ver en la lista.
+    # ------------------------------------------------------
+
+    if rol == "admin" or rol == "consulta":
         return True
 
-    if sede_id is None:
-        return False
+    sede_id = claims.get("sede_id")
 
     return (
         traslado["sede_origen_id"] == sede_id
@@ -81,7 +103,10 @@ def usuario_puede_ver_traslado(traslado):
 # LISTAR TRASLADOS
 # ============================================================
 
-@traslados_bp.route("/", methods=["GET"])
+@traslados_bp.route(
+    "/",
+    methods=["GET"]
+)
 @jwt_required()
 def listar_traslados():
 
@@ -94,6 +119,10 @@ def listar_traslados():
         with conn.cursor() as cursor:
 
             if sede_id is None:
+
+                # ------------------------------------------------
+                # ADMIN → ve todos
+                # ------------------------------------------------
 
                 cursor.execute("""
                     SELECT
@@ -116,26 +145,16 @@ def listar_traslados():
                         t.anulado_por,
                         t.motivo_anulacion,
 
-                        so.nombre
-                            AS sede_origen_nombre,
+                        so.nombre AS sede_origen_nombre,
+                        so.ciudad AS sede_origen_ciudad,
 
-                        so.ciudad
-                            AS sede_origen_ciudad,
+                        sd.nombre AS sede_destino_nombre,
+                        sd.ciudad AS sede_destino_ciudad,
 
-                        sd.nombre
-                            AS sede_destino_nombre,
+                        uc.nombre AS creador_nombre,
+                        ur.nombre AS recibido_nombre,
 
-                        sd.ciudad
-                            AS sede_destino_ciudad,
-
-                        uc.nombre
-                            AS creador_nombre,
-
-                        ur.nombre
-                            AS recibido_nombre,
-
-                        COUNT(dt.id)
-                            AS total_items
+                        COUNT(dt.id) AS total_items
 
                     FROM traslados t
 
@@ -169,6 +188,10 @@ def listar_traslados():
 
             else:
 
+                # ------------------------------------------------
+                # SEDE → ve traslados donde participa
+                # ------------------------------------------------
+
                 cursor.execute("""
                     SELECT
                         t.id,
@@ -190,26 +213,16 @@ def listar_traslados():
                         t.anulado_por,
                         t.motivo_anulacion,
 
-                        so.nombre
-                            AS sede_origen_nombre,
+                        so.nombre AS sede_origen_nombre,
+                        so.ciudad AS sede_origen_ciudad,
 
-                        so.ciudad
-                            AS sede_origen_ciudad,
+                        sd.nombre AS sede_destino_nombre,
+                        sd.ciudad AS sede_destino_ciudad,
 
-                        sd.nombre
-                            AS sede_destino_nombre,
+                        uc.nombre AS creador_nombre,
+                        ur.nombre AS recibido_nombre,
 
-                        sd.ciudad
-                            AS sede_destino_ciudad,
-
-                        uc.nombre
-                            AS creador_nombre,
-
-                        ur.nombre
-                            AS recibido_nombre,
-
-                        COUNT(dt.id)
-                            AS total_items
+                        COUNT(dt.id) AS total_items
 
                     FROM traslados t
 
@@ -278,6 +291,10 @@ def obtener_traslado(id):
 
         with conn.cursor() as cursor:
 
+            # ------------------------------------------------
+            # CABECERA
+            # ------------------------------------------------
+
             cursor.execute("""
                 SELECT
                     t.id,
@@ -299,26 +316,16 @@ def obtener_traslado(id):
                     t.anulado_por,
                     t.motivo_anulacion,
 
-                    so.nombre
-                        AS sede_origen_nombre,
+                    so.nombre AS sede_origen_nombre,
+                    so.ciudad AS sede_origen_ciudad,
 
-                    so.ciudad
-                        AS sede_origen_ciudad,
+                    sd.nombre AS sede_destino_nombre,
+                    sd.ciudad AS sede_destino_ciudad,
 
-                    sd.nombre
-                        AS sede_destino_nombre,
+                    uc.nombre AS creador_nombre,
+                    ur.nombre AS recibido_nombre,
 
-                    sd.ciudad
-                        AS sede_destino_ciudad,
-
-                    uc.nombre
-                        AS creador_nombre,
-
-                    ur.nombre
-                        AS recibido_nombre,
-
-                    ua.nombre
-                        AS anulado_por_nombre
+                    ua.nombre AS anulado_por_nombre
 
                 FROM traslados t
 
@@ -337,7 +344,8 @@ def obtener_traslado(id):
                 LEFT JOIN usuarios ua
                     ON ua.id = t.anulado_por
 
-                WHERE t.id = %s
+                WHERE
+                    t.id = %s
             """, (id,))
 
             traslado = cursor.fetchone()
@@ -357,7 +365,11 @@ def obtener_traslado(id):
                 }), 403
 
             # ------------------------------------------------
-            # Detalle
+            # DETALLE
+            #
+            # Para equipos serializados, el modelo real se
+            # obtiene desde equipos.modelo_id.
+            # La marca se obtiene desde modelos → marcas.
             # ------------------------------------------------
 
             cursor.execute("""
@@ -377,23 +389,16 @@ def obtener_traslado(id):
 
                     p.requiere_serial,
 
-                    mo.nombre
-                        AS modelo_nombre,
+                    e.serial AS equipo_serial,
+                    e.estado AS equipo_estado,
+                    e.condicion AS equipo_condicion,
 
-                    ma.id
-                        AS marca_id,
+                    e.modelo_id AS equipo_modelo_id,
 
-                    ma.nombre
-                        AS marca_nombre,
+                    mo.nombre AS modelo_nombre,
 
-                    e.serial
-                        AS equipo_serial,
-
-                    e.estado
-                        AS equipo_estado,
-
-                    e.condicion
-                        AS equipo_condicion
+                    ma.id AS marca_id,
+                    ma.nombre AS marca_nombre
 
                 FROM detalle_traslados dt
 
@@ -407,14 +412,19 @@ def obtener_traslado(id):
                     ON un.id = p.unidad_id
 
                 LEFT JOIN modelos mo
-                    ON mo.id = p.modelo_id
+                    ON mo.id = COALESCE(
+                        e.modelo_id,
+                        p.modelo_id
+                    )
 
                 LEFT JOIN marcas ma
                     ON ma.id = mo.marca_id
 
-                WHERE dt.traslado_id = %s
+                WHERE
+                    dt.traslado_id = %s
 
-                ORDER BY dt.id
+                ORDER BY
+                    dt.id
             """, (id,))
 
             detalle = [
@@ -538,7 +548,7 @@ def crear_traslado():
             )
         }), 400
 
-    if not detalle or len(detalle) == 0:
+    if not detalle:
 
         return jsonify({
             "error": (
@@ -557,7 +567,7 @@ def crear_traslado():
         with conn.cursor() as cursor:
 
             # ------------------------------------------------
-            # Verificar sedes
+            # VERIFICAR SEDE ORIGEN
             # ------------------------------------------------
 
             cursor.execute("""
@@ -566,20 +576,24 @@ def crear_traslado():
                     nombre,
                     ciudad
                 FROM sedes
-                WHERE id = %s
-                  AND activa = TRUE
-            """, (sede_origen_id,))
+                WHERE
+                    id = %s
+                    AND activa = TRUE
+            """, (
+                sede_origen_id,
+            ))
 
             sede_origen = cursor.fetchone()
 
             if not sede_origen:
 
                 raise ValueError(
-                    (
-                        "La sede de origen "
-                        "no existe o está inactiva"
-                    )
+                    "La sede de origen no existe o está inactiva"
                 )
+
+            # ------------------------------------------------
+            # VERIFICAR SEDE DESTINO
+            # ------------------------------------------------
 
             cursor.execute("""
                 SELECT
@@ -587,33 +601,32 @@ def crear_traslado():
                     nombre,
                     ciudad
                 FROM sedes
-                WHERE id = %s
-                  AND activa = TRUE
-            """, (sede_destino_id,))
+                WHERE
+                    id = %s
+                    AND activa = TRUE
+            """, (
+                sede_destino_id,
+            ))
 
             sede_destino = cursor.fetchone()
 
             if not sede_destino:
 
                 raise ValueError(
-                    (
-                        "La sede de destino "
-                        "no existe o está inactiva"
-                    )
+                    "La sede de destino no existe o está inactiva"
                 )
 
             # ------------------------------------------------
-            # Generar documento
-            #
-            # Se genera dentro de la aplicación.
+            # GENERAR DOCUMENTO
             # ------------------------------------------------
 
             cursor.execute("""
                 SELECT
                     COUNT(*) AS cantidad
                 FROM traslados
-                WHERE fecha_creacion::date =
-                      CURRENT_DATE
+                WHERE
+                    fecha_creacion::date =
+                    CURRENT_DATE
             """)
 
             consecutivo = (
@@ -623,15 +636,15 @@ def crear_traslado():
 
             numero_documento = (
                 f"TR-"
-                f"{__import__('datetime').datetime.now().strftime('%Y%m%d')}"
-                f"-{consecutivo:04d}"
+                f"{datetime.now().strftime('%Y%m%d')}-"
+                f"{consecutivo:04d}"
             )
 
-            # ------------------------------------------------
-            # Validar productos
-            # ------------------------------------------------
+            detalles_finales = []
 
-            productos_validos = []
+            # =================================================
+            # VALIDAR PRODUCTOS
+            # =================================================
 
             for item in detalle:
 
@@ -639,53 +652,15 @@ def crear_traslado():
                     "producto_id"
                 )
 
-                cantidad = item.get(
-                    "cantidad"
-                )
-
-                equipo_id = item.get(
-                    "equipo_id"
-                )
-
                 if not producto_id:
 
                     raise ValueError(
-                        (
-                            "Cada detalle debe tener "
-                            "producto_id"
-                        )
+                        "Cada detalle debe tener producto_id"
                     )
 
-                try:
-
-                    cantidad = int(
-                        cantidad
-                    )
-
-                except (
-                    TypeError,
-                    ValueError
-                ):
-
-                    raise ValueError(
-                        (
-                            "La cantidad debe ser "
-                            "un número entero"
-                        )
-                    )
-
-                if cantidad <= 0:
-
-                    raise ValueError(
-                        (
-                            "La cantidad debe ser "
-                            "mayor que cero"
-                        )
-                    )
-
-                # --------------------------------------------
-                # Producto
-                # --------------------------------------------
+                # ------------------------------------------------
+                # BUSCAR PRODUCTO
+                # ------------------------------------------------
 
                 cursor.execute("""
                     SELECT
@@ -706,9 +681,13 @@ def crear_traslado():
                         ON i.producto_id = p.id
                        AND i.sede_id = p.sede_id
 
-                    WHERE p.id = %s
+                    WHERE
+                        p.id = %s
+
                     FOR UPDATE OF p
-                """, (producto_id,))
+                """, (
+                    producto_id,
+                ))
 
                 producto = cursor.fetchone()
 
@@ -721,6 +700,10 @@ def crear_traslado():
                         )
                     )
 
+                # ------------------------------------------------
+                # VERIFICAR SEDE
+                # ------------------------------------------------
+
                 if producto["sede_id"] != (
                     sede_origen_id
                 ):
@@ -729,134 +712,269 @@ def crear_traslado():
                         (
                             f'El producto '
                             f'"{producto["nombre"]}" '
-                            "no pertenece a la "
-                            "sede de origen"
+                            "no pertenece a la sede de origen"
                         )
                     )
 
-                # --------------------------------------------
-                # Verificar inventario disponible
-                #
-                # NO se modifica aquí.
-                # --------------------------------------------
+                # =================================================
+                # PRODUCTO SERIALIZADO
+                # =================================================
 
-                if producto["stock"] < cantidad:
+                if producto["requiere_serial"]:
 
-                    raise ValueError(
-                        (
-                            f'Stock insuficiente para '
-                            f'"{producto["nombre"]}". '
-                            f'Disponible: '
-                            f'{producto["stock"]}. '
-                            f'Solicitado: '
-                            f'{cantidad}.'
-                        )
+                    unidades = (
+                        item.get("unidades")
+                        or []
                     )
 
-                # --------------------------------------------
-                # Producto serializado
-                # --------------------------------------------
+                    if not unidades:
 
-                if (
-                    producto["requiere_serial"]
-                    and not equipo_id
-                ):
-
-                    raise ValueError(
-                        (
-                            f'El producto '
-                            f'"{producto["nombre"]}" '
-                            "requiere número de serie"
+                        raise ValueError(
+                            (
+                                f'El producto '
+                                f'"{producto["nombre"]}" '
+                                "requiere seleccionar "
+                                "los equipos serializados"
+                            )
                         )
-                    )
 
-                # --------------------------------------------
-                # Equipo / serial
-                # --------------------------------------------
+                    if len(unidades) > (
+                        producto["stock"]
+                    ):
 
-                if equipo_id:
+                        raise ValueError(
+                            (
+                                f'No hay suficientes '
+                                f'unidades de '
+                                f'"{producto["nombre"]}"'
+                            )
+                        )
 
-                    cursor.execute("""
-                        SELECT
-                            id,
+                    equipos_usados = set()
+
+                    for unidad_item in unidades:
+
+                        # ------------------------------------------------
+                        # ID DEL EQUIPO
+                        # ------------------------------------------------
+
+                        equipo_id = unidad_item.get(
+                            "equipo_id"
+                        )
+
+                        if not equipo_id:
+
+                            raise ValueError(
+                                (
+                                    f'Debe seleccionar '
+                                    f'un equipo para '
+                                    f'"{producto["nombre"]}"'
+                                )
+                            )
+
+                        equipo_id = int(
+                            equipo_id
+                        )
+
+                        # ------------------------------------------------
+                        # EVITAR EQUIPO REPETIDO
+                        # ------------------------------------------------
+
+                        if (
+                            equipo_id
+                            in equipos_usados
+                        ):
+
+                            raise ValueError(
+                                (
+                                    "No puedes seleccionar "
+                                    "el mismo equipo más "
+                                    "de una vez."
+                                )
+                            )
+
+                        equipos_usados.add(
+                            equipo_id
+                        )
+
+                        # ------------------------------------------------
+                        # BUSCAR EQUIPO
+                        # ------------------------------------------------
+
+                        cursor.execute("""
+                            SELECT
+                                id,
+                                producto_id,
+                                sede_id,
+                                serial,
+                                estado,
+                                condicion,
+                                modelo_id
+
+                            FROM equipos
+
+                            WHERE
+                                id = %s
+
+                            FOR UPDATE
+                        """, (
+                            equipo_id,
+                        ))
+
+                        equipo = cursor.fetchone()
+
+                        if not equipo:
+
+                            raise ValueError(
+                                (
+                                    f"Equipo {equipo_id} "
+                                    "no encontrado"
+                                )
+                            )
+
+                        # ------------------------------------------------
+                        # VALIDAR PRODUCTO
+                        # ------------------------------------------------
+
+                        if equipo["producto_id"] != (
+                            producto_id
+                        ):
+
+                            raise ValueError(
+                                (
+                                    f'El equipo '
+                                    f'"{equipo["serial"]}" '
+                                    "no pertenece al "
+                                    "producto seleccionado"
+                                )
+                            )
+
+                        # ------------------------------------------------
+                        # VALIDAR SEDE
+                        # ------------------------------------------------
+
+                        if equipo["sede_id"] != (
+                            sede_origen_id
+                        ):
+
+                            raise ValueError(
+                                (
+                                    f'El equipo '
+                                    f'"{equipo["serial"]}" '
+                                    "no pertenece a la "
+                                    "sede de origen"
+                                )
+                            )
+
+                        # ------------------------------------------------
+                        # VALIDAR ESTADO
+                        # ------------------------------------------------
+
+                        if equipo["estado"] != (
+                            "DISPONIBLE"
+                        ):
+
+                            raise ValueError(
+                                (
+                                    f'El equipo '
+                                    f'"{equipo["serial"]}" '
+                                    "no está disponible. "
+                                    f'Estado actual: '
+                                    f'{equipo["estado"]}'
+                                )
+                            )
+
+                        # ------------------------------------------------
+                        # AGREGAR DETALLE
+                        # ------------------------------------------------
+
+                        detalles_finales.append({
+                            "producto_id":
+                                producto_id,
+
+                            "equipo_id":
+                                equipo_id,
+
+                            "cantidad":
+                                1,
+
+                            "observaciones":
+                                item.get(
+                                    "observaciones",
+                                    ""
+                                ).strip()
+                        })
+
+                # =================================================
+                # PRODUCTO NORMAL
+                # =================================================
+
+                else:
+
+                    try:
+
+                        cantidad = int(
+                            item.get(
+                                "cantidad"
+                            )
+                        )
+
+                    except (
+                        TypeError,
+                        ValueError
+                    ):
+
+                        raise ValueError(
+                            (
+                                "La cantidad debe ser "
+                                "un número entero"
+                            )
+                        )
+
+                    if cantidad <= 0:
+
+                        raise ValueError(
+                            (
+                                "La cantidad debe ser "
+                                "mayor que cero"
+                            )
+                        )
+
+                    if cantidad > (
+                        producto["stock"]
+                    ):
+
+                        raise ValueError(
+                            (
+                                f'Stock insuficiente para '
+                                f'"{producto["nombre"]}". '
+                                f'Disponible: '
+                                f'{producto["stock"]}. '
+                                f'Solicitado: '
+                                f'{cantidad}.'
+                            )
+                        )
+
+                    detalles_finales.append({
+                        "producto_id":
                             producto_id,
-                            sede_id,
-                            serial,
-                            estado,
-                            condicion
 
-                        FROM equipos
+                        "equipo_id":
+                            None,
 
-                        WHERE id = %s
+                        "cantidad":
+                            cantidad,
 
-                        FOR UPDATE
-                    """, (equipo_id,))
+                        "observaciones":
+                            item.get(
+                                "observaciones",
+                                ""
+                            ).strip()
+                    })
 
-                    equipo = cursor.fetchone()
-
-                    if not equipo:
-
-                        raise ValueError(
-                            (
-                                f"Equipo {equipo_id} "
-                                "no encontrado"
-                            )
-                        )
-
-                    if equipo["producto_id"] != (
-                        producto_id
-                    ):
-
-                        raise ValueError(
-                            (
-                                "El equipo no pertenece "
-                                "al producto seleccionado"
-                            )
-                        )
-
-                    if equipo["sede_id"] != (
-                        sede_origen_id
-                    ):
-
-                        raise ValueError(
-                            (
-                                "El equipo no pertenece "
-                                "a la sede de origen"
-                            )
-                        )
-
-                    if equipo["estado"] in (
-                        "EN_TRANSITO",
-                        "MANTENIMIENTO",
-                        "DADO_DE_BAJA"
-                    ):
-
-                        raise ValueError(
-                            (
-                                f'El equipo con serial '
-                                f'"{equipo["serial"]}" '
-                                f'no puede trasladarse '
-                                f'porque está en estado '
-                                f'{equipo["estado"]}'
-                            )
-                        )
-
-                productos_validos.append({
-                    "producto_id": producto_id,
-                    "cantidad": cantidad,
-                    "equipo_id": equipo_id,
-                    "observaciones": item.get(
-                        "observaciones",
-                        ""
-                    ).strip()
-                })
-
-            # ------------------------------------------------
-            # Crear traslado
-            #
-            # IMPORTANTE:
-            # El inventario NO cambia aquí.
-            # ------------------------------------------------
+            # =================================================
+            # CREAR CABECERA
+            # =================================================
 
             cursor.execute("""
                 INSERT INTO traslados (
@@ -887,13 +1005,15 @@ def crear_traslado():
                 ).strip()
             ))
 
-            traslado_id = cursor.fetchone()["id"]
+            traslado_id = (
+                cursor.fetchone()["id"]
+            )
 
-            # ------------------------------------------------
-            # Detalles
-            # ------------------------------------------------
+            # =================================================
+            # INSERTAR DETALLES
+            # =================================================
 
-            for item in productos_validos:
+            for item in detalles_finales:
 
                 cursor.execute("""
                     INSERT INTO detalle_traslados (
@@ -933,22 +1053,23 @@ def crear_traslado():
         conn.close()
 
     return jsonify({
-        "mensaje": (
-            "Traslado creado correctamente"
-        ),
-        "id": traslado_id,
-        "numero_documento": numero_documento,
-        "estado": "PENDIENTE"
+        "mensaje":
+            "Traslado creado correctamente",
+
+        "id":
+            traslado_id,
+
+        "numero_documento":
+            numero_documento,
+
+        "estado":
+            "PENDIENTE"
     }), 201
 
 
 # ============================================================
 # PUT /api/traslados/<id>/recibir
-#
 # RECIBIR TRASLADO
-#
-# El trigger PostgreSQL hará el trabajo de inventario,
-# producto destino, equipo e historial.
 # ============================================================
 
 @traslados_bp.route(
@@ -961,6 +1082,7 @@ def recibir_traslado(id):
     claims = get_jwt()
 
     rol = claims.get("rol")
+
     sede_usuario_id = claims.get(
         "sede_id"
     )
@@ -969,9 +1091,9 @@ def recibir_traslado(id):
         get_jwt_identity()
     )
 
-    # --------------------------------------------------------
-    # Consulta no puede recibir
-    # --------------------------------------------------------
+    # ------------------------------------------------
+    # CONSULTA NO PUEDE RECIBIR
+    # ------------------------------------------------
 
     if rol == "consulta":
 
@@ -989,7 +1111,7 @@ def recibir_traslado(id):
         with conn.cursor() as cursor:
 
             # ------------------------------------------------
-            # Bloquear traslado
+            # BLOQUEAR TRASLADO
             # ------------------------------------------------
 
             cursor.execute("""
@@ -1001,29 +1123,33 @@ def recibir_traslado(id):
 
                 FROM traslados
 
-                WHERE id = %s
+                WHERE
+                    id = %s
 
                 FOR UPDATE
-            """, (id,))
+            """, (
+                id,
+            ))
 
             traslado = cursor.fetchone()
 
             if not traslado:
 
                 return jsonify({
-                    "error": "Traslado no encontrado"
+                    "error":
+                        "Traslado no encontrado"
                 }), 404
 
             # ------------------------------------------------
-            # Solo la sede destino puede recibir
-            # Admin puede recibir cualquiera.
+            # PERMISOS DE RECEPCIÓN
             # ------------------------------------------------
 
             if rol != "admin":
 
                 if (
                     not sede_usuario_id
-                    or int(sede_usuario_id)
+                    or
+                    int(sede_usuario_id)
                     != int(
                         traslado[
                             "sede_destino_id"
@@ -1039,32 +1165,40 @@ def recibir_traslado(id):
                     }), 403
 
             # ------------------------------------------------
-            # Estado
+            # ESTADO
             # ------------------------------------------------
 
-            if traslado["estado"] != "PENDIENTE":
+            if traslado["estado"] != (
+                "PENDIENTE"
+            ):
 
                 return jsonify({
                     "error": (
                         "El traslado no está pendiente. "
                         f"Estado actual: "
-                        f"{traslado['estado']}"
+                        f'{traslado["estado"]}'
                     )
                 }), 400
 
             # ------------------------------------------------
-            # Verificar que tenga detalles
+            # VERIFICAR DETALLES
             # ------------------------------------------------
 
             cursor.execute("""
-                SELECT COUNT(*) AS cantidad
-                FROM detalle_traslados
-                WHERE traslado_id = %s
-            """, (id,))
+                SELECT
+                    COUNT(*) AS cantidad
 
-            cantidad_items = cursor.fetchone()[
-                "cantidad"
-            ]
+                FROM detalle_traslados
+
+                WHERE
+                    traslado_id = %s
+            """, (
+                id,
+            ))
+
+            cantidad_items = (
+                cursor.fetchone()["cantidad"]
+            )
 
             if cantidad_items == 0:
 
@@ -1075,18 +1209,14 @@ def recibir_traslado(id):
                 }), 400
 
             # ------------------------------------------------
-            # Cambiar estado
+            # RECIBIR
             #
-            # AQUÍ SE DISPARA EL TRIGGER:
+            # El trigger de PostgreSQL realiza:
             #
-            # procesar_traslado_recibido()
-            #
-            # El trigger:
-            #   - descuenta origen
-            #   - suma destino
-            #   - mueve equipos
-            #   - registra historial
-            #   - establece fecha_recepcion
+            # - descuento de origen
+            # - aumento de destino
+            # - movimiento de equipos
+            # - historial
             # ------------------------------------------------
 
             cursor.execute("""
@@ -1096,7 +1226,8 @@ def recibir_traslado(id):
                     usuario_recibido_id = %s,
                     fecha_recepcion =
                         CURRENT_TIMESTAMP
-                WHERE id = %s
+                WHERE
+                    id = %s
             """, (
                 usuario_id,
                 id
@@ -1109,7 +1240,8 @@ def recibir_traslado(id):
         conn.rollback()
 
         return jsonify({
-            "error": str(e)
+            "error":
+                str(e)
         }), 400
 
     finally:
@@ -1117,22 +1249,17 @@ def recibir_traslado(id):
         conn.close()
 
     return jsonify({
-        "mensaje": (
-            "Traslado recibido correctamente"
-        ),
-        "estado": "RECIBIDO"
+        "mensaje":
+            "Traslado recibido correctamente",
+
+        "estado":
+            "RECIBIDO"
     })
 
 
 # ============================================================
 # PUT /api/traslados/<id>/anular
-#
 # SOLO ADMIN
-#
-# El trigger PostgreSQL revierte:
-#   destino → origen
-#   equipo → origen
-#   historial
 # ============================================================
 
 @traslados_bp.route(
@@ -1188,35 +1315,31 @@ def anular_traslado(id):
 
                 FROM traslados
 
-                WHERE id = %s
+                WHERE
+                    id = %s
 
                 FOR UPDATE
-            """, (id,))
+            """, (
+                id,
+            ))
 
             traslado = cursor.fetchone()
 
             if not traslado:
 
                 return jsonify({
-                    "error": (
+                    "error":
                         "Traslado no encontrado"
-                    )
                 }), 404
 
-            if traslado["estado"] == "ANULADO":
+            if traslado["estado"] == (
+                "ANULADO"
+            ):
 
                 return jsonify({
-                    "error": (
+                    "error":
                         "El traslado ya está anulado"
-                    )
                 }), 400
-
-            # ------------------------------------------------
-            # Solo se permite anular un traslado que ya fue
-            # recibido o que está pendiente.
-            #
-            # El trigger se encargará de actuar según estado.
-            # ------------------------------------------------
 
             if traslado["estado"] not in (
                 "PENDIENTE",
@@ -1225,14 +1348,17 @@ def anular_traslado(id):
 
                 return jsonify({
                     "error": (
-                        "El traslado no puede ser anulado "
-                        f"desde el estado "
-                        f"{traslado['estado']}"
+                        "El traslado no puede ser "
+                        "anulado desde el estado "
+                        f'{traslado["estado"]}'
                     )
                 }), 400
 
             # ------------------------------------------------
-            # Anular
+            # ANULAR
+            #
+            # PostgreSQL ejecutará el trigger
+            # correspondiente.
             # ------------------------------------------------
 
             cursor.execute("""
@@ -1243,7 +1369,8 @@ def anular_traslado(id):
                     fecha_anulacion =
                         CURRENT_TIMESTAMP,
                     motivo_anulacion = %s
-                WHERE id = %s
+                WHERE
+                    id = %s
             """, (
                 usuario_id,
                 motivo,
@@ -1257,7 +1384,8 @@ def anular_traslado(id):
         conn.rollback()
 
         return jsonify({
-            "error": str(e)
+            "error":
+                str(e)
         }), 400
 
     finally:
@@ -1265,8 +1393,9 @@ def anular_traslado(id):
         conn.close()
 
     return jsonify({
-        "mensaje": (
-            "Traslado anulado correctamente"
-        ),
-        "estado": "ANULADO"
+        "mensaje":
+            "Traslado anulado correctamente",
+
+        "estado":
+            "ANULADO"
     })

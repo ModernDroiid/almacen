@@ -22,6 +22,8 @@
 #                (ver obtener_sede_actual)
 # ============================================================
 
+import re
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
 
@@ -102,7 +104,7 @@ def listar_puntos():
 
                 cursor.execute("""
                     SELECT
-                        s.destino,
+                        MIN(s.destino) AS destino,
                         s.sede_id,
                         se.nombre AS sede_nombre,
                         se.ciudad,
@@ -117,13 +119,13 @@ def listar_puntos():
                       AND TRIM(s.destino) <> ''
 
                     GROUP BY
-                        s.destino,
+                        regexp_replace(upper(trim(s.destino)), '\\s+', ' ', 'g'),
                         s.sede_id,
                         se.nombre,
                         se.ciudad
 
                     ORDER BY
-                        s.destino
+                        MIN(s.destino)
                 """)
 
             # =================================================
@@ -134,7 +136,7 @@ def listar_puntos():
 
                 cursor.execute("""
                     SELECT
-                        s.destino,
+                        MIN(s.destino) AS destino,
                         s.sede_id,
                         se.nombre AS sede_nombre,
                         se.ciudad,
@@ -150,13 +152,13 @@ def listar_puntos():
                       AND s.sede_id = %s
 
                     GROUP BY
-                        s.destino,
+                        regexp_replace(upper(trim(s.destino)), '\\s+', ' ', 'g'),
                         s.sede_id,
                         se.nombre,
                         se.ciudad
 
                     ORDER BY
-                        s.destino
+                        MIN(s.destino)
                 """, (
                     sede_id,
                 ))
@@ -200,6 +202,14 @@ def historial_punto():
         return jsonify({
             "error": "Destino requerido"
         }), 400
+
+    # Mismo criterio de normalización que se usa para agrupar
+    # los puntos en /puntos: sin importar mayúsculas/minúsculas
+    # ni espacios de más, para que coincida con cualquier salida
+    # que tenga ese destino escrito de forma un poco distinta.
+    destino_normalizado = re.sub(
+        r'\s+', ' ', destino
+    ).upper()
 
     sede_id = obtener_sede_actual()
 
@@ -247,12 +257,12 @@ def historial_punto():
                     LEFT JOIN usuarios ua
                         ON ua.id = s.anulada_por
 
-                    WHERE s.destino = %s
+                    WHERE regexp_replace(upper(trim(s.destino)), '\\s+', ' ', 'g') = %s
 
                     ORDER BY
                         s.fecha DESC
                 """, (
-                    destino,
+                    destino_normalizado,
                 ))
 
             else:
@@ -289,13 +299,13 @@ def historial_punto():
                     LEFT JOIN usuarios ua
                         ON ua.id = s.anulada_por
 
-                    WHERE s.destino = %s
+                    WHERE regexp_replace(upper(trim(s.destino)), '\\s+', ' ', 'g') = %s
                       AND s.sede_id = %s
 
                     ORDER BY
                         s.fecha DESC
                 """, (
-                    destino,
+                    destino_normalizado,
                     sede_id,
                 ))
 
@@ -435,12 +445,12 @@ def historial_punto():
                     LEFT JOIN usuarios ua
                         ON ua.id = dv.anulada_por
 
-                    WHERE s.destino = %s
+                    WHERE regexp_replace(upper(trim(s.destino)), '\\s+', ' ', 'g') = %s
 
                     ORDER BY
                         dv.fecha DESC
                 """, (
-                    destino,
+                    destino_normalizado,
                 ))
 
             else:
@@ -485,13 +495,13 @@ def historial_punto():
                     LEFT JOIN usuarios ua
                         ON ua.id = dv.anulada_por
 
-                    WHERE s.destino = %s
+                    WHERE regexp_replace(upper(trim(s.destino)), '\\s+', ' ', 'g') = %s
                       AND dv.sede_id = %s
 
                     ORDER BY
                         dv.fecha DESC
                 """, (
-                    destino,
+                    destino_normalizado,
                     sede_id,
                 ))
 

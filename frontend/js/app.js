@@ -4642,6 +4642,18 @@ async function guardarDevolucion(event) {
 
     const detalle = [];
 
+    // El motivo de la devolución decide con qué condición
+    // regresa el equipo. Por ahora solo distinguimos "Dañado"
+    // (pasa a condición DANADO y a mantenimiento) de todo lo
+    // demás (regresa en buen estado, sin cambiar su condición).
+    const motivoDevolucion =
+        document.getElementById('dev-motivo')?.value || '';
+
+    const condicionRetorno =
+        motivoDevolucion === 'Dañado'
+            ? 'DANADO'
+            : 'BUEN_ESTADO';
+
     filas.forEach(fila => {
 
         const check =
@@ -4681,7 +4693,7 @@ async function guardarDevolucion(event) {
             cantidad: cantidad,
 
             condicion_retorno:
-                'BUEN_ESTADO',
+                condicionRetorno,
 
             observaciones: ''
 
@@ -7812,7 +7824,11 @@ async function verEquiposProducto(productoId) {
                         </td>
 
                         <td>
-                            ${sanitizar(equipo.condicion || '—')}
+                            ${sanitizar(
+                                equipo.condicion === 'DANADO'
+                                    ? 'Dañado'
+                                    : (equipo.condicion || '—')
+                            )}
                         </td>
 
                         <td>

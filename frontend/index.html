@@ -20,7 +20,7 @@
 
     <link
         rel="stylesheet"
-        href="css/style.css"
+        href="css/style.css?v=2"
     >
 
 </head>
@@ -280,6 +280,24 @@
 
 <div class="contenido">
 
+
+    <!-- Botón ☰ para abrir el menú lateral en celular/tablet -->
+    <button
+        id="btn-menu-movil"
+        class="btn-menu-movil"
+        type="button"
+        onclick="toggleMenuMovil()"
+        aria-label="Abrir menú"
+    >
+        ☰
+    </button>
+
+    <!-- Fondo oscuro: al tocarlo se cierra el menú -->
+    <div
+        id="overlay-menu-movil"
+        class="overlay-menu-movil"
+        onclick="cerrarMenuMovil()"
+    ></div>
 
 
 <!-- ========================================================= -->
@@ -3637,7 +3655,7 @@
 
 
 
-<script src="js/app.js?v=17"></script>
+<script src="js/app.js?v=21"></script>
 
 
 </body>

@@ -1519,3 +1519,123 @@ body.rol-consulta .admin-only {
 #buscar-productos:focus {
     border-color: #1a6fc4;
 }
+
+
+/* ============================================================
+   MENÚ LATERAL EN CELULAR (☰ HAMBURGUESA)
+   ============================================================
+   A partir de 860px de ancho, el menú lateral deja de estar
+   siempre visible y se convierte en un panel que se abre con
+   el botón ☰ y se cierra tocando fuera de él o eligiendo una
+   sección. Esta regla va al final del archivo a propósito,
+   para que gane sobre los @media anteriores que tocan
+   .sidebar en anchos parecidos.
+   ============================================================ */
+
+.btn-menu-movil {
+    display: none;
+}
+
+.overlay-menu-movil {
+    display: none;
+}
+
+@media (max-width: 860px) {
+
+    .btn-menu-movil {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        width: 42px;
+        height: 42px;
+        border: none;
+        border-radius: 10px;
+        background: #0d2137;
+        color: white;
+        font-size: 19px;
+        line-height: 1;
+        cursor: pointer;
+        z-index: 250;
+        box-shadow: 0 4px 12px rgba(13, 33, 55, 0.28);
+    }
+
+    .overlay-menu-movil.visible {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(13, 33, 55, 0.5);
+        z-index: 199;
+    }
+
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 240px;
+        max-width: 82vw;
+        height: 100vh;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        z-index: 200;
+        box-shadow: 2px 0 24px rgba(0, 0, 0, 0.28);
+    }
+
+    .sidebar.abierta {
+        transform: translateX(0);
+    }
+
+    .contenido {
+        width: 100%;
+    }
+
+    .topbar {
+        padding-top: 62px;
+    }
+}
+
+
+/* ============================================================
+   CELULAR PEQUEÑO — MENÚ LATERAL
+   ============================================================ */
+
+@media (max-width: 400px) {
+
+    .btn-menu-movil {
+        top: 10px;
+        left: 10px;
+        width: 40px;
+        height: 40px;
+    }
+
+    .sidebar {
+        width: 220px;
+        max-width: 84vw;
+    }
+
+    .topbar {
+        padding-top: 58px;
+    }
+}
+
+
+/* ============================================================
+   TARJETAS DE ESTADÍSTICAS EN CELULAR
+   ============================================================ */
+
+@media (max-width: 700px) {
+
+    .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 12px 16px;
+    }
+}
+
+@media (max-width: 400px) {
+
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
+}

@@ -126,6 +126,43 @@ function urlConSede(base) {
     return base;
 }
 
+// =============================================================
+// MENÚ LATERAL EN CELULAR (HAMBURGUESA)
+// =============================================================
+
+function toggleMenuMovil() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('overlay-menu-movil');
+
+    if (!sidebar || !overlay) return;
+
+    const abierto = sidebar.classList.contains('abierta');
+
+    if (abierto) {
+        cerrarMenuMovil();
+    } else {
+        sidebar.classList.add('abierta');
+        overlay.classList.add('visible');
+    }
+}
+
+function cerrarMenuMovil() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('overlay-menu-movil');
+
+    if (sidebar) sidebar.classList.remove('abierta');
+    if (overlay) overlay.classList.remove('visible');
+}
+
+// Si la ventana vuelve a tamaño de escritorio (por ejemplo al
+// girar una tablet o agrandar la ventana), se cierra el menú
+// móvil para que no quede abierto por error.
+window.addEventListener('resize', () => {
+    if (window.innerWidth > 860) {
+        cerrarMenuMovil();
+    }
+});
+
 function mostrarSeccion(nombre, btn) {
     if (nombre === 'usuarios' && usuario.rol !== 'admin') return;
 
@@ -137,6 +174,10 @@ function mostrarSeccion(nombre, btn) {
 
     document.getElementById('sec-' + nombre).classList.add('activa');
     btn.classList.add('active');
+
+    // En celular, al elegir una sección se cierra el menú
+    // hamburguesa para dejar toda la pantalla libre.
+    cerrarMenuMovil();
 
     if (nombre === 'productos')     cargarProductos();
     if (nombre === 'entradas')      cargarEntradas();
@@ -1441,6 +1482,7 @@ async function agregarItemEntrada() {
             <select
                 class="select-producto"
                 style="display:none">
+                <option value="">-- Selecciona un producto --</option>
                 ${opciones}
             </select>
 
@@ -1516,7 +1558,8 @@ async function agregarItemEntrada() {
     inicializarBuscadorProducto(
         item,
         selectProducto,
-        productosCache
+        productosCache,
+        true
     );
 
 
@@ -6140,6 +6183,7 @@ async function agregarItemTraslado() {
                 <select
                     class="tras-producto"
                     style="display:none">
+                    <option value="">-- Selecciona un producto --</option>
                     ${opciones}
                 </select>
 
@@ -6245,7 +6289,8 @@ async function agregarItemTraslado() {
     inicializarBuscadorProducto(
         item,
         producto,
-        productosCacheTraslado
+        productosCacheTraslado,
+        true
     );
 
     // ============================================================
@@ -6776,7 +6821,11 @@ async function agregarItemTraslado() {
                 producto.selectedIndex
             ];
 
-        if (!opcion) return;
+        if (!opcion || !producto.value) {
+            contenedorEquipos.style.display = 'none';
+            listaEquipos.innerHTML = '';
+            return;
+        }
 
         actualizarUnidad();
 
@@ -7735,7 +7784,15 @@ function renderizarTraslados(lista) {
                         </button>
 
                         ${
-                            usuario.rol === 'admin' && t.estado === 'PENDIENTE'
+                            (
+                                usuario.rol === 'admin' ||
+                                (
+                                    usuario.rol === 'sede' &&
+                                    t.sede_destino_id != null &&
+                                    Number(usuario.sede_id) === Number(t.sede_destino_id)
+                                )
+                            )
+                            && t.estado === 'PENDIENTE'
                             ? `
                                 <button
                                     class="btn-accion"
@@ -8093,7 +8150,7 @@ async function verTraslado(id) {
 
 async function recibirTraslado(id) {
 
-    if (usuario.rol !== 'admin') {
+    if (usuario.rol === 'consulta' || usuario.rol === 'porteria') {
         alert('No tienes permisos para recibir traslados.');
         return;
     }

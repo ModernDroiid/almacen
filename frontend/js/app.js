@@ -248,6 +248,26 @@ function urlConSede(base) {
     return base;
 }
 
+// ══ REPORTE DE STOCK BAJO (PDF) ═════════════════════════════
+
+function descargarPDFStockBajo() {
+    let url = `${API}/pdf/stock-bajo?token=${token}`;
+
+    // El almacenista de sede siempre ve solo su propia sede
+    // (el backend no filtra por JWT en este reporte, así que
+    // el filtro se arma aquí en el front).
+    if (usuario.rol === 'sede' && usuario.sede_id) {
+        url += `&sede_id=${usuario.sede_id}`;
+    } else if (
+        (usuario.rol === 'admin' || usuario.rol === 'consulta') &&
+        sedeActual
+    ) {
+        url += `&sede_id=${sedeActual}`;
+    }
+
+    window.open(url, '_blank');
+}
+
 // =============================================================
 // MENÚ LATERAL EN CELULAR (HAMBURGUESA)
 // =============================================================

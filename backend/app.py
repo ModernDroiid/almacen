@@ -17,6 +17,7 @@ from routes.auth import auth_bp
 from routes.consolidado import consolidado_bp
 from routes.pdf_consolidado import pdf_consolidado_bp
 from routes.perfil import perfil_bp
+from routes.pdf_stock_bajo import pdf_stock_bajo_bp
 from dotenv import load_dotenv
 
 import os
@@ -133,6 +134,7 @@ app.register_blueprint(auth_bp,             url_prefix='/api/auth')
 app.register_blueprint(consolidado_bp, url_prefix='/api/consolidado')
 app.register_blueprint(pdf_consolidado_bp, url_prefix='/api/pdf')
 app.register_blueprint(perfil_bp, url_prefix='/api/perfil')
+app.register_blueprint(pdf_stock_bajo_bp, url_prefix='/api/pdf')
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), '..', 'frontend')
 

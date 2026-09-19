@@ -2765,6 +2765,7 @@ async function agregarItemSalida() {
                 <select
                     class="select-producto"
                     style="display:none">
+                    <option value="">-- Selecciona un producto --</option>
                     ${opciones}
                 </select>
 
@@ -2869,7 +2870,8 @@ async function agregarItemSalida() {
     inicializarBuscadorProducto(
         item,
         selectProducto,
-        productosCacheSalida
+        productosCacheSalida,
+        true
     );
 
     botonQuitar.addEventListener('click', () => {
@@ -3275,7 +3277,11 @@ function crearFilaEquipo(indice) {
                 selectProducto.selectedIndex
             ];
 
-        if (!opcion) return;
+        if (!opcion || !selectProducto.value) {
+            contenedorEquipos.style.display = 'none';
+            listaEquipos.innerHTML = '';
+            return;
+        }
 
         autocompletarUnidad();
 
@@ -3707,7 +3713,7 @@ async function guardarSalida(event) {
                 selectProducto.selectedIndex
             ];
 
-        if (!opcion) {
+        if (!opcion || !selectProducto.value) {
             mostrarNotificacionSalida(
                 'Selecciona un producto en todas las filas.',
                 'error'
@@ -4083,7 +4089,12 @@ function normalizarBusqueda(texto) {
 // campo de texto de al lado.
 // ================================================================
 
-function inicializarBuscadorProducto(fila, selectOculto, listaProductos) {
+function inicializarBuscadorProducto(
+    fila,
+    selectOculto,
+    listaProductos,
+    mostrarTodoSiVacio = false
+) {
 
     const buscador =
         fila.querySelector('.buscador-producto');
@@ -4098,7 +4109,7 @@ function inicializarBuscadorProducto(fila, selectOculto, listaProductos) {
         const opcion =
             selectOculto.options[selectOculto.selectedIndex];
 
-        buscador.value = opcion
+        buscador.value = (opcion && opcion.value)
             ? opcion.textContent.replace(/\s+/g, ' ').trim()
             : '';
     }
@@ -4122,7 +4133,11 @@ function inicializarBuscadorProducto(fila, selectOculto, listaProductos) {
         const texto = normalizarBusqueda(buscador.value);
 
         if (!texto) {
-            cerrarResultados();
+            if (mostrarTodoSiVacio) {
+                pintarResultados(listaProductos);
+            } else {
+                cerrarResultados();
+            }
             return;
         }
 
@@ -4130,6 +4145,11 @@ function inicializarBuscadorProducto(fila, selectOculto, listaProductos) {
             normalizarBusqueda(p.codigo).includes(texto) ||
             normalizarBusqueda(p.nombre).includes(texto)
         );
+
+        pintarResultados(coincidencias);
+    }
+
+    function pintarResultados(coincidencias) {
 
         resultados.innerHTML = '';
 

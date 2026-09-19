@@ -20,7 +20,7 @@
 
     <link
         rel="stylesheet"
-        href="css/style.css?v=2"
+        href="css/style.css?v=5"
     >
 
 </head>
@@ -214,6 +214,9 @@
             <div
                 class="avatar"
                 id="avatar-usuario"
+                onclick="abrirModalPerfil()"
+                style="cursor:pointer"
+                title="Ver mi perfil"
             >
                 AD
             </div>
@@ -234,17 +237,9 @@
                     font-size:8px;
                     pointer-events:none;
                 "
-                title="Cambiar foto"
             >
                 ✏️
             </div>
-
-            <input
-                type="file"
-                id="input-foto-perfil"
-                accept="image/*"
-                style="display:none"
-            >
 
         </div>
 
@@ -3628,6 +3623,87 @@
 
 
 <!-- ============================================================= -->
+<!-- MODAL: MI PERFIL -->
+<!-- ============================================================= -->
+
+<div
+    id="modal-mi-perfil"
+    class="modal-fondo"
+>
+
+    <div class="modal" style="width:380px;">
+
+        <div class="modal-header">
+            <h3>Mi perfil</h3>
+            <button onclick="cerrarModal('modal-mi-perfil')">✕</button>
+        </div>
+
+        <div class="perfil-modal-avatar-wrap">
+            <div class="avatar avatar-grande" id="avatar-perfil-modal">
+                AD
+            </div>
+        </div>
+
+        <div class="perfil-modal-acciones">
+
+            <button
+                type="button"
+                class="btn-secundario"
+                onclick="document.getElementById('input-foto-perfil').click()"
+            >
+                Cambiar foto
+            </button>
+
+            <button
+                type="button"
+                class="btn-texto-peligro"
+                id="btn-quitar-foto-perfil"
+                onclick="quitarFotoPerfil()"
+                style="display:none"
+            >
+                Quitar foto
+            </button>
+
+        </div>
+
+        <input
+            type="file"
+            id="input-foto-perfil"
+            accept="image/*"
+            style="display:none"
+        >
+
+        <div class="perfil-modal-info">
+
+            <div class="perfil-modal-fila">
+                <span class="perfil-modal-label">Nombre</span>
+                <span class="perfil-modal-valor" id="perfil-modal-nombre">—</span>
+            </div>
+
+            <div class="perfil-modal-fila">
+                <span class="perfil-modal-label">Rol</span>
+                <span class="perfil-modal-valor" id="perfil-modal-rol">—</span>
+            </div>
+
+            <div class="perfil-modal-fila" id="perfil-modal-fila-sede">
+                <span class="perfil-modal-label">Sede</span>
+                <span class="perfil-modal-valor" id="perfil-modal-sede">—</span>
+            </div>
+
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-secundario" onclick="cerrarModal('modal-mi-perfil')">
+                Cerrar
+            </button>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ============================================================= -->
 <!-- MODAL: CONFIRMACION -->
 <!-- ============================================================= -->
 
@@ -3699,7 +3775,7 @@
 
 
 
-<script src="js/app.js?v=26"></script>
+<script src="js/app.js?v=27"></script>
 
 
 </body>

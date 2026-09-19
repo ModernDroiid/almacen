@@ -99,22 +99,33 @@ async function cargarFotoPerfil() {
 }
 
 function aplicarFotoPerfil(fotoBase64) {
-    const avatar = document.getElementById('avatar-usuario');
-    if (!avatar) return;
+    // Se actualizan los DOS avatares que puede haber en pantalla:
+    // el chiquito del sidebar y el grande del modal "Mi perfil".
+    const avatares = [
+        document.getElementById('avatar-usuario'),
+        document.getElementById('avatar-perfil-modal')
+    ].filter(Boolean);
 
-    if (fotoBase64) {
-        avatar.style.backgroundImage = `url("${fotoBase64}")`;
-        avatar.style.backgroundSize = 'cover';
-        avatar.style.backgroundPosition = 'center';
-        avatar.textContent = '';
-    } else {
-        avatar.style.backgroundImage = '';
-        avatar.style.backgroundSize = '';
-        avatar.style.backgroundPosition = '';
+    avatares.forEach(avatar => {
+        if (fotoBase64) {
+            avatar.style.backgroundImage = `url("${fotoBase64}")`;
+            avatar.style.backgroundSize = 'cover';
+            avatar.style.backgroundPosition = 'center';
+            avatar.textContent = '';
+        } else {
+            avatar.style.backgroundImage = '';
+            avatar.style.backgroundSize = '';
+            avatar.style.backgroundPosition = '';
 
-        const nom = usuario.nombre || 'Usuario';
-        avatar.textContent =
-            nom.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+            const nom = usuario.nombre || 'Usuario';
+            avatar.textContent =
+                nom.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+        }
+    });
+
+    const btnQuitar = document.getElementById('btn-quitar-foto-perfil');
+    if (btnQuitar) {
+        btnQuitar.style.display = fotoBase64 ? '' : 'none';
     }
 }
 
@@ -178,16 +189,55 @@ async function guardarFotoPerfil(fotoBase64) {
     mostrarNotificacion('Foto de perfil actualizada.', 'exito');
 }
 
+async function quitarFotoPerfil() {
+    const res = await apiFetch(`${API}/perfil/foto`, { method: 'DELETE' });
+    if (!res) return;
+
+    if (!res.ok) {
+        const datos = await res.json().catch(() => ({}));
+        alert(datos.error || 'No se pudo quitar la foto.');
+        return;
+    }
+
+    aplicarFotoPerfil(null);
+    mostrarNotificacion('Foto de perfil eliminada.', 'exito');
+}
+
+// Se abre al hacer clic en el avatar del sidebar. Muestra la foto
+// (o las iniciales), los datos básicos del usuario, y desde ahí
+// se puede cambiar o quitar la foto — nada de esto pasa "a ciegas"
+// con solo un clic como antes.
+function abrirModalPerfil() {
+    document.getElementById('perfil-modal-nombre').textContent =
+        usuario.nombre || 'Usuario';
+
+    const rolTexto = usuario.rol === 'admin'
+        ? 'Administrador'
+        : usuario.rol === 'sede'
+            ? 'Almacenista'
+            : usuario.rol === 'porteria'
+                ? 'Portería'
+                : 'Consulta';
+
+    document.getElementById('perfil-modal-rol').textContent = rolTexto;
+
+    const filaSede  = document.getElementById('perfil-modal-fila-sede');
+    const sedeTexto = usuario.sede_nombre || usuario.ciudad || '';
+
+    if (sedeTexto) {
+        document.getElementById('perfil-modal-sede').textContent = sedeTexto;
+        filaSede.style.display = '';
+    } else {
+        filaSede.style.display = 'none';
+    }
+
+    abrirModal('modal-mi-perfil');
+}
+
 function inicializarSelectorFotoPerfil() {
-    const avatar = document.getElementById('avatar-usuario');
-    const input  = document.getElementById('input-foto-perfil');
+    const input = document.getElementById('input-foto-perfil');
 
-    if (!avatar || !input) return;
-
-    avatar.style.cursor = 'pointer';
-    avatar.title = 'Cambiar foto de perfil';
-
-    avatar.addEventListener('click', () => input.click());
+    if (!input) return;
 
     input.addEventListener('change', async () => {
         const archivo = input.files[0];

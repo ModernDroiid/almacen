@@ -12,6 +12,7 @@ from flask_jwt_extended import (
 )
 from database import get_connection
 from werkzeug.security import generate_password_hash, check_password_hash
+from utils.auditoria import registrar_auditoria
 import hashlib
 
 from extensions import limiter
@@ -398,6 +399,30 @@ def crear_usuario():
     finally:
         conn.close()
 
+    # La auditoría queda en su propia transacción (así lo maneja
+    # registrar_auditoria), así que se registra ya con el usuario
+    # creado y confirmado. Si esto llegara a fallar, no se le
+    # regresa un error al admin por algo que en realidad sí pasó.
+    try:
+        registrar_auditoria(
+            usuario_id=int(get_jwt_identity()),
+            accion="CREAR",
+            entidad="USUARIO",
+            entidad_id=nuevo_id,
+            descripcion=(
+                f'Creó al usuario "{nombre}" ({correo}) '
+                f'con rol "{rol}"'
+            ),
+            datos_nuevos={
+                'nombre': nombre,
+                'correo': correo,
+                'rol': rol,
+                'sede_id': sede_id
+            }
+        )
+    except Exception:
+        pass
+
     return jsonify({
         'mensaje': 'Usuario creado',
         'id': nuevo_id
@@ -436,6 +461,18 @@ def editar_usuario(id):
     try:
         with conn.cursor() as cursor:
 
+            # Se guarda cómo estaba el usuario antes del cambio,
+            # para que quede en el "datos_anteriores" de la
+            # auditoría (además del nombre, que se usa en el
+            # mensaje de todas formas).
+            cursor.execute('''
+                SELECT nombre, correo, rol, sede_id
+                FROM usuarios
+                WHERE id = %s
+            ''', (id,))
+
+            usuario_anterior = cursor.fetchone()
+
             cursor.execute('''
                 UPDATE usuarios
                 SET
@@ -459,9 +496,11 @@ def editar_usuario(id):
                     'error': 'Usuario no encontrado'
                 }), 404
 
+            se_cambio_password = bool(datos.get('password'))
+
             # Si se envió una nueva contraseña,
             # también se actualiza.
-            if datos.get('password'):
+            if se_cambio_password:
 
                 cursor.execute('''
                     UPDATE usuarios
@@ -483,6 +522,33 @@ def editar_usuario(id):
 
     finally:
         conn.close()
+
+    try:
+        registrar_auditoria(
+            usuario_id=int(get_jwt_identity()),
+            accion="EDITAR",
+            entidad="USUARIO",
+            entidad_id=id,
+            descripcion=(
+                f'Editó al usuario "{nombre}" ({correo}), rol "{rol}"'
+                + (
+                    ' y le cambió la contraseña'
+                    if se_cambio_password
+                    else ''
+                )
+            ),
+            datos_anteriores=(
+                dict(usuario_anterior) if usuario_anterior else None
+            ),
+            datos_nuevos={
+                'nombre': nombre,
+                'correo': correo,
+                'rol': rol,
+                'sede_id': sede_id
+            }
+        )
+    except Exception:
+        pass
 
     return jsonify({
         'mensaje': 'Usuario actualizado'
@@ -550,6 +616,23 @@ def cambiar_password(id):
     finally:
         conn.close()
 
+    # Nunca se guardan contraseñas (ni en texto plano ni en hash)
+    # en el registro de auditoría, solo el hecho de que se cambió.
+    try:
+        registrar_auditoria(
+            usuario_id=usuario_actual,
+            accion="CAMBIAR_PASSWORD",
+            entidad="USUARIO",
+            entidad_id=id,
+            descripcion=(
+                'Cambió su propia contraseña'
+                if usuario_actual == id
+                else f'Cambió la contraseña del usuario id {id}'
+            )
+        )
+    except Exception:
+        pass
+
     return jsonify({
         'mensaje': 'Contraseña actualizada'
     })
@@ -612,6 +695,22 @@ def toggle_usuario(id):
 
     finally:
         conn.close()
+
+    try:
+        registrar_auditoria(
+            usuario_id=int(get_jwt_identity()),
+            accion="ACTIVAR" if nuevo_estado else "DESACTIVAR",
+            entidad="USUARIO",
+            entidad_id=id,
+            descripcion=(
+                f'{"Activó" if nuevo_estado else "Desactivó"} '
+                f'al usuario id {id}'
+            ),
+            datos_anteriores={'activo': usuario['activo']},
+            datos_nuevos={'activo': nuevo_estado}
+        )
+    except Exception:
+        pass
 
     return jsonify({
         'mensaje': 'Estado actualizado',

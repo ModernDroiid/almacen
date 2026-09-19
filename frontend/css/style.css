@@ -136,6 +136,13 @@ nav {
     flex-shrink: 0;
 }
 
+/* Avatar grande, usado en el modal "Mi perfil" */
+.avatar-grande {
+    width: 96px;
+    height: 96px;
+    font-size: 28px;
+}
+
 .sidebar-footer .info-usuario .nombre {
     font-size: 11px;
     color: white;
@@ -589,6 +596,19 @@ nav {
     background: #f7f9fc;
 }
 
+.btn-texto-peligro {
+    background: none;
+    border: none;
+    color: #c0392b;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 8px 4px;
+}
+
+.btn-texto-peligro:hover {
+    text-decoration: underline;
+}
+
 
 /* ============================================================
    MODAL
@@ -643,6 +663,53 @@ nav {
     cursor: pointer;
     color: #6b8aab;
     line-height: 1;
+}
+
+
+/* ============================================================
+   MODAL: MI PERFIL
+   ============================================================ */
+
+.perfil-modal-avatar-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.perfil-modal-acciones {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1.5rem;
+}
+
+.perfil-modal-info {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    background: #f7f9fc;
+    border-radius: 10px;
+    margin-bottom: 0.25rem;
+}
+
+.perfil-modal-fila {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12.5px;
+}
+
+.perfil-modal-label {
+    color: #6b8aab;
+    font-weight: 500;
+}
+
+.perfil-modal-valor {
+    color: #0d2137;
+    font-weight: 600;
+    text-align: right;
 }
 
 
@@ -1637,5 +1704,293 @@ body.rol-consulta .admin-only {
 
     .stats-row {
         grid-template-columns: 1fr;
+    }
+}
+
+
+/* ============================================================
+   LOGIN — PÁGINA INDEPENDIENTE (login.html)
+   ============================================================
+   Todo lo de aquí abajo va scoped bajo "body.pagina-login" a
+   propósito: login.html es una página aparte del index.html,
+   pero reutiliza los MISMOS nombres de clase que el login
+   embebido de la SPA (#pantalla-login: .login-card, .campo,
+   .btn-login, .login-titulo...) y que otros formularios de la
+   app (".campo" se usa en un montón de modales). Si tocáramos
+   esas clases directamente les cambiaríamos el look a todas
+   esas otras pantallas sin que se pidiera. Por eso cada regla
+   que reutiliza un nombre compartido va precedida de
+   "body.pagina-login " — así solo aplica en esta página.
+   ============================================================ */
+
+body.pagina-login {
+    display: flex;
+    flex-direction: row;
+    min-height: 100vh;
+    height: auto;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+/* ------------------------------------------------------------
+   Panel izquierdo — formulario
+   ------------------------------------------------------------ */
+
+.login-panel-izq {
+    width: 42%;
+    min-width: 360px;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 48px 64px;
+    position: relative;
+}
+
+.login-panel-contenido {
+    width: 100%;
+    max-width: 340px;
+}
+
+.login-logo-panel {
+    width: 230px;
+    max-width: 100%;
+    display: block;
+    align-self: center;
+    margin-bottom: 2.25rem;
+}
+
+body.pagina-login .login-titulo {
+    font-size: 23px;
+    font-weight: 700;
+    color: #0d2137;
+    text-align: left;
+    margin-bottom: 1.75rem;
+}
+
+body.pagina-login .campo {
+    margin-bottom: 1.1rem;
+}
+
+body.pagina-login .campo label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #4a6080;
+}
+
+body.pagina-login .campo input {
+    width: 100%;
+    background: #eef3f8;
+    border: 1px solid #eef3f8;
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-size: 13.5px;
+    transition: border 0.15s, background 0.15s;
+}
+
+body.pagina-login .campo input:focus {
+    background: #ffffff;
+    border-color: #1a6fc4;
+}
+
+.campo-password-wrapper {
+    position: relative;
+    display: flex;
+}
+
+.campo-password-wrapper input {
+    padding-right: 42px !important;
+}
+
+/* Quita el ojo nativo del navegador en el campo de contraseña */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none !important;
+}
+
+input[type="password"]::-webkit-contacts-auto-fill-button,
+input[type="password"]::-webkit-credentials-auto-fill-button {
+    display: none !important;
+}
+
+.btn-toggle-pass {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #93aac4;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s;
+}
+
+.btn-toggle-pass:hover {
+    color: #1a6fc4;
+}
+
+body.pagina-login .btn-login {
+    width: 100%;
+    background: #1a6fc4;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.15s;
+}
+
+body.pagina-login .btn-login:hover {
+    background: #155fa8;
+}
+
+body.pagina-login .btn-login:disabled {
+    cursor: default;
+    opacity: 0.75;
+}
+
+.spinner {
+    width: 15px;
+    height: 15px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spinnerGirar 0.7s linear infinite;
+    display: none;
+}
+
+.spinner.visible {
+    display: inline-block;
+}
+
+@keyframes spinnerGirar {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.error-msg {
+    background: #fdecea;
+    color: #c0392b;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12.5px;
+    margin-bottom: 1.1rem;
+    display: none;
+    align-items: center;
+    gap: 8px;
+}
+
+.error-msg.visible {
+    display: flex;
+}
+
+.login-footer-panel {
+    position: absolute;
+    left: 64px;
+    bottom: 28px;
+    font-size: 11px;
+    color: #93aac4;
+}
+
+/* ------------------------------------------------------------
+   Panel derecho — color de marca + ilustración
+   ------------------------------------------------------------ */
+
+.login-panel-der {
+    flex: 1;
+    background: linear-gradient(160deg, #123a5e 0%, #0d2137 55%, #081522 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-panel-der::before,
+.login-panel-der::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.login-panel-der::before {
+    width: 420px;
+    height: 420px;
+    top: -120px;
+    right: -120px;
+}
+
+.login-panel-der::after {
+    width: 300px;
+    height: 300px;
+    bottom: -100px;
+    left: -80px;
+    background: rgba(26, 111, 196, 0.25);
+}
+
+.login-ilustracion {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    color: #ffffff;
+    padding: 0 40px;
+}
+
+.login-ilustracion svg {
+    width: 130px;
+    height: 130px;
+    margin-bottom: 1.5rem;
+}
+
+.login-ilustracion h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.login-ilustracion p {
+    font-size: 13px;
+    color: #b7cbe0;
+    max-width: 300px;
+    margin: 0 auto;
+    line-height: 1.5;
+}
+
+/* ------------------------------------------------------------
+   Responsive — el panel derecho se oculta en pantallas chicas
+   ------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+
+    .login-panel-der {
+        display: none;
+    }
+
+    .login-panel-izq {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        align-items: center;
+        padding: 32px 24px;
+    }
+
+    .login-footer-panel {
+        position: static;
+        text-align: center;
+        margin-top: 2rem;
+        left: auto;
+        bottom: auto;
     }
 }

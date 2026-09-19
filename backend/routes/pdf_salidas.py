@@ -31,6 +31,7 @@ import os
 from io import BytesIO
 
 from database import get_connection
+from utils.firmas import imagen_firma
 
 
 pdf_salidas_bp = Blueprint(
@@ -75,6 +76,9 @@ def generar_pdf_salida(id):
                     s.fecha_anulacion,
                     s.anulada_por,
                     s.motivo_anulacion,
+
+                    s.firma_entrega_base64,
+                    s.firma_recibe_base64,
 
                     sd.nombre AS sede_nombre,
                     sd.ciudad AS sede_ciudad,
@@ -1126,43 +1130,93 @@ def generar_pdf_salida(id):
 
     # ========================================================
     # FIRMAS
+    #
+    # Firma digital de quien entrega (almacenista que despacha)
+    # y de quien recibe (cliente / destino), capturadas al
+    # momento de registrar la salida. Si alguna firma no fue
+    # capturada, se deja el espacio en blanco en vez de fallar.
     # ========================================================
+
+    estilo_sin_firma = ParagraphStyle(
+        "sinFirma",
+        fontSize=7,
+        textColor=colors.HexColor("#9aabbd"),
+        alignment=TA_CENTER
+    )
+
+    ancho_firma = 6 * cm
+    alto_firma = 2 * cm
+
+    firma_entrega_img = (
+        imagen_firma(
+            salida.get("firma_entrega_base64"),
+            ancho_firma,
+            alto_firma
+        )
+        or Paragraph("(sin firma)", estilo_sin_firma)
+    )
+
+    firma_recibe_img = (
+        imagen_firma(
+            salida.get("firma_recibe_base64"),
+            ancho_firma,
+            alto_firma
+        )
+        or Paragraph("(sin firma)", estilo_sin_firma)
+    )
 
     firmas = Table(
 
-        [[
-
-            Paragraph(
-                "Entregado por:",
-                estilo_label
-            ),
-
-            Paragraph(
-                str(
-                    salida.get(
-                        "usuario_nombre"
-                    )
-                    or ""
+        [
+            [
+                Paragraph(
+                    "Entregado por:",
+                    estilo_label
                 ),
-                estilo_valor
-            ),
 
-            Paragraph(
-                "Recibido por:",
-                estilo_label
-            ),
+                Paragraph(
+                    "Recibido por:",
+                    estilo_label
+                )
+            ],
 
-            Paragraph(
-                "",
-                estilo_valor
-            )
-        ]],
+            [
+                firma_entrega_img,
+                firma_recibe_img
+            ],
+
+            [
+                Paragraph(
+                    str(
+                        salida.get(
+                            "usuario_nombre"
+                        )
+                        or ""
+                    ),
+                    estilo_valor
+                ),
+
+                Paragraph(
+                    str(
+                        salida.get(
+                            "cliente_nombre"
+                        )
+                        or ""
+                    ),
+                    estilo_valor
+                )
+            ]
+        ],
 
         colWidths=[
-            3 * cm,
-            6.5 * cm,
-            3 * cm,
-            5.5 * cm
+            9 * cm,
+            9 * cm
+        ],
+
+        rowHeights=[
+            0.7 * cm,
+            alto_firma + 0.3 * cm,
+            0.7 * cm
         ]
     )
 
@@ -1181,15 +1235,15 @@ def generar_pdf_salida(id):
             (
                 "BACKGROUND",
                 (0, 0),
-                (0, 0),
+                (-1, 0),
                 colors.HexColor("#f7f9fc")
             ),
 
             (
-                "BACKGROUND",
-                (2, 0),
-                (2, 0),
-                colors.HexColor("#f7f9fc")
+                "ALIGN",
+                (0, 1),
+                (-1, 1),
+                "CENTER"
             ),
 
             (

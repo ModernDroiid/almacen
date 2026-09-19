@@ -243,6 +243,9 @@ def obtener_entrada(id):
                     e.fecha_anulacion,
                     e.motivo_anulacion,
 
+                    e.firma_entrega_base64,
+                    e.firma_recibe_base64,
+
                     'Almacén' AS destino,
 
                     s.nombre AS sede_nombre,
@@ -507,6 +510,20 @@ def crear_entrada():
         observaciones
     ).strip()
 
+    # ========================================================
+    # FIRMAS
+    #
+    # Firma digital de quien entrega (proveedor / transportista)
+    # y de quien recibe (almacenista), capturadas al momento de
+    # registrar la entrada. Se guardan como imagen PNG en base64
+    # ("data:image/png;base64,...."). Son opcionales: si el
+    # dispositivo de firma no está disponible, la entrada se
+    # registra igual sin firma.
+    # ========================================================
+
+    firma_entrega = datos.get('firma_entrega_base64') or None
+    firma_recibe = datos.get('firma_recibe_base64') or None
+
     conn = get_connection()
 
     entrada_id = None
@@ -568,7 +585,9 @@ def crear_entrada():
                     proveedor,
                     observaciones,
                     usuario_id,
-                    estado
+                    estado,
+                    firma_entrega_base64,
+                    firma_recibe_base64
                 )
 
                 VALUES (
@@ -577,7 +596,9 @@ def crear_entrada():
                     %s,
                     %s,
                     %s,
-                    'ACTIVA'
+                    'ACTIVA',
+                    %s,
+                    %s
                 )
 
                 RETURNING id
@@ -587,7 +608,9 @@ def crear_entrada():
                 sede_id,
                 origen,
                 observaciones,
-                usuario_id
+                usuario_id,
+                firma_entrega,
+                firma_recibe
             ))
 
             entrada_id = cursor.fetchone()['id']
@@ -1050,7 +1073,8 @@ def crear_entrada():
                 'sede_id': sede_id,
                 'origen': origen,
                 'destino': destino,
-                'observaciones': observaciones
+                'observaciones': observaciones,
+                'firmada': bool(firma_entrega or firma_recibe)
             }
         )
 

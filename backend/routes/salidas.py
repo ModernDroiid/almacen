@@ -318,6 +318,9 @@ def obtener_salida(id):
                     s.motivo_anulacion,
                     s.cliente_id,
 
+                    s.firma_entrega_base64,
+                    s.firma_recibe_base64,
+
                     se.nombre AS sede_nombre,
                     se.ciudad,
 
@@ -603,6 +606,19 @@ def crear_salida():
             ""
         )
     ).strip()
+
+    # ========================================================
+    # FIRMAS
+    #
+    # Firma digital de quien entrega (almacenista que despacha)
+    # y de quien recibe (cliente / destino), capturadas al
+    # momento de registrar la salida. Se guardan como imagen
+    # PNG en base64. Son opcionales: si el dispositivo de firma
+    # no está disponible, la salida se registra igual sin firma.
+    # ========================================================
+
+    firma_entrega = datos.get("firma_entrega_base64") or None
+    firma_recibe = datos.get("firma_recibe_base64") or None
 
     conn = get_connection()
 
@@ -1168,7 +1184,9 @@ def crear_salida():
                     observaciones,
                     usuario_id,
                     cliente_id,
-                    estado
+                    estado,
+                    firma_entrega_base64,
+                    firma_recibe_base64
                 )
                 VALUES (
                     %s,
@@ -1177,7 +1195,9 @@ def crear_salida():
                     %s,
                     %s,
                     %s,
-                    'ACTIVA'
+                    'ACTIVA',
+                    %s,
+                    %s
                 )
                 RETURNING id
             """, (
@@ -1186,7 +1206,9 @@ def crear_salida():
                 destino,
                 observaciones,
                 usuario_id,
-                cliente_id
+                cliente_id,
+                firma_entrega,
+                firma_recibe
             ))
 
             salida_id = cursor.fetchone()["id"]
@@ -1310,6 +1332,9 @@ def crear_salida():
 
                 "observaciones":
                     observaciones,
+
+                "firmada":
+                    bool(firma_entrega or firma_recibe),
 
                 "detalle":
                     detalles_normalizados

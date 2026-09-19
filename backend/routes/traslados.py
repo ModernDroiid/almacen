@@ -316,6 +316,9 @@ def obtener_traslado(id):
                     t.anulado_por,
                     t.motivo_anulacion,
 
+                    t.firma_entrega_base64,
+                    t.firma_recibe_base64,
+
                     so.nombre AS sede_origen_nombre,
                     so.ciudad AS sede_origen_ciudad,
 
@@ -983,7 +986,8 @@ def crear_traslado():
                     sede_destino_id,
                     usuario_creador_id,
                     estado,
-                    observaciones
+                    observaciones,
+                    firma_entrega_base64
                 )
                 VALUES (
                     %s,
@@ -991,6 +995,7 @@ def crear_traslado():
                     %s,
                     %s,
                     'PENDIENTE',
+                    %s,
                     %s
                 )
                 RETURNING id
@@ -1002,7 +1007,8 @@ def crear_traslado():
                 datos.get(
                     "observaciones",
                     ""
-                ).strip()
+                ).strip(),
+                datos.get("firma_entrega_base64") or None
             ))
 
             traslado_id = (
@@ -1103,6 +1109,20 @@ def recibir_traslado(id):
                 "no puede recibir traslados"
             )
         }), 403
+
+    # ------------------------------------------------
+    # FIRMA DE QUIEN RECIBE
+    #
+    # Firma digital de quien recibe el traslado en la
+    # sede destino, capturada al momento de confirmar
+    # la recepción. Se guarda como imagen PNG en base64.
+    # Es opcional: si el dispositivo de firma no está
+    # disponible, el traslado se recibe igual sin firma.
+    # ------------------------------------------------
+
+    datos = request.get_json(silent=True) or {}
+
+    firma_recibe = datos.get("firma_recibe_base64") or None
 
     conn = get_connection()
 
@@ -1225,11 +1245,13 @@ def recibir_traslado(id):
                     estado = 'RECIBIDO',
                     usuario_recibido_id = %s,
                     fecha_recepcion =
-                        CURRENT_TIMESTAMP
+                        CURRENT_TIMESTAMP,
+                    firma_recibe_base64 = %s
                 WHERE
                     id = %s
             """, (
                 usuario_id,
+                firma_recibe,
                 id
             ))
 

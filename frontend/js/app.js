@@ -418,6 +418,8 @@ function abrirModal(id) {
         const hoy = new Date().toISOString().split('T')[0];
         document.getElementById('ent-fecha').value = hoy;
         generarNumeroEntrada();
+        inicializarFirmaPad('firma-ent-entrega');
+        inicializarFirmaPad('firma-ent-recibe');
     }
 
     if (id === 'modal-entrada' && usuario.rol === 'admin') {
@@ -437,6 +439,8 @@ function abrirModal(id) {
         document.getElementById('sal-fecha').value = hoy;
         generarNumeroSalida();
         cargarClientesDatalist();
+        inicializarFirmaPad('firma-sal-entrega');
+        inicializarFirmaPad('firma-sal-recibe');
     }
 
     if (id === 'modal-salida' && usuario.rol === 'admin') {
@@ -455,6 +459,8 @@ function abrirModal(id) {
         const hoy = new Date().toISOString().split('T')[0];
         document.getElementById('dev-fecha').value = hoy;
         cargarSelectorSalidas();
+        inicializarFirmaPad('firma-dev-entrega');
+        inicializarFirmaPad('firma-dev-recibe');
     }
 
     if (id === 'modal-devolucion' && usuario.rol === 'admin') {
@@ -489,10 +495,16 @@ function abrirModal(id) {
         
         document.getElementById('tras-numero').value =
             `TR-${fecha}-${hora}`;
-        
+
         cargarSedesTraslado();
+
+        inicializarFirmaPad('firma-tras-entrega');
     }
-    
+
+    if (id === 'modal-recibir-traslado') {
+        inicializarFirmaPad('firma-tras-recibe');
+    }
+
     if (id === 'modal-producto' && usuario.rol === 'admin') {
         apiFetch(`${API}/auth/sedes`).then(r => r.json()).then(sedes => {
             const sel = document.getElementById('prod-sede');
@@ -516,7 +528,202 @@ function cerrarModal(id) {
     if (id === 'modal-marca')      limpiarFormMarca();
     if (id === 'modal-cliente')    limpiarFormCliente();
     if (id === 'modal-devolucion') limpiarFormDevolucion();
+
+    if (id === 'modal-recibir-traslado') {
+        limpiarFirmaPad('firma-tras-recibe');
+        trasladoIdPendienteRecibir = null;
+    }
 }
+
+// ══ FIRMAS DIGITALES (canvas) ═════════════════════════════════
+//
+// Componente reutilizable para capturar una firma a mano usando
+// el mouse, el dedo (pantalla táctil) o una tablet/lápiz de
+// firma que se comporte como un puntero estándar (Pointer
+// Events). La firma se exporta como PNG en base64 y se envía
+// al backend; siempre es OPCIONAL — si no se firma, se envía
+// null y tanto el backend como el PDF ya están preparados para
+// ese caso (no bloquea el registro del documento).
+//
+// No se depende de ningún hardware de firma en particular (no
+// hay SDK de fabricante involucrado) para que funcione con
+// cualquier dispositivo que actúe como un puntero normal del
+// navegador: mouse, dedo, o la mayoría de tabletas de firma
+// USB/HID del mercado.
+// ════════════════════════════════════════════════════════════
+
+class FirmaPad {
+
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.tieneTrazo = false;
+        this.dibujando = false;
+        this.ultimoPunto = null;
+
+        this._onPointerDown = this._onPointerDown.bind(this);
+        this._onPointerMove = this._onPointerMove.bind(this);
+        this._onPointerUp = this._onPointerUp.bind(this);
+
+        canvas.addEventListener('pointerdown', this._onPointerDown);
+        canvas.addEventListener('pointermove', this._onPointerMove);
+        canvas.addEventListener('pointerup', this._onPointerUp);
+        canvas.addEventListener('pointerleave', this._onPointerUp);
+        canvas.addEventListener('pointercancel', this._onPointerUp);
+
+        this.ajustarTamano();
+    }
+
+    // Ajusta la resolución real del canvas a su tamaño en
+    // pantalla (considerando devicePixelRatio, para que la
+    // firma no se vea pixelada). Se llama al crear el pad, al
+    // reabrir el modal y al cambiar el tamaño de la ventana.
+    ajustarTamano() {
+
+        const rect = this.canvas.getBoundingClientRect();
+
+        // El modal puede estar oculto (display:none) todavía;
+        // en ese caso el rect mide 0 y no hay nada que ajustar.
+        if (rect.width === 0 || rect.height === 0) {
+            return;
+        }
+
+        let imagenPrevia = null;
+
+        if (
+            this.tieneTrazo &&
+            this.canvas.width > 0 &&
+            this.canvas.height > 0
+        ) {
+            imagenPrevia = this.canvas.toDataURL('image/png');
+        }
+
+        const dpr = window.devicePixelRatio || 1;
+
+        this.canvas.width = Math.round(rect.width * dpr);
+        this.canvas.height = Math.round(rect.height * dpr);
+
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.ctx.lineWidth = 2.2;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.strokeStyle = '#0d2137';
+
+        // Si ya había una firma dibujada, se restaura después
+        // de redimensionar (por ejemplo si la ventana cambió de
+        // tamaño mientras el modal estaba abierto).
+        if (imagenPrevia) {
+
+            const img = new Image();
+
+            img.onload = () => {
+                this.ctx.drawImage(img, 0, 0, rect.width, rect.height);
+            };
+
+            img.src = imagenPrevia;
+        }
+    }
+
+    _posDesdeEvento(evento) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: evento.clientX - rect.left,
+            y: evento.clientY - rect.top
+        };
+    }
+
+    _onPointerDown(evento) {
+        evento.preventDefault();
+        this.dibujando = true;
+        this.ultimoPunto = this._posDesdeEvento(evento);
+
+        if (this.canvas.setPointerCapture) {
+            try {
+                this.canvas.setPointerCapture(evento.pointerId);
+            } catch (error) {
+                // Ignorar: no todos los navegadores/dispositivos
+                // lo soportan igual, y no es indispensable.
+            }
+        }
+    }
+
+    _onPointerMove(evento) {
+
+        if (!this.dibujando) return;
+
+        evento.preventDefault();
+
+        const punto = this._posDesdeEvento(evento);
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.ultimoPunto.x, this.ultimoPunto.y);
+        this.ctx.lineTo(punto.x, punto.y);
+        this.ctx.stroke();
+
+        this.ultimoPunto = punto;
+        this.tieneTrazo = true;
+    }
+
+    _onPointerUp() {
+        this.dibujando = false;
+        this.ultimoPunto = null;
+    }
+
+    limpiar() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.tieneTrazo = false;
+    }
+
+    estaVacio() {
+        return !this.tieneTrazo;
+    }
+
+    obtenerBase64() {
+        if (!this.tieneTrazo) {
+            return null;
+        }
+        return this.canvas.toDataURL('image/png');
+    }
+}
+
+const _firmaPads = {};
+
+// Crea (la primera vez) o reajusta (las siguientes) el pad de
+// firma asociado a un <canvas>. Debe llamarse cada vez que el
+// modal que lo contiene se hace visible, porque un canvas
+// dentro de un elemento oculto no tiene un tamaño real todavía.
+function inicializarFirmaPad(canvasId) {
+
+    const canvas = document.getElementById(canvasId);
+
+    if (!canvas) return null;
+
+    if (!_firmaPads[canvasId]) {
+        _firmaPads[canvasId] = new FirmaPad(canvas);
+    } else {
+        _firmaPads[canvasId].ajustarTamano();
+    }
+
+    return _firmaPads[canvasId];
+}
+
+function limpiarFirmaPad(canvasId) {
+    const pad = _firmaPads[canvasId];
+    if (pad) pad.limpiar();
+}
+
+// Devuelve la firma en base64 (PNG) o null si no se ha firmado.
+// Nunca lanza error: si el pad no existe todavía simplemente
+// se considera que no hay firma.
+function obtenerFirmaBase64(canvasId) {
+    const pad = _firmaPads[canvasId];
+    if (!pad) return null;
+    return pad.obtenerBase64();
+}
+
+window.addEventListener('resize', () => {
+    Object.values(_firmaPads).forEach(pad => pad.ajustarTamano());
+});
 
 // ══ CATALOGOS (compartidos entre sedes) ══════════════════════
 
@@ -2563,7 +2770,13 @@ async function guardarEntrada(event) {
                 sedeId,
 
             detalle:
-                detalle
+                detalle,
+
+            firma_entrega_base64:
+                obtenerFirmaBase64('firma-ent-entrega'),
+
+            firma_recibe_base64:
+                obtenerFirmaBase64('firma-ent-recibe')
         };
 
 
@@ -2695,6 +2908,9 @@ function limpiarFormEntrada() {
     if (entItems) {
         entItems.innerHTML = '';
     }
+
+    limpiarFirmaPad('firma-ent-entrega');
+    limpiarFirmaPad('firma-ent-recibe');
 }
 
 async function verPDFEntrada(id) {
@@ -4223,7 +4439,13 @@ async function guardarSalida(event) {
             ) || sedeActual,
 
         detalle:
-            detalle
+            detalle,
+
+        firma_entrega_base64:
+            obtenerFirmaBase64('firma-sal-entrega'),
+
+        firma_recibe_base64:
+            obtenerFirmaBase64('firma-sal-recibe')
     };
 
     console.log(
@@ -4292,6 +4514,9 @@ function limpiarFormSalida() {
     document.getElementById('sal-items').innerHTML     = '';
     document.getElementById('sal-sede').value = '';
     productosCacheSalida = [];
+
+    limpiarFirmaPad('firma-sal-entrega');
+    limpiarFirmaPad('firma-sal-recibe');
 }
 
 async function verPDFSalida(id) {
@@ -5387,7 +5612,13 @@ async function guardarDevolucion(event) {
             ) || sedeActual,
 
         detalle:
-            detalle
+            detalle,
+
+        firma_entrega_base64:
+            obtenerFirmaBase64('firma-dev-entrega'),
+
+        firma_recibe_base64:
+            obtenerFirmaBase64('firma-dev-recibe')
 
     };
 
@@ -5530,6 +5761,9 @@ function limpiarFormDevolucion() {
     document.getElementById('dev-sede').value = '';
     document.getElementById('dev-items').innerHTML     =
         '<p style="font-size:12px;color:#6b8aab">Selecciona primero una salida arriba.</p>';
+
+    limpiarFirmaPad('firma-dev-entrega');
+    limpiarFirmaPad('firma-dev-recibe');
 }
 
 // ══ MODAL DE CONFIRMACION ════════════════════════════════════
@@ -7687,7 +7921,10 @@ async function guardarTraslado(event) {
             observaciones,
 
         detalle:
-            detalle
+            detalle,
+
+        firma_entrega_base64:
+            obtenerFirmaBase64('firma-tras-entrega')
     };
 
     console.log(
@@ -7859,6 +8096,8 @@ function limpiarFormTraslado() {
     `;
 
     productosCacheTraslado = [];
+
+    limpiarFirmaPad('firma-tras-entrega');
 }
 
 // TRASLADOS ENTRE SEDES
@@ -8400,6 +8639,12 @@ async function verTraslado(id) {
         );
 }
 
+// Traslado que está esperando la firma de "recibe" en el modal
+// modal-recibir-traslado. Se guarda aquí porque ese modal no
+// conoce el id del traslado por sí mismo (se abre desde la
+// fila correspondiente en la tabla de traslados).
+let trasladoIdPendienteRecibir = null;
+
 async function recibirTraslado(id) {
 
     if (usuario.rol === 'consulta' || usuario.rol === 'porteria') {
@@ -8407,17 +8652,30 @@ async function recibirTraslado(id) {
         return;
     }
 
-    if (!await mostrarConfirm(
-        '¿Confirmar recepción de este traslado?',
-        '¿Recibir traslado?',
-        '📦',
-        'Confirmar'
-    )) {
+    // En vez de confirmar directamente, se abre un modal para
+    // capturar (opcionalmente) la firma de quien recibe en la
+    // sede destino antes de marcar el traslado como recibido.
+    trasladoIdPendienteRecibir = id;
+
+    abrirModal('modal-recibir-traslado');
+}
+
+async function confirmarRecibirTraslado() {
+
+    const id = trasladoIdPendienteRecibir;
+
+    if (!id) {
+        cerrarModal('modal-recibir-traslado');
         return;
     }
 
+    const firmaRecibe = obtenerFirmaBase64('firma-tras-recibe');
+
     const res = await apiFetch(`${API}/traslados/${id}/recibir`, {
-        method: 'PUT'
+        method: 'PUT',
+        body: JSON.stringify({
+            firma_recibe_base64: firmaRecibe
+        })
     });
 
     if (!res) return;
@@ -8428,6 +8686,8 @@ async function recibirTraslado(id) {
         alert(datos.error || 'No se pudo recibir el traslado.');
         return;
     }
+
+    cerrarModal('modal-recibir-traslado');
 
     mostrarNotificacion(
         'Traslado recibido correctamente.',

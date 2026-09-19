@@ -27,6 +27,7 @@ import os
 from io import BytesIO
 
 from database import get_connection
+from utils.firmas import imagen_firma
 
 
 pdf_traslados_bp = Blueprint(
@@ -134,6 +135,9 @@ def generar_pdf_traslado(id):
                     t.anulado_por,
                     t.fecha_anulacion,
                     t.motivo_anulacion,
+
+                    t.firma_entrega_base64,
+                    t.firma_recibe_base64,
 
                     so.nombre
                         AS sede_origen_nombre,
@@ -1059,42 +1063,95 @@ def generar_pdf_traslado(id):
 
     # ========================================================
     # FIRMAS
+    #
+    # Firma digital de quien despacha en la sede origen (al
+    # crear el traslado) y de quien recibe en la sede destino
+    # (al confirmar la recepción). Mientras el traslado esté
+    # PENDIENTE todavía no habrá firma de quien recibe — se deja
+    # el espacio en blanco en vez de fallar.
     # ========================================================
+
+    estilo_sin_firma = ParagraphStyle(
+        "sinFirma",
+        fontSize=7,
+        textColor=colors.HexColor("#9aabbd"),
+        alignment=TA_CENTER
+    )
+
+    ancho_firma = 6 * cm
+    alto_firma = 2 * cm
+
+    firma_entrega_img = (
+        imagen_firma(
+            traslado.get("firma_entrega_base64"),
+            ancho_firma,
+            alto_firma
+        )
+        or Paragraph("(sin firma)", estilo_sin_firma)
+    )
+
+    firma_recibe_img = (
+        imagen_firma(
+            traslado.get("firma_recibe_base64"),
+            ancho_firma,
+            alto_firma
+        )
+        or Paragraph(
+            (
+                "(pendiente de recibir)"
+                if traslado.get("estado") == "PENDIENTE"
+                else "(sin firma)"
+            ),
+            estilo_sin_firma
+        )
+    )
 
     firmas = Table(
 
-        [[
+        [
+            [
+                Paragraph(
+                    "Despachado por (origen):",
+                    estilo_label
+                ),
 
-            Paragraph(
-                "Entregado por:",
-                estilo_label
-            ),
+                Paragraph(
+                    "Recibido por (destino):",
+                    estilo_label
+                )
+            ],
 
-            Paragraph(
-                traslado.get(
-                    "creado_por_nombre"
-                ) or "",
-                estilo_valor
-            ),
+            [
+                firma_entrega_img,
+                firma_recibe_img
+            ],
 
-            Paragraph(
-                "Recibido por:",
-                estilo_label
-            ),
+            [
+                Paragraph(
+                    traslado.get(
+                        "creado_por_nombre"
+                    ) or "",
+                    estilo_valor
+                ),
 
-            Paragraph(
-                traslado.get(
-                    "recibido_por_nombre"
-                ) or "",
-                estilo_valor
-            )
-        ]],
+                Paragraph(
+                    traslado.get(
+                        "recibido_por_nombre"
+                    ) or "",
+                    estilo_valor
+                )
+            ]
+        ],
 
         colWidths=[
-            3 * cm,
-            6.5 * cm,
-            3 * cm,
-            5.5 * cm
+            9 * cm,
+            9 * cm
+        ],
+
+        rowHeights=[
+            0.7 * cm,
+            alto_firma + 0.3 * cm,
+            0.7 * cm
         ]
     )
 
@@ -1106,27 +1163,21 @@ def generar_pdf_traslado(id):
                 (0, 0),
                 (-1, -1),
                 0.5,
-                colors.HexColor(
-                    "#dce6f0"
-                )
+                colors.HexColor("#dce6f0")
             ),
 
             (
                 "BACKGROUND",
                 (0, 0),
-                (0, 0),
-                colors.HexColor(
-                    "#f7f9fc"
-                )
+                (-1, 0),
+                colors.HexColor("#f7f9fc")
             ),
 
             (
-                "BACKGROUND",
-                (2, 0),
-                (2, 0),
-                colors.HexColor(
-                    "#f7f9fc"
-                )
+                "ALIGN",
+                (0, 1),
+                (-1, 1),
+                "CENTER"
             ),
 
             (
@@ -1134,6 +1185,13 @@ def generar_pdf_traslado(id):
                 (0, 0),
                 (-1, -1),
                 8
+            ),
+
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
             )
         ])
     )

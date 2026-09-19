@@ -10,7 +10,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Almacen Occidente</title>
+    <title>Occidente — Almacen</title>
 
     <link
         rel="icon"
@@ -1709,6 +1709,71 @@
 
 
 <!-- ============================================================= -->
+<!-- ESTILOS: FIRMAS DIGITALES (canvas de firma)                    -->
+<!--                                                                 -->
+<!-- Se agregan aquí, inline, porque el feature de firmas no        -->
+<!-- modifica css/style.css. El bloque de estilos es idempotente:   -->
+<!-- solo se necesita una vez en toda la página.                    -->
+<!-- ============================================================= -->
+
+<style>
+
+    .firmas-captura {
+        margin-top: 14px;
+        padding-top: 4px;
+    }
+
+    .firmas-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 8px;
+    }
+
+    .firmas-grid.firmas-grid-1 {
+        grid-template-columns: 1fr;
+    }
+
+    .firma-pad-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .firma-pad-item label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #0d2137;
+    }
+
+    .firma-pad-canvas {
+        width: 100%;
+        height: 130px;
+        background: #fbfdff;
+        border: 1.5px dashed #c8d8ea;
+        border-radius: 8px;
+        touch-action: none;
+        cursor: crosshair;
+    }
+
+    .btn-firma-limpiar {
+        align-self: flex-start;
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+    }
+
+    @media (max-width: 640px) {
+
+        .firmas-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+</style>
+
+
+
+<!-- ============================================================= -->
 <!-- MODAL: NUEVA ENTRADA -->
 <!-- ============================================================= -->
 
@@ -1918,6 +1983,58 @@
             >
                 + Agregar producto
             </button>
+
+
+
+            <div class="firmas-captura">
+
+                <div class="titulo-items">
+                    Firmas
+                </div>
+
+                <div class="firmas-grid">
+
+                    <div class="firma-pad-item">
+                        <label>
+                            Firma de quien entrega
+                        </label>
+                        <canvas
+                            id="firma-ent-entrega"
+                            class="firma-pad-canvas"
+                        ></canvas>
+                        <button
+                            type="button"
+                            class="btn-secundario btn-firma-limpiar"
+                            onclick="limpiarFirmaPad('firma-ent-entrega')"
+                        >
+                            Limpiar firma
+                        </button>
+                    </div>
+
+                    <div class="firma-pad-item">
+                        <label>
+                            Firma de quien recibe
+                        </label>
+                        <canvas
+                            id="firma-ent-recibe"
+                            class="firma-pad-canvas"
+                        ></canvas>
+                        <button
+                            type="button"
+                            class="btn-secundario btn-firma-limpiar"
+                            onclick="limpiarFirmaPad('firma-ent-recibe')"
+                        >
+                            Limpiar firma
+                        </button>
+                    </div>
+
+                </div>
+
+                <small style="color:#6b8aab;font-size:12px">
+                    La firma es opcional. Se puede firmar con el mouse, el dedo (pantalla táctil) o una tablet de firma.
+                </small>
+
+            </div>
 
 
 
@@ -2203,6 +2320,58 @@
 
 
 
+            <div class="firmas-captura">
+
+                <div class="titulo-items">
+                    Firmas
+                </div>
+
+                <div class="firmas-grid">
+
+                    <div class="firma-pad-item">
+                        <label>
+                            Firma de quien entrega
+                        </label>
+                        <canvas
+                            id="firma-sal-entrega"
+                            class="firma-pad-canvas"
+                        ></canvas>
+                        <button
+                            type="button"
+                            class="btn-secundario btn-firma-limpiar"
+                            onclick="limpiarFirmaPad('firma-sal-entrega')"
+                        >
+                            Limpiar firma
+                        </button>
+                    </div>
+
+                    <div class="firma-pad-item">
+                        <label>
+                            Firma de quien recibe
+                        </label>
+                        <canvas
+                            id="firma-sal-recibe"
+                            class="firma-pad-canvas"
+                        ></canvas>
+                        <button
+                            type="button"
+                            class="btn-secundario btn-firma-limpiar"
+                            onclick="limpiarFirmaPad('firma-sal-recibe')"
+                        >
+                            Limpiar firma
+                        </button>
+                    </div>
+
+                </div>
+
+                <small style="color:#6b8aab;font-size:12px">
+                    La firma es opcional. Se puede firmar con el mouse, el dedo (pantalla táctil) o una tablet de firma.
+                </small>
+
+            </div>
+
+
+
             <div class="modal-footer">
 
 
@@ -2383,6 +2552,42 @@
 
 
 
+            <div class="firmas-captura">
+
+                <div class="titulo-items">
+                    Firma
+                </div>
+
+                <div class="firmas-grid firmas-grid-1">
+
+                    <div class="firma-pad-item">
+                        <label>
+                            Firma de quien despacha (sede origen)
+                        </label>
+                        <canvas
+                            id="firma-tras-entrega"
+                            class="firma-pad-canvas"
+                        ></canvas>
+                        <button
+                            type="button"
+                            class="btn-secundario btn-firma-limpiar"
+                            onclick="limpiarFirmaPad('firma-tras-entrega')"
+                        >
+                            Limpiar firma
+                        </button>
+                    </div>
+
+                </div>
+
+                <small style="color:#6b8aab;font-size:12px">
+                    La firma de quien recibe se pedirá más adelante, cuando el traslado se confirme como recibido en la sede destino.
+                    Esta firma es opcional. Se puede firmar con el mouse, el dedo (pantalla táctil) o una tablet de firma.
+                </small>
+
+            </div>
+
+
+
             <div class="modal-footer">
 
 
@@ -2407,6 +2612,103 @@
 
 
         </form>
+
+
+    </div>
+
+
+</div>
+
+
+
+<!-- ============================================================= -->
+<!-- MODAL: RECIBIR TRASLADO (firma de quien recibe en destino) -->
+<!-- ============================================================= -->
+
+<div
+    id="modal-recibir-traslado"
+    class="modal-fondo"
+>
+
+
+    <div
+        class="modal"
+        style="
+            width:480px;
+            max-width:96vw;
+        "
+    >
+
+
+        <div class="modal-header">
+
+            <h3>
+                Confirmar recepción del traslado
+            </h3>
+
+            <button
+                onclick="cerrarModal('modal-recibir-traslado')"
+            >
+                ✕
+            </button>
+
+        </div>
+
+
+        <div style="padding:4px 2px 0 2px;">
+
+            <p style="color:#3d5877;font-size:13px;margin:0 0 14px 0;">
+                Confirma que la mercancía llegó a la sede destino.
+                La firma de quien recibe es opcional.
+            </p>
+
+            <div class="firmas-captura" style="margin-top:0;">
+
+                <div class="firmas-grid firmas-grid-1">
+
+                    <div class="firma-pad-item">
+                        <label>
+                            Firma de quien recibe (sede destino)
+                        </label>
+                        <canvas
+                            id="firma-tras-recibe"
+                            class="firma-pad-canvas"
+                        ></canvas>
+                        <button
+                            type="button"
+                            class="btn-secundario btn-firma-limpiar"
+                            onclick="limpiarFirmaPad('firma-tras-recibe')"
+                        >
+                            Limpiar firma
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="modal-footer">
+
+            <button
+                type="button"
+                class="btn-secundario"
+                onclick="cerrarModal('modal-recibir-traslado')"
+            >
+                Cancelar
+            </button>
+
+            <button
+                type="button"
+                class="btn-primario"
+                onclick="confirmarRecibirTraslado()"
+            >
+                Confirmar recepción
+            </button>
+
+        </div>
 
 
     </div>
@@ -3264,6 +3566,58 @@
 
 
 
+            <div class="firmas-captura">
+
+                <div class="titulo-items">
+                    Firmas
+                </div>
+
+                <div class="firmas-grid">
+
+                    <div class="firma-pad-item">
+                        <label>
+                            Firma de quien entrega (cliente)
+                        </label>
+                        <canvas
+                            id="firma-dev-entrega"
+                            class="firma-pad-canvas"
+                        ></canvas>
+                        <button
+                            type="button"
+                            class="btn-secundario btn-firma-limpiar"
+                            onclick="limpiarFirmaPad('firma-dev-entrega')"
+                        >
+                            Limpiar firma
+                        </button>
+                    </div>
+
+                    <div class="firma-pad-item">
+                        <label>
+                            Firma de quien recibe (almacenista)
+                        </label>
+                        <canvas
+                            id="firma-dev-recibe"
+                            class="firma-pad-canvas"
+                        ></canvas>
+                        <button
+                            type="button"
+                            class="btn-secundario btn-firma-limpiar"
+                            onclick="limpiarFirmaPad('firma-dev-recibe')"
+                        >
+                            Limpiar firma
+                        </button>
+                    </div>
+
+                </div>
+
+                <small style="color:#6b8aab;font-size:12px">
+                    La firma es opcional. Se puede firmar con el mouse, el dedo (pantalla táctil) o una tablet de firma.
+                </small>
+
+            </div>
+
+
+
             <div class="modal-footer">
 
 
@@ -3775,7 +4129,7 @@
 
 
 
-<script src="js/app.js?v=27"></script>
+<script src="js/app.js?v=28"></script>
 
 
 </body>

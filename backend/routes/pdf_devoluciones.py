@@ -27,6 +27,7 @@ import os
 from io import BytesIO
 
 from database import get_connection
+from utils.firmas import imagen_firma
 
 
 # ============================================================
@@ -82,6 +83,9 @@ def generar_pdf_devolucion(id):
 
                     dv.anulada_por,
                     dv.motivo_anulacion,
+
+                    dv.firma_entrega_base64,
+                    dv.firma_recibe_base64,
 
                     sd.nombre AS sede_nombre,
                     sd.ciudad AS sede_ciudad,
@@ -1245,49 +1249,93 @@ def generar_pdf_devolucion(id):
 
     # ========================================================
     # FIRMAS
+    #
+    # Firma digital de quien entrega (cliente que devuelve) y
+    # de quien recibe (almacenista), capturadas al momento de
+    # registrar la devolución. Si alguna firma no fue
+    # capturada, se deja el espacio en blanco en vez de fallar.
     # ========================================================
+
+    estilo_sin_firma = ParagraphStyle(
+        "sinFirma",
+        fontSize=7,
+        textColor=colors.HexColor("#9aabbd"),
+        alignment=TA_CENTER
+    )
+
+    ancho_firma = 6 * cm
+    alto_firma = 2 * cm
+
+    firma_entrega_img = (
+        imagen_firma(
+            devolucion.get("firma_entrega_base64"),
+            ancho_firma,
+            alto_firma
+        )
+        or Paragraph("(sin firma)", estilo_sin_firma)
+    )
+
+    firma_recibe_img = (
+        imagen_firma(
+            devolucion.get("firma_recibe_base64"),
+            ancho_firma,
+            alto_firma
+        )
+        or Paragraph("(sin firma)", estilo_sin_firma)
+    )
 
     firmas = Table(
 
-        [[
+        [
+            [
+                Paragraph(
+                    "Entregado por:",
+                    estilo_label
+                ),
 
-            Paragraph(
-                "Entregado por:",
-                estilo_label
-            ),
+                Paragraph(
+                    "Recibido por:",
+                    estilo_label
+                )
+            ],
 
+            [
+                firma_entrega_img,
+                firma_recibe_img
+            ],
 
-            Paragraph(
-                "",
-                estilo_valor
-            ),
+            [
+                Paragraph(
+                    str(
+                        devolucion.get(
+                            "cliente_nombre"
+                        )
+                        or ""
+                    ),
+                    estilo_valor
+                ),
 
-
-            Paragraph(
-                "Recibido por:",
-                estilo_label
-            ),
-
-
-            Paragraph(
-
-                devolucion.get(
-                    "usuario_nombre"
-                ) or "",
-
-                estilo_valor
-            )
-        ]],
+                Paragraph(
+                    str(
+                        devolucion.get(
+                            "usuario_nombre"
+                        )
+                        or ""
+                    ),
+                    estilo_valor
+                )
+            ]
+        ],
 
         colWidths=[
+            9 * cm,
+            9 * cm
+        ],
 
-            3 * cm,
-
-            6.5 * cm,
-
-            3 * cm,
-
-            5.5 * cm
+        rowHeights=[
+            0.7 * cm,
+            alto_firma + 0.3 * cm,
+            0.7 * cm
         ]
     )
 
@@ -1298,64 +1346,38 @@ def generar_pdf_devolucion(id):
 
             (
                 "GRID",
-
                 (0, 0),
-
                 (-1, -1),
-
                 0.5,
-
-                colors.HexColor(
-                    "#dce6f0"
-                )
+                colors.HexColor("#dce6f0")
             ),
-
 
             (
                 "BACKGROUND",
-
                 (0, 0),
-
-                (0, 0),
-
-                colors.HexColor(
-                    "#f7f9fc"
-                )
+                (-1, 0),
+                colors.HexColor("#f7f9fc")
             ),
-
 
             (
-                "BACKGROUND",
-
-                (2, 0),
-
-                (2, 0),
-
-                colors.HexColor(
-                    "#f7f9fc"
-                )
+                "ALIGN",
+                (0, 1),
+                (-1, 1),
+                "CENTER"
             ),
-
 
             (
                 "PADDING",
-
                 (0, 0),
-
                 (-1, -1),
-
                 8
             ),
 
-
             (
-                "MINROWHEIGHT",
-
+                "VALIGN",
                 (0, 0),
-
                 (-1, -1),
-
-                1.5 * cm
+                "MIDDLE"
             )
         ])
     )

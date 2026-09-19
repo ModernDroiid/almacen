@@ -247,6 +247,9 @@ def obtener_devolucion(id):
                     dv.fecha_anulacion,
                     dv.motivo_anulacion,
 
+                    dv.firma_entrega_base64,
+                    dv.firma_recibe_base64,
+
                     se.nombre AS sede_nombre,
                     se.ciudad,
 
@@ -821,6 +824,20 @@ def crear_devolucion():
         ""
     ).strip()
 
+    # ========================================================
+    # FIRMAS
+    #
+    # Firma digital de quien entrega (cliente que devuelve) y
+    # de quien recibe (almacenista), capturadas al momento de
+    # registrar la devolución. Se guardan como imagen PNG en
+    # base64. Son opcionales: si el dispositivo de firma no
+    # está disponible, la devolución se registra igual sin
+    # firma.
+    # ========================================================
+
+    firma_entrega = datos.get("firma_entrega_base64") or None
+    firma_recibe = datos.get("firma_recibe_base64") or None
+
     conn = get_connection()
 
     try:
@@ -922,7 +939,9 @@ def crear_devolucion():
                     motivo,
                     observaciones,
                     usuario_id,
-                    estado
+                    estado,
+                    firma_entrega_base64,
+                    firma_recibe_base64
                 )
                 VALUES (
                     %s,
@@ -931,7 +950,9 @@ def crear_devolucion():
                     %s,
                     %s,
                     %s,
-                    'ACTIVA'
+                    'ACTIVA',
+                    %s,
+                    %s
                 )
                 RETURNING id
             """, (
@@ -940,7 +961,9 @@ def crear_devolucion():
                 salida_id,
                 motivo,
                 observaciones,
-                usuario_id
+                usuario_id,
+                firma_entrega,
+                firma_recibe
             ))
 
             devolucion_id = cursor.fetchone()["id"]
@@ -1296,6 +1319,7 @@ def crear_devolucion():
                 "salida_id": salida_id,
                 "motivo": motivo,
                 "observaciones": observaciones,
+                "firmada": bool(firma_entrega or firma_recibe),
                 "detalle": detalle
             }
         )

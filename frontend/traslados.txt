@@ -1,0 +1,443 @@
+﻿
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:120:    if (nombre === 'salidas')       cargarSalidas();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:121:    if (nombre === 'devoluciones')  cargarDevoluciones();
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:122:    if (nombre === 'traslados')     cargarTraslados();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:123:    if (nombre === 'consolidado') cargarPuntos();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:124:    if (nombre === 'modelos')       cargarModelos();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:187:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:188:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:189:    if (id === 'modal-traslado') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:190:        const ahora = new Date();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:191:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:203:            `TR-${fecha}-${hora}`;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:204:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:205:        cargarSedesTraslado();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:206:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:207:    
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4831:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4832:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4833:// CREAR TRASLADOS ENTRE SEDES
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4834:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4835:let productosCacheTraslado = [];
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4836:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4837:async function cargarSedesTraslado() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4838:    const res = await apiFetch(`${API}/auth/sedes`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4839:    if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4902:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4903:            // Cargar productos automáticamente de su sede
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4904:            cargarProductosTraslado();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4905:        }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4906:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4908:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4909:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4910:async function cargarProductosTraslado() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4911:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4912:    const sedeOrigen = parseInt(
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4917:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4918:    if (!sedeOrigen) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4919:        productosCacheTraslado = [];
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4920:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4921:        contenedor.innerHTML = `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4934:    if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4935:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4936:    productosCacheTraslado = await res.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4937:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4938:    contenedor.innerHTML = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4939:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4940:    if (productosCacheTraslado.length === 0) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4941:        contenedor.innerHTML = `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4942:            <p style="font-size:12px;color:#6b8aab">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4947:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4948:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4949:    agregarItemTraslado();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4950:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4951:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4952:async function agregarItemTraslado() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4953:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4954:    const contenedor =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4955:        document.getElementById('tras-items');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4956:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4957:    if (!productosCacheTraslado.length) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4958:        alert('Primero selecciona una sede de origen.');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4959:        return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4961:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4962:    const opciones =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4963:        productosCacheTraslado
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4964:            .map(p => `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4965:                <option
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4996:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4997:    item.className =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4998:        'item-traslado';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4999:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5000:    item.style.cssText = `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5087:            <button
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5088:                type="button"
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5089:                class="btn-quitar-traslado"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5090:                style="
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5091:                    background:#fdecea;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5130:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5131:    item.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5132:        '.btn-quitar-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5133:    ).addEventListener(
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5134:        'click',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5198:        const inputs =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5199:            listaEquipos.querySelectorAll(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5200:                '.input-serial-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5201:            );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5202:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5234:        const inputSerial =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5235:            fila.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5236:                '.input-serial-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5237:            );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5238:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5239:        const inputEquipoId =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5240:            fila.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5241:                '.select-equipo-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5242:            );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5243:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5244:        const inputMarca =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5245:            fila.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5246:                '.input-marca-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5247:            );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5248:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5249:        const inputModelo =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5250:            fila.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5251:                '.input-modelo-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5252:            );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5253:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5334:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5335:        fila.className =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5336:            'fila-equipo-traslado';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5337:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5338:        fila.style.cssText = `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5345:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5346:        const idDatalist =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5347:            `lista-seriales-traslado-${Date.now()}-${indice}-${Math.random()
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5348:                .toString(36)
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5349:                .slice(2, 7)}`;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5384:            <input
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5385:                type="hidden"
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5386:                class="select-equipo-traslado"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5387:                value=""
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5388:            >
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5392:                <input
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5393:                    type="text"
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5394:                    class="input-serial-traslado"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5395:                    list="${idDatalist}"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5396:                    placeholder="Escribe o escanea el serial"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5417:            <input
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5418:                type="text"
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5419:                class="input-marca-traslado"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5420:                placeholder="Marca"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5421:                readonly
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5436:            <input
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5437:                type="text"
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5438:                class="input-modelo-traslado"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5439:                placeholder="Modelo"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5440:                readonly
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5457:        const inputSerial =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5458:            fila.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5459:                '.input-serial-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5460:            );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5461:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5512:                const inputEquipoId =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5513:                    fila.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5514:                        '.select-equipo-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5515:                    );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5516:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5519:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5520:                fila.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5521:                    '.input-marca-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5522:                ).value =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5523:                    equipo.marca_nombre || '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5524:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5525:                fila.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5526:                    '.input-modelo-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5527:                ).value =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5528:                    equipo.modelo_nombre || '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5578:            Array.from(
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5579:                listaEquipos.querySelectorAll(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5580:                    '.select-equipo-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5581:                )
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5582:            )
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5595:        const cantidadActual =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5596:            listaEquipos.querySelectorAll(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5597:                '.fila-equipo-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5598:            ).length;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5599:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5631:                const fila =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5632:                    listaEquipos.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5633:                        `.fila-equipo-traslado:nth-child(${i})`
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5634:                    );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5635:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5848:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5849:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5850:async function guardarTraslado(event) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5851:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5852:    event.preventDefault();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5853:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5854:    // ============================================================
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5855:    // DATOS GENERALES DEL TRASLADO
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5856:    // ============================================================
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5857:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5919:    if (!contenedorItems) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5920:        alert(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5921:            'No se encontró el contenedor de productos del traslado.'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5922:        );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5923:        return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5926:    const filas =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5927:        contenedorItems.querySelectorAll(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5928:            ':scope > .item-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5929:        );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5930:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6017:            const filasEquipos =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6018:                fila.querySelectorAll(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6019:                    '.fila-equipo-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6020:                );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6021:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6051:                const inputEquipoId =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6052:                    filaEquipo.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6053:                        '.select-equipo-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6054:                    );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6055:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6056:                const inputSerial =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6057:                    filaEquipo.querySelector(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6058:                        '.input-serial-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6059:                    );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6060:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6267:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6268:    console.log(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6269:        'DATOS ENVIADOS TRASLADO:',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6270:        datos
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6271:    );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6277:    const res =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6278:        await apiFetch(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6279:            `${API}/traslados/`,
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6280:            {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6281:                method: 'POST',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6314:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6315:        alert(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6316:            'Error al crear traslado:\n\n' +
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6317:            (
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6318:                resultado.error ||
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6329:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6330:    await mostrarConfirm(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6331:        `El traslado ${
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6332:            resultado.numero_documento ||
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6333:            numero
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6334:        } fue creado correctamente.`,
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6335:        'Traslado creado',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6336:        '✓',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6337:        'Aceptar'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6339:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6340:    cerrarModal(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6341:        'modal-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6342:    );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6343:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6344:    limpiarFormTraslado();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6345:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6346:    await cargarTraslados();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6347:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6348:    if (
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6354:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6355:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6356:function limpiarFormTraslado() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6357:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6358:    document.getElementById('tras-numero').value = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6370:    `;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6371:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6372:    productosCacheTraslado = [];
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6373:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6374:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6375:// TRASLADOS ENTRE SEDES
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6376:let trasladosData = [];
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6377:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6378:async function cargarTraslados() {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6379:    const res = await apiFetch(`${API}/traslados/`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6380:    if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6381:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6382:    trasladosData = await res.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6383:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6384:    renderizarTraslados(trasladosData);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6385:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6386:    const subtitulo = document.getElementById('subtitulo-traslados');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6387:    if (subtitulo) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6388:        subtitulo.textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6389:            `${trasladosData.length} traslado${trasladosData.length !== 1 ? 's' : ''} registrado${trasladosData.length !== 1 ? 's' : ''}`;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6390:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6391:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6392:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6393:function renderizarTraslados(lista) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6394:    const tbody = document.getElementById('tabla-traslados');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6395:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6396:    if (!tbody) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6402:            <tr>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6403:                <td colspan="7" style="text-align:center;padding:30px;color:#6b8aab">
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6404:                    No hay traslados registrados.
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6405:                </td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6406:            </tr>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6458:                        <button
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6459:                            class="btn-accion"
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6460:                            onclick="verTraslado(${t.id})">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6461:                            👁️ Ver
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6462:                        </button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6464:                        <button
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6465:                            class="btn-accion"
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6466:                            onclick="verPDFTraslado(${t.id})">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6467:                            📄 PDF
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6468:                        </button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6473:                                <button
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6474:                                    class="btn-accion"
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6475:                                    onclick="recibirTraslado(${t.id})">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6476:                                    ✅ Recibir
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6477:                                </button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6486:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6487:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6488:function filtrarTraslados() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6489:    const texto = document
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6490:        .getElementById('buscar-traslados')
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6491:        .value
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6492:        .trim()
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6493:        .toLowerCase();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6494:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6495:    const filtrados = trasladosData.filter(t =>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6496:        String(t.numero_documento || '').toLowerCase().includes(texto) ||
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6497:        String(t.sede_origen_nombre || '').toLowerCase().includes(texto) ||
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6500:    );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6501:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6502:    renderizarTraslados(filtrados);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6503:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6504:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6505:async function verTraslado(id) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6506:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6507:    const res =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6508:        await apiFetch(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6509:            `${API}/traslados/${id}`
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6510:        );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6511:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6512:    if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6513:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6514:    const traslado =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6515:        await res.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6516:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6517:    console.log(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6518:        'Traslado recibido:',
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6519:        traslado
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6520:    );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6521:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6527:        'ver-tras-numero'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6528:    ).textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6529:        `Traslado ${traslado.numero_documento || '—'}`;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6530:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6531:    // ------------------------------------------------------------
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6536:        'ver-tras-origen'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6537:    ).textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6538:        traslado.sede_origen_nombre || '—';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6539:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6540:    document.getElementById(
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6541:        'ver-tras-origen-ciudad'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6542:    ).textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6543:        traslado.sede_origen_ciudad || '—';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6544:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6545:    // ------------------------------------------------------------
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6550:        'ver-tras-destino'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6551:    ).textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6552:        traslado.sede_destino_nombre || '—';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6553:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6554:    document.getElementById(
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6555:        'ver-tras-destino-ciudad'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6556:    ).textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6557:        traslado.sede_destino_ciudad || '—';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6558:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6559:    // ------------------------------------------------------------
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6564:        'ver-tras-estado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6565:    ).textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6566:        traslado.estado || '—';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6567:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6568:    // ------------------------------------------------------------
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6573:        'ver-tras-fecha'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6574:    ).textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6575:        traslado.fecha_creacion || '—';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6576:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6577:    // ------------------------------------------------------------
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6582:        'ver-tras-finalizacion'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6583:    ).textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6584:        traslado.fecha_recepcion ||
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6585:        'Pendiente';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6586:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6595:        'ver-tras-creado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6596:    ).textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6597:        traslado.creador_nombre || '—';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6598:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6599:    // ------------------------------------------------------------
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6607:        'ver-tras-recibido'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6608:    ).textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6609:        traslado.recibido_nombre || '—';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6610:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6611:    // ------------------------------------------------------------
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6616:        'ver-tras-observaciones'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6617:    ).textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6618:        traslado.observaciones ||
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6619:        'Sin observaciones';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6620:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6631:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6632:    if (
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6633:        !traslado.detalle ||
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6634:        traslado.detalle.length === 0
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6635:    ) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6636:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6652:    } else {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6653:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6654:        traslado.detalle.forEach(
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6655:            item => {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6656:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6748:    document
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6749:        .getElementById(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6750:            'modal-ver-traslado'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6751:        )
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6752:        .classList.add(
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6755:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6756:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6757:async function recibirTraslado(id) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6758:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6759:    if (usuario.rol !== 'admin') {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6760:        alert('No tienes permisos para recibir traslados.');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6761:        return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6762:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6763:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6764:    if (!await mostrarConfirm(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6765:        '¿Confirmar recepción de este traslado?',
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6766:        '¿Recibir traslado?',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6767:        '📦',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6768:        'Confirmar'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6771:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6772:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6773:    const res = await apiFetch(`${API}/traslados/${id}/recibir`, {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6774:        method: 'PUT'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6775:    });
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6780:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6781:    if (!res.ok) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6782:        alert(datos.error || 'No se pudo recibir el traslado.');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6783:        return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6784:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6785:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6786:    mostrarNotificacion(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6787:        'Traslado recibido correctamente.',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6788:        'exito'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6789:    );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6790:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6791:    await cargarTraslados();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6792:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6793:    if (typeof cargarProductos === 'function') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6796:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6797:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6798:function verPDFTraslado(id) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6799:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6800:    const token = localStorage.getItem('token');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6806:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6807:    window.open(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:6808:        `${API}/pdf/traslados/${id}?token=${encodeURIComponent(token)}`,
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6809:        '_blank'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:6810:    );
+
+

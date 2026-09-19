@@ -251,6 +251,9 @@ def obtener_devolucion(id):
                     se.ciudad,
 
                     s.numero_documento AS salida_numero,
+                    s.cliente_id,
+
+                    c.nombre AS cliente_nombre,
 
                     u.nombre AS usuario_nombre,
 
@@ -263,6 +266,9 @@ def obtener_devolucion(id):
 
                 LEFT JOIN salidas s
                     ON s.id = dv.salida_id
+
+                LEFT JOIN clientes c
+                    ON c.id = s.cliente_id
 
                 LEFT JOIN usuarios u
                     ON u.id = dv.usuario_id
@@ -408,37 +414,49 @@ def salidas_disponibles():
 
                 cursor.execute("""
                     SELECT
-                        id,
-                        numero_documento,
-                        destino,
-                        fecha,
-                        sede_id,
-                        estado
+                        s.id,
+                        s.numero_documento,
+                        s.destino,
+                        s.fecha,
+                        s.sede_id,
+                        s.estado,
+                        s.cliente_id,
 
-                    FROM salidas
+                        c.nombre AS cliente_nombre
 
-                    WHERE estado = 'ACTIVA'
+                    FROM salidas s
 
-                    ORDER BY fecha DESC
+                    LEFT JOIN clientes c
+                        ON c.id = s.cliente_id
+
+                    WHERE s.estado = 'ACTIVA'
+
+                    ORDER BY s.fecha DESC
                 """)
 
             else:
 
                 cursor.execute("""
                     SELECT
-                        id,
-                        numero_documento,
-                        destino,
-                        fecha,
-                        sede_id,
-                        estado
+                        s.id,
+                        s.numero_documento,
+                        s.destino,
+                        s.fecha,
+                        s.sede_id,
+                        s.estado,
+                        s.cliente_id,
 
-                    FROM salidas
+                        c.nombre AS cliente_nombre
 
-                    WHERE sede_id = %s
-                      AND estado = 'ACTIVA'
+                    FROM salidas s
 
-                    ORDER BY fecha DESC
+                    LEFT JOIN clientes c
+                        ON c.id = s.cliente_id
+
+                    WHERE s.sede_id = %s
+                      AND s.estado = 'ACTIVA'
+
+                    ORDER BY s.fecha DESC
                 """, (sede_id,))
 
             salidas = [

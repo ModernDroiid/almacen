@@ -259,14 +259,16 @@ def listar_productos():
 # SEDE:
 #   Solo puede ver equipos de su propia sede.
 #
-# SOLO MUESTRA:
+# MUESTRA:
 #   DISPONIBLE
+#   MANTENIMIENTO   (sigue físicamente en el almacén,
+#                    solo que no se puede volver a
+#                    despachar hasta que lo revisen)
 #
 # OCULTA:
-#   INSTALADO
-#   EN_TRANSITO
-#   MANTENIMIENTO
-#   DADO_DE_BAJA
+#   INSTALADO       (ya está fuera, en una obra/punto)
+#   EN_TRANSITO     (va camino a otra sede)
+#   DADO_DE_BAJA    (se retiró definitivamente)
 # ============================================================
 
 @productos_bp.route(
@@ -435,7 +437,7 @@ def listar_equipos_producto(id):
 
                     WHERE
                         e.producto_id = %s
-                        AND e.estado = 'DISPONIBLE'
+                        AND e.estado IN ('DISPONIBLE', 'MANTENIMIENTO')
 
                     ORDER BY
                         e.id ASC
@@ -445,7 +447,8 @@ def listar_equipos_producto(id):
 
             # ------------------------------------------------
             # SEDE:
-            # Solo equipos disponibles de su sede.
+            # Solo equipos disponibles (o en mantenimiento)
+            # de su sede.
             # ------------------------------------------------
 
             else:
@@ -483,7 +486,7 @@ def listar_equipos_producto(id):
                     WHERE
                         e.producto_id = %s
                         AND e.sede_id = %s
-                        AND e.estado = 'DISPONIBLE'
+                        AND e.estado IN ('DISPONIBLE', 'MANTENIMIENTO')
 
                     ORDER BY
                         e.id ASC

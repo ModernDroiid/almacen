@@ -77,7 +77,9 @@ def generar_pdf_salida(id):
 
                     u.nombre AS usuario_nombre,
 
-                    ua.nombre AS anulado_por_nombre
+                    ua.nombre AS anulado_por_nombre,
+
+                    c.nombre AS cliente_nombre
 
                 FROM salidas s
 
@@ -89,6 +91,9 @@ def generar_pdf_salida(id):
 
                 LEFT JOIN usuarios ua
                     ON ua.id = s.anulada_por
+
+                LEFT JOIN clientes c
+                    ON c.id = s.cliente_id
 
                 WHERE s.id = %s
             """, (
@@ -499,12 +504,17 @@ def generar_pdf_salida(id):
             ),
 
             Paragraph(
-                "Estado:",
+                "Cliente:",
                 estilo_label
             ),
 
             Paragraph(
-                estado,
+                str(
+                    salida.get(
+                        "cliente_nombre"
+                    )
+                    or "—"
+                ),
                 estilo_valor
             )
         ],

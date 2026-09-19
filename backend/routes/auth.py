@@ -554,3 +554,4 @@ def toggle_usuario(id):
         'mensaje': 'Estado actualizado',
         'activo': nuevo_estado
     })
+

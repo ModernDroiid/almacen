@@ -1,7 +1,7 @@
 ﻿const API = '/api';
 
 function sanitizar(texto) {
-    if (!texto) return '—';
+    if (!texto) return 'â€”';
     return String(texto)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -22,7 +22,7 @@ function mostrarNotificacion(mensaje, tipo = 'exito') {
     notificacion.className = `notificacion-app ${tipo}`;
 
     notificacion.innerHTML = `
-        <span class="notificacion-icono">✓</span>
+        <span class="notificacion-icono">âœ“</span>
         <span>${sanitizar(mensaje)}</span>
     `;
 
@@ -34,7 +34,7 @@ function mostrarNotificacion(mensaje, tipo = 'exito') {
         notificacion.classList.remove('visible');
     }, 3000);
 }
-// ══ SESION ══════════════════════════════════════════════════
+// â•â• SESION â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const token   = localStorage.getItem('token');
 const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
@@ -68,7 +68,7 @@ function cerrarSesion() {
     window.location.href = 'login.html';
 }
 
-// ══ SEDES (solo admin) ══════════════════════════════════════
+// â•â• SEDES (solo admin) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let sedeActual = usuario.rol === 'admin' ? null : (parseInt(localStorage.getItem('sedeActual')) || usuario.sede_id || 1);
 
@@ -129,9 +129,6 @@ function urlConSede(base) {
 function mostrarSeccion(nombre, btn) {
     if (nombre === 'usuarios' && usuario.rol !== 'admin') return;
 
-    // Portería solo tiene acceso a la sección de Salidas.
-    if (usuario.rol === 'porteria' && nombre !== 'salidas') return;
-
     document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
 
@@ -146,7 +143,6 @@ function mostrarSeccion(nombre, btn) {
     if (nombre === 'consolidado') cargarPuntos();
     if (nombre === 'modelos')       cargarModelos();
     if (nombre === 'marcas')        cargarMarcas();
-    if (nombre === 'clientes')      cargarClientesLista();
     if (nombre === 'usuarios')      cargarUsuarios();
 }
 
@@ -175,7 +171,6 @@ function abrirModal(id) {
         const hoy = new Date().toISOString().split('T')[0];
         document.getElementById('sal-fecha').value = hoy;
         generarNumeroSalida();
-        cargarClientesDatalist();
     }
 
     if (id === 'modal-salida' && usuario.rol === 'admin') {
@@ -253,11 +248,10 @@ function cerrarModal(id) {
     if (id === 'modal-salida')     limpiarFormSalida();
     if (id === 'modal-modelo')     limpiarFormModelo();
     if (id === 'modal-marca')      limpiarFormMarca();
-    if (id === 'modal-cliente')    limpiarFormCliente();
     if (id === 'modal-devolucion') limpiarFormDevolucion();
 }
 
-// ══ CATALOGOS (compartidos entre sedes) ══════════════════════
+// â•â• CATALOGOS (compartidos entre sedes) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let catalogoModelos = [];
 let catalogoMarcas  = [];
@@ -269,128 +263,6 @@ async function cargarCatalogos() {
     ]);
     catalogoModelos = await resModelos.json();
     catalogoMarcas  = await resMarcas.json();
-}
-
-// ================================================================
-// CLIENTES (Salidas)
-//
-// Se maneja igual que marcas/modelos: es un catálogo simple.
-// Cargamos los nombres ya existentes para sugerirlos con un
-// desplegable propio (mismo estilo que el buscador de productos).
-// Si el usuario escribe uno que no está en la lista, el backend
-// lo crea solo al guardar la salida — no hace falta un botón de
-// "+ Nuevo cliente".
-// ================================================================
-
-let clientesCache = [];
-
-async function cargarClientesDatalist() {
-    const res = await apiFetch(`${API}/catalogos/clientes`);
-
-    if (!res) return;
-
-    const clientes = await res.json();
-
-    if (!Array.isArray(clientes)) return;
-
-    clientesCache = clientes;
-
-    inicializarBuscadorCliente();
-}
-
-function inicializarBuscadorCliente() {
-
-    const buscador = document.getElementById('sal-cliente');
-    const resultados = document.getElementById('resultados-cliente');
-
-    if (!buscador || !resultados) return;
-
-    if (buscador.dataset.buscadorListo === '1') return;
-    buscador.dataset.buscadorListo = '1';
-
-    function cerrarResultados() {
-        resultados.style.display = 'none';
-        resultados.innerHTML = '';
-    }
-
-    function seleccionarCliente(cliente) {
-        buscador.value = cliente.nombre;
-        cerrarResultados();
-    }
-
-    function filtrar() {
-
-        const texto = normalizarBusqueda(buscador.value);
-
-        if (!texto) {
-            cerrarResultados();
-            return;
-        }
-
-        const coincidencias = clientesCache.filter(c =>
-            normalizarBusqueda(c.nombre).includes(texto)
-        );
-
-        resultados.innerHTML = '';
-
-        if (coincidencias.length === 0) {
-            resultados.innerHTML = `
-                <div style="
-                    padding:10px 12px;
-                    font-size:12px;
-                    color:#6b8aab;
-                ">
-                    Cliente nuevo — se creará al guardar la salida.
-                </div>
-            `;
-            resultados.style.display = 'block';
-            return;
-        }
-
-        coincidencias.slice(0, 50).forEach(c => {
-
-            const opcionDiv = document.createElement('div');
-
-            opcionDiv.style.cssText = `
-                padding:8px 10px;
-                cursor:pointer;
-                border-bottom:0.5px solid #edf2f7;
-                font-size:12.5px;
-                color:#0d2137;
-            `;
-
-            opcionDiv.innerHTML = sanitizar(c.nombre);
-
-            opcionDiv.onmouseenter = () => {
-                opcionDiv.style.background = '#f5f8fc';
-            };
-
-            opcionDiv.onmouseleave = () => {
-                opcionDiv.style.background = 'white';
-            };
-
-            // mousedown (no click) para que se dispare antes
-            // del "blur" del campo de texto
-            opcionDiv.onmousedown = (ev) => {
-                ev.preventDefault();
-                seleccionarCliente(c);
-            };
-
-            resultados.appendChild(opcionDiv);
-        });
-
-        resultados.style.display = 'block';
-    }
-
-    buscador.addEventListener('input', filtrar);
-
-    buscador.addEventListener('focus', () => {
-        filtrar();
-    });
-
-    buscador.addEventListener('blur', () => {
-        setTimeout(cerrarResultados, 150);
-    });
 }
 
 async function guardarMarcaEnCatalogo(nombre) {
@@ -428,7 +300,7 @@ async function guardarMarcaEnCatalogo(nombre) {
         throw new Error(resultado.error || 'No se pudo guardar la marca.');
     }
 
-    // Recargar catálogo
+    // Recargar catÃ¡logo
     await cargarCatalogos();
 
     existente = catalogoMarcas.find(m =>
@@ -484,7 +356,7 @@ async function guardarModeloEnCatalogo(nombre, marcaId) {
         throw new Error(resultado.error || 'No se pudo guardar el modelo.');
     }
 
-    // Recargar catálogo
+    // Recargar catÃ¡logo
     await cargarCatalogos();
 
     existente = catalogoModelos.find(m =>
@@ -502,7 +374,7 @@ function crearComboHTML(tipo, placeholder) {
     return `
         <div class="combo-wrap" data-tipo="${tipo}">
             <input type="text" class="combo-input" placeholder="${placeholder}" autocomplete="off">
-            <span class="combo-flecha">▼</span>
+            <span class="combo-flecha">â–¼</span>
             <div class="combo-lista"></div>
         </div>
     `;
@@ -552,7 +424,7 @@ function activarCombo(wrapEl) {
     });
 }
 
-// ══ MODELOS ══════════════════════════════════════════════════
+// â•â• MODELOS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function cargarModelos() {
     const res     = await apiFetch(`${API}/catalogos/modelos`);
@@ -577,8 +449,8 @@ async function cargarModelos() {
                 <td>
                     <div class="acciones">
                         ${usuario.rol !== 'consulta' ? `
-                            <button class="btn-accion" onclick="editarModelo(${m.id}, '${m.nombre}')">✏️ Editar</button>
-                            <button class="btn-accion danger" onclick="eliminarModelo(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+                            <button class="btn-accion" onclick="editarModelo(${m.id}, '${m.nombre}')">âœï¸ Editar</button>
+                            <button class="btn-accion danger" onclick="eliminarModelo(${m.id}, '${m.nombre}')">ðŸ—‘ï¸ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -609,7 +481,7 @@ async function guardarModelo(event) {
 }
 
 async function eliminarModelo(id, nombre) {
-    if (!await mostrarConfirm(`¿Eliminar el modelo "${nombre}"?`)) return;
+    if (!await mostrarConfirm(`Â¿Eliminar el modelo "${nombre}"?`)) return;
     await apiFetch(`${API}/catalogos/modelos/${id}`, { method: 'DELETE' });
     cargarModelos();
 }
@@ -620,7 +492,7 @@ function limpiarFormModelo() {
     document.getElementById('modal-modelo-titulo').textContent = 'Nuevo modelo';
 }
 
-// ══ MARCAS ════════════════════════════════════════════════════
+// â•â• MARCAS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function cargarMarcas() {
     const res    = await apiFetch(`${API}/catalogos/marcas`);
@@ -645,8 +517,8 @@ async function cargarMarcas() {
                 <td>
                     <div class="acciones">
                         ${usuario.rol !== 'consulta' ? `
-                            <button class="btn-accion" onclick="editarMarca(${m.id}, '${m.nombre}')">✏️ Editar</button>
-                            <button class="btn-accion danger" onclick="eliminarMarca(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+                            <button class="btn-accion" onclick="editarMarca(${m.id}, '${m.nombre}')">âœï¸ Editar</button>
+                            <button class="btn-accion danger" onclick="eliminarMarca(${m.id}, '${m.nombre}')">ðŸ—‘ï¸ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -677,7 +549,7 @@ async function guardarMarca(event) {
 }
 
 async function eliminarMarca(id, nombre) {
-    if (!await mostrarConfirm(`¿Eliminar la marca "${nombre}"?`)) return;
+    if (!await mostrarConfirm(`Â¿Eliminar la marca "${nombre}"?`)) return;
     await apiFetch(`${API}/catalogos/marcas/${id}`, { method: 'DELETE' });
     cargarMarcas();
 }
@@ -688,89 +560,7 @@ function limpiarFormMarca() {
     document.getElementById('modal-marca-titulo').textContent = 'Nueva marca';
 }
 
-// ══ CLIENTES (catálogo) ══════════════════════════════════════
-//
-// Sección dedicada para ver/editar/eliminar clientes. Admin,
-// almacenista y consulta pueden VER esta lista; solo admin
-// puede editar o eliminar (igual que marcas/modelos). La
-// creación "sobre la marcha" desde el modal de Salidas sigue
-// funcionando aparte (ver cargarClientesDatalist más abajo).
-
-async function cargarClientesLista() {
-    const res = await apiFetch(`${API}/catalogos/clientes`);
-    if (!res) return;
-    const clientes = await res.json();
-
-    document.getElementById('subtitulo-clientes').textContent =
-        `${clientes.length} clientes registrados`;
-
-    const tbody = document.getElementById('tabla-clientes');
-    tbody.innerHTML = '';
-
-    if (clientes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#6b8aab;padding:2rem">Sin clientes registrados</td></tr>';
-        return;
-    }
-
-    clientes.forEach(c => {
-        tbody.insertAdjacentHTML('beforeend', `
-            <tr>
-                <td><strong>${sanitizar(c.nombre)}</strong></td>
-                <td>
-                    <div class="acciones">
-                        ${usuario.rol === 'admin' ? `
-                            <button class="btn-accion" onclick="editarCliente(${c.id}, '${sanitizar(c.nombre)}')">✏️ Editar</button>
-                            <button class="btn-accion danger" onclick="eliminarCliente(${c.id}, '${sanitizar(c.nombre)}')">🗑️ Eliminar</button>
-                        ` : ''}
-                    </div>
-                </td>
-            </tr>
-        `);
-    });
-}
-
-function editarCliente(id, nombre) {
-    document.getElementById('modal-cliente-titulo').textContent = 'Editar cliente';
-    document.getElementById('cliente-id').value     = id;
-    document.getElementById('cliente-nombre').value = nombre;
-    abrirModal('modal-cliente');
-}
-
-async function guardarCliente(event) {
-    event.preventDefault();
-    const id     = document.getElementById('cliente-id').value;
-    const nombre = document.getElementById('cliente-nombre').value;
-    const url    = id ? `${API}/catalogos/clientes/${id}` : `${API}/catalogos/clientes`;
-    const metodo = id ? 'PUT' : 'POST';
-
-    const res = await apiFetch(url, {
-        method: metodo,
-        body: JSON.stringify({ nombre })
-    });
-    if (!res) return;
-    const resultado = await res.json();
-    if (!res.ok) { alert('Error: ' + resultado.error); return; }
-
-    cerrarModal('modal-cliente');
-    cargarClientesLista();
-}
-
-async function eliminarCliente(id, nombre) {
-    if (!await mostrarConfirm(`¿Eliminar el cliente "${nombre}"?`)) return;
-    const res = await apiFetch(`${API}/catalogos/clientes/${id}`, { method: 'DELETE' });
-    if (!res) return;
-    const resultado = await res.json();
-    if (!res.ok) { alert('Error: ' + resultado.error); return; }
-    cargarClientesLista();
-}
-
-function limpiarFormCliente() {
-    document.getElementById('cliente-id').value     = '';
-    document.getElementById('cliente-nombre').value = '';
-    document.getElementById('modal-cliente-titulo').textContent = 'Nuevo cliente';
-}
-
-// ══ PRODUCTOS/SERIALES (separados por sede) ════════════════════════════
+// â•â• PRODUCTOS/SERIALES (separados por sede) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function cargarProductos() {
 
@@ -782,10 +572,10 @@ async function cargarProductos() {
 
     const productos = await respuesta.json();
 
-    // Guardar productos para búsqueda y filtro
+    // Guardar productos para bÃºsqueda y filtro
     productosFiltrables = productos;
 
-    // Estadísticas
+    // EstadÃ­sticas
     const total = productos.length;
 
     const agotados =
@@ -884,14 +674,14 @@ function pintarProductos(productos) {
         }
 
 
-        // Botón para productos serializados
+        // BotÃ³n para productos serializados
         const botonEquipos =
             p.requiere_serial
                 ? `
                     <button
                         class="btn-accion"
                         onclick="verEquiposProducto(${p.id})">
-                        👁️ Ver equipos
+                        ðŸ‘ï¸ Ver equipos
                     </button>
                   `
                 : '';
@@ -912,7 +702,7 @@ function pintarProductos(productos) {
                             font-weight:600
                         "
                     >
-                        ${p.codigo || '—'}
+                        ${p.codigo || 'Ã¢â‚¬â€'}
                     </span>
                 </td>
 
@@ -934,7 +724,7 @@ function pintarProductos(productos) {
                         "
                     >
                         ${sanitizar(
-                            p.sede_nombre || '—'
+                            p.sede_nombre || 'Ã¢â‚¬â€'
                         )}
                     </span>
                 </td>
@@ -969,7 +759,7 @@ function pintarProductos(productos) {
                                         class="btn-accion"
                                         onclick="editarProducto(${p.id})"
                                     >
-                                        ✏️ Editar
+                                        âœï¸ Editar
                                     </button>
 
                                     <button
@@ -984,7 +774,7 @@ function pintarProductos(productos) {
                                             )}'
                                         )"
                                     >
-                                        🗑️ Eliminar
+                                        ðŸ—‘ï¸ Eliminar
                                     </button>
                                   `
                                 : ''
@@ -999,59 +789,25 @@ function pintarProductos(productos) {
     });
 }
 
-// Cuando el producto es serializado, el "Stock inicial" no se
-// pone aquí (cada unidad necesita su propio serial), sino con
-// una Entrada. Este ajuste visual desactiva y limpia ESE campo
-// nada más (el de "Stock mínimo" no se toca, sigue siendo
-// editable siempre — es solo el umbral de alerta, no depende de
-// si el producto es serializado).
-function actualizarCampoStockProducto() {
-    const requiereSerial = document.getElementById('prod-requiere-serial').checked;
-    const inputStockInicial = document.getElementById('prod-stock-inicial');
-    const nota = document.getElementById('nota-stock-serializado');
-
-    inputStockInicial.disabled = requiereSerial;
-    nota.style.display = requiereSerial ? 'block' : 'none';
-
-    if (requiereSerial) {
-        inputStockInicial.value = '0';
-    }
-}
-
 async function guardarProducto(event) {
     event.preventDefault();
     const id = document.getElementById('prod-id').value;
-
+    
     const sede_id = parseInt(document.getElementById('prod-sede').value) || sedeActual;
-
+    
     if (usuario.rol === 'admin' && !sede_id) {
         alert('Selecciona una sede para el producto');
         return;
     }
 
-    const requiereSerial = document.getElementById('prod-requiere-serial').checked;
-
-    // "Stock inicial" (cantidad con la que nace el producto) y
-    // "Stock mínimo" (umbral para la alerta de "Stock bajo") son
-    // dos cosas distintas en la base de datos, así que van en
-    // campos separados. El backend solo usa "stock" al CREAR
-    // (POST); al editar (PUT) lo ignora, así que no importa qué
-    // se mande ahí en ese caso.
-    const stockInicial = requiereSerial
-        ? 0
-        : parseInt(document.getElementById('prod-stock-inicial').value) || 0;
-
-    const stockMinimo = parseInt(document.getElementById('prod-stock-minimo').value) || 0;
-
     const datos = {
-        codigo:          document.getElementById('prod-codigo').value,
-        nombre:          document.getElementById('prod-nombre').value,
-        descripcion:     document.getElementById('prod-descripcion').value,
-        unidad:          document.getElementById('prod-unidad').value,
-        stock:           stockInicial,
-        stock_minimo:    stockMinimo,
-        sede_id:         sede_id,
-        requiere_serial: requiereSerial,
+        codigo:       document.getElementById('prod-codigo').value,
+        nombre:       document.getElementById('prod-nombre').value,
+        descripcion:  document.getElementById('prod-descripcion').value,
+        unidad:       document.getElementById('prod-unidad').value,
+        stock:        parseInt(document.getElementById('prod-stock-minimo').value) || 0,
+        stock_minimo: parseInt(document.getElementById('prod-stock-minimo').value) || 0,
+        sede_id:      sede_id,
     };
 
     const url    = id ? `${API}/productos/${id}` : urlConSede(`${API}/productos/`);
@@ -1089,22 +845,6 @@ async function editarProducto(id) {
     document.getElementById('prod-descripcion').value  = p.descripcion || '';
     document.getElementById('prod-unidad').value       = p.unidad;
     document.getElementById('prod-stock-minimo').value = p.stock_minimo;
-
-    // El "Stock inicial" solo tiene sentido al CREAR (el backend
-    // lo ignora al editar), así que se esconde por completo aquí
-    // para no dar a entender que cambiarlo hace algo.
-    document.getElementById('campo-stock-inicial-producto').style.display = 'none';
-
-    // El "requiere serial" de un producto ya creado no se deja
-    // cambiar desde aquí: si ya tiene stock o equipos registrados
-    // de una forma, cambiarlo a mitad de camino puede dejar datos
-    // inconsistentes. Solo se muestra cómo quedó al crearlo.
-    const chkSerial = document.getElementById('prod-requiere-serial');
-    chkSerial.checked  = !!p.requiere_serial;
-    chkSerial.disabled = true;
-
-    document.getElementById('nota-stock-serializado').style.display = 'none';
-
     abrirModal('modal-producto');
 }
 
@@ -1112,7 +852,7 @@ async function eliminarProducto(id, nombre) {
 
     // Confirmar antes de eliminar
     if (!await mostrarConfirm(
-        `¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`
+        `Â¿Eliminar "${nombre}"? Esta acciÃ³n no se puede deshacer.`
     )) {
         return;
     }
@@ -1133,7 +873,7 @@ async function eliminarProducto(id, nombre) {
         const datos = await respuesta.json();
 
         // ------------------------------------------------
-        // EL SERVIDOR RECHAZÓ EL BORRADO
+        // EL SERVIDOR RECHAZÃ“ EL BORRADO
         // ------------------------------------------------
 
         if (!respuesta.ok) {
@@ -1150,19 +890,19 @@ async function eliminarProducto(id, nombre) {
                     datos.detalle.devoluciones || 0;
 
                 await mostrarConfirm(
-                    `⚠️ No se puede eliminar "${nombre}".\n\n` +
-                    `Este producto tiene movimientos históricos asociados.\n\n` +
-                    `📥 Entradas: ${entradas}\n` +
-                    `📤 Salidas: ${salidas}\n` +
-                    `↩️ Devoluciones: ${devoluciones}\n\n` +
-                    `El historial del almacén debe conservarse.`
+                    `âš ï¸ No se puede eliminar "${nombre}".\n\n` +
+                    `Este producto tiene movimientos histÃ³ricos asociados.\n\n` +
+                    `ðŸ“¥ Entradas: ${entradas}\n` +
+                    `ðŸ“¤ Salidas: ${salidas}\n` +
+                    `â†©ï¸ Devoluciones: ${devoluciones}\n\n` +
+                    `El historial del almacÃ©n debe conservarse.`
                 );
 
             } else {
 
                 await mostrarConfirm(
-                    `❌ No se pudo eliminar "${nombre}".\n\n` +
-                    `${datos.error || 'El servidor rechazó la eliminación.'}`
+                    `âŒ No se pudo eliminar "${nombre}".\n\n` +
+                    `${datos.error || 'El servidor rechazÃ³ la eliminaciÃ³n.'}`
                 );
             }
 
@@ -1170,11 +910,11 @@ async function eliminarProducto(id, nombre) {
         }
 
         // ------------------------------------------------
-        // ELIMINACIÓN CORRECTA
+        // ELIMINACIÃ“N CORRECTA
         // ------------------------------------------------
 
         await mostrarConfirm(
-            `✅ Producto eliminado correctamente.\n\n` +
+            `âœ… Producto eliminado correctamente.\n\n` +
             `"${nombre}" ya no aparece en el inventario.`
         );
 
@@ -1189,34 +929,23 @@ async function eliminarProducto(id, nombre) {
         );
 
         await mostrarConfirm(
-            `❌ Ocurrió un error al intentar eliminar "${nombre}".`
+            `âŒ OcurriÃ³ un error al intentar eliminar "${nombre}".`
         );
     }
 }
 
 function limpiarFormProducto() {
-    document.getElementById('prod-id').value            = '';
-    document.getElementById('prod-codigo').value        = '';
-    document.getElementById('prod-nombre').value         = '';
-    document.getElementById('prod-descripcion').value   = '';
-    document.getElementById('prod-unidad').value         = 'UND';
-    document.getElementById('prod-stock-inicial').value = '0';
-    document.getElementById('prod-stock-minimo').value  = '0';
+    document.getElementById('prod-id').value           = '';
+    document.getElementById('prod-codigo').value       = '';
+    document.getElementById('prod-nombre').value       = '';
+    document.getElementById('prod-descripcion').value  = '';
+    document.getElementById('prod-unidad').value       = 'UND';
+    document.getElementById('prod-stock-minimo').value = '0';
     document.getElementById('modal-producto-titulo').textContent = 'Nuevo producto';
     document.getElementById('prod-sede').value = '';
-
-    // El campo de "Stock inicial" solo se esconde al EDITAR
-    // (ver editarProducto); al abrir para un producto nuevo
-    // siempre debe volver a verse.
-    document.getElementById('campo-stock-inicial-producto').style.display = '';
-
-    const chkSerial = document.getElementById('prod-requiere-serial');
-    chkSerial.checked  = false;
-    chkSerial.disabled = false;
-    actualizarCampoStockProducto();
 }
 
-// ══ ENTRADAS ════════════════════════════════════════════════
+// â•â• ENTRADAS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let productosCache = [];
 
@@ -1265,7 +994,7 @@ async function cargarEntradas() {
 
     if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
         const sel = document.getElementById('filtro-sede-entradas');
-        const valorActual = sel.value; // ✅ guardamos el valor antes de recargar
+        const valorActual = sel.value; // âœ… guardamos el valor antes de recargar
 
         const resSedes = await apiFetch(`${API}/auth/sedes`);
         if (resSedes) {
@@ -1275,12 +1004,12 @@ async function cargarEntradas() {
                 `<option value="${s.id}">${s.nombre}</option>`
             ));
             sel.style.display = 'block';
-            sel.value = valorActual; // ✅ restauramos el valor después
+            sel.value = valorActual; // âœ… restauramos el valor despuÃ©s
         }
     }
 
     renderizarEntradas(entradasCache);
-    filtrarEntradas(); // ✅ aplicamos el filtro con la sede restaurada
+    filtrarEntradas(); // âœ… aplicamos el filtro con la sede restaurada
 }
 
 function renderizarEntradas(entradas) {
@@ -1302,16 +1031,16 @@ function renderizarEntradas(entradas) {
         tbody.insertAdjacentHTML('beforeend', `
             <tr>
                 <td><strong>${e.numero_documento}</strong></td>
-                <td>${e.obra || '—'}</td>
+                <td>${e.obra || 'â€”'}</td>
                 <td>${e.destino || 'Almacen'}</td>
-                <td><span style="font-size:11px;color:#4a6080">${e.sede_nombre || '—'}</span></td> 
+                <td><span style="font-size:11px;color:#4a6080">${e.sede_nombre || 'â€”'}</span></td> 
                 <td>${e.total_items} producto(s)</td>
                 <td>${fecha}</td>
                 <td>
                     <div class="acciones">
-                        <button class="btn-accion" onclick="verPDFEntrada(${e.id})">📄 PDF</button>
-                        ${usuario.rol === 'admin' ? `
-                            <button class="btn-accion danger" onclick="eliminarEntrada(${e.id}, '${e.numero_documento}')">🗑️ Eliminar</button>
+                        <button class="btn-accion" onclick="verPDFEntrada(${e.id})">ðŸ“„ PDF</button>
+                        ${usuario.rol !== 'consulta' ? `
+                            <button class="btn-accion danger" onclick="eliminarEntrada(${e.id}, '${e.numero_documento}')">ðŸ—‘ï¸ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -1362,7 +1091,7 @@ async function agregarItemEntrada() {
         return;
     }
 
-    // Cargar catálogos
+    // Cargar catÃ¡logos
     await cargarCatalogos();
 
     const opciones = productosCache.map(p => `
@@ -1370,7 +1099,7 @@ async function agregarItemEntrada() {
             value="${p.id}"
             data-unidad="${p.unidad || 'UND'}"
             data-requiere-serial="${p.requiere_serial ? 'true' : 'false'}">
-            [${p.codigo || '—'}] ${p.nombre}
+            [${p.codigo || 'â€”'}] ${p.nombre}
         </option>
     `).join('');
 
@@ -1404,47 +1133,16 @@ async function agregarItemEntrada() {
     `;
 
     item.innerHTML = `
-        <div style="position:relative;">
-
-            <input
-                type="text"
-                class="buscador-producto"
-                placeholder="Escribe código o nombre..."
-                autocomplete="off"
-                style="
-                    width:100%;
-                    padding:8px;
-                    border:1px solid #ccd8e5;
-                    border-radius:6px;
-                    box-sizing:border-box;
-                ">
-
-            <div
-                class="resultados-producto"
-                style="
-                    display:none;
-                    position:absolute;
-                    left:0;
-                    right:0;
-                    top:100%;
-                    background:white;
-                    border:1px solid #ccd8e5;
-                    border-radius:8px;
-                    margin-top:4px;
-                    max-height:220px;
-                    overflow-y:auto;
-                    z-index:50;
-                    box-shadow:0 4px 15px rgba(0,0,0,.12);
-                ">
-            </div>
-
-            <select
-                class="select-producto"
-                style="display:none">
-                ${opciones}
-            </select>
-
-        </div>
+        <select
+            class="select-producto"
+            style="
+                width:100%;
+                padding:8px;
+                border:1px solid #ccd8e5;
+                border-radius:6px;
+            ">
+            ${opciones}
+        </select>
 
         <select
             class="select-unidad"
@@ -1493,7 +1191,7 @@ async function agregarItemEntrada() {
                 cursor:pointer;
             "
             onclick="this.parentElement.remove()">
-            ✕ Quitar producto
+            âœ• Quitar producto
         </button>
     `;
 
@@ -1513,15 +1211,9 @@ async function agregarItemEntrada() {
     const serialesContainer =
         item.querySelector('.seriales-container');
 
-    inicializarBuscadorProducto(
-        item,
-        selectProducto,
-        productosCache
-    );
-
 
     // =========================================================
-    // UNIDAD AUTOMÁTICA
+    // UNIDAD AUTOMÃTICA
     // =========================================================
 
     function autocompletarUnidad() {
@@ -1581,7 +1273,7 @@ async function agregarItemEntrada() {
                 margin-bottom:10px;
                 color:#294d73;
             ">
-                📦 Equipos serializados
+                ðŸ“¦ Equipos serializados
             </div>
         `;
 
@@ -1641,7 +1333,7 @@ async function agregarItemEntrada() {
                     ">
 
                     <option value="">
-                        — Selecciona marca —
+                        â€” Selecciona marca â€”
                     </option>
 
                     ${opcionesMarcas}
@@ -1662,7 +1354,7 @@ async function agregarItemEntrada() {
                     ">
 
                     <option value="">
-                        — Selecciona modelo —
+                        â€” Selecciona modelo â€”
                     </option>
 
                 </select>
@@ -1728,7 +1420,7 @@ async function agregarItemEntrada() {
 
                     selectModelo.innerHTML = `
                         <option value="">
-                            — Escribe primero la marca —
+                            â€” Escribe primero la marca â€”
                         </option>
                     `;
 
@@ -1758,7 +1450,7 @@ async function agregarItemEntrada() {
 
                 selectModelo.innerHTML = `
                     <option value="">
-                        — Selecciona modelo —
+                        â€” Selecciona modelo â€”
                     </option>
 
                     ${modelosFiltrados.map(m => `
@@ -1825,7 +1517,7 @@ async function guardarEntrada(event) {
 
     try {
         // =====================================================
-        // NÚMERO DE DOCUMENTO
+        // NÃšMERO DE DOCUMENTO
         // =====================================================
 
         const numero = document
@@ -1834,7 +1526,7 @@ async function guardarEntrada(event) {
             .trim();
 
         if (!numero) {
-            alert('Escribe el número de documento.');
+            alert('Escribe el nÃºmero de documento.');
             return;
         }
 
@@ -1903,7 +1595,7 @@ async function guardarEntrada(event) {
 
             if (!producto) {
                 throw new Error(
-                    'No se encontró el producto seleccionado.'
+                    'No se encontrÃ³ el producto seleccionado.'
                 );
             }
 
@@ -1929,7 +1621,7 @@ async function guardarEntrada(event) {
 
                 if (!serialesContainer) {
                     throw new Error(
-                        `No se encontró el área de seriales para "${producto.nombre}".`
+                        `No se encontrÃ³ el Ã¡rea de seriales para "${producto.nombre}".`
                     );
                 }
 
@@ -2093,7 +1785,7 @@ async function guardarEntrada(event) {
 
                     // ---------------------------------------------
                     // Marca nueva
-                    // El modelo también se escribe manualmente
+                    // El modelo tambiÃ©n se escribe manualmente
                     // ---------------------------------------------
 
                     else if (
@@ -2157,7 +1849,7 @@ async function guardarEntrada(event) {
                     if (!modelo) {
 
                         throw new Error(
-                            `No se encontró el modelo para el equipo ${serial}.`
+                            `No se encontrÃ³ el modelo para el equipo ${serial}.`
                         );
                     }
 
@@ -2215,9 +1907,9 @@ async function guardarEntrada(event) {
         // El HTML antiguo probablemente tiene ent-obra.
         //
         // Primero intentamos ent-origen.
-        // Si todavía existe ent-obra, lo usamos como respaldo.
+        // Si todavÃ­a existe ent-obra, lo usamos como respaldo.
         //
-        // Así no se rompe mientras actualizamos el HTML.
+        // AsÃ­ no se rompe mientras actualizamos el HTML.
         // =========================================================
 
         const campoOrigen =
@@ -2230,20 +1922,20 @@ async function guardarEntrada(event) {
                 ? campoOrigen.value.trim()
                 : '';
 
-        console.log('ORIGEN LEÍDO DEL FORMULARIO:', origen);
+        console.log('ORIGEN LEÃDO DEL FORMULARIO:', origen);
         console.log('CAMPO ORIGEN:', campoOrigen);
 
         // =========================================================
         // DESTINO
         // =========================================================
         //
-        // Para una entrada normal siempre es Almacén.
+        // Para una entrada normal siempre es AlmacÃ©n.
         // Si posteriormente quieres manejar otros destinos,
         // podremos convertirlo nuevamente en un campo seleccionable.
         // =========================================================
 
         const destino =
-            'Almacén';
+            'AlmacÃ©n';
 
 
         // =========================================================
@@ -2309,7 +2001,7 @@ async function guardarEntrada(event) {
             datos
         );
 
-        console.log('DATOS QUE SE ENVIARÁN A ENTRADAS:', datos);
+        console.log('DATOS QUE SE ENVIARÃN A ENTRADAS:', datos);
 
         // =========================================================
         // ENVIAR AL BACKEND
@@ -2353,7 +2045,7 @@ async function guardarEntrada(event) {
 
 
         // =========================================================
-        // ÉXITO
+        // Ã‰XITO
         // =========================================================
 
         mostrarNotificacion(
@@ -2418,7 +2110,7 @@ function limpiarFormEntrada() {
     }
 
     if (entDestino) {
-        entDestino.value = 'Almacén';
+        entDestino.value = 'AlmacÃ©n';
     }
 
     if (entObservaciones) {
@@ -2439,13 +2131,13 @@ function verPDFEntrada(id) {
 }
 
 async function eliminarEntrada(id, numero) {
-    if (!await mostrarConfirm(`¿Eliminar la entrada "${numero}"? Esto revertira el stock.`)) return;
+    if (!await mostrarConfirm(`Â¿Eliminar la entrada "${numero}"? Esto revertira el stock.`)) return;
     await apiFetch(`${API}/entradas/${id}`, { method: 'DELETE' });
     cargarEntradas();
     cargarProductos();
 }
 
-// ══ SALIDAS ═════════════════════════════════════════════════
+// â•â• SALIDAS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let productosCacheSalida = [];
 
@@ -2469,23 +2161,6 @@ async function cargarSalidas() {
     if (!res) return;
     salidasCache = await res.json();
 
-    // Guarda el id más alto ya visto para que, cuando arranque
-    // el sondeo de portería, solo suene la alarma por salidas
-    // que lleguen DESPUÉS de esta carga inicial. Se establece
-    // la base SIEMPRE (incluso en 0, si todavía no hay ninguna
-    // salida) — si no, la primera salida que llegue se toma
-    // por error como si fuera solo el punto de partida, y
-    // nunca suena la alarma.
-    if (
-        usuario.rol === 'porteria' &&
-        ultimoIdSalidaPorteria === null
-    ) {
-        ultimoIdSalidaPorteria =
-            Array.isArray(salidasCache) && salidasCache.length > 0
-                ? Math.max(...salidasCache.map(s => s.id))
-                : 0;
-    }
-
     if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
         const sel = document.getElementById('filtro-sede-salidas');
         const valorActual = sel.value;
@@ -2504,103 +2179,6 @@ async function cargarSalidas() {
 
     renderizarSalidas(salidasCache);
     filtrarSalidas();
-}
-
-// ══ ALERTA DE PORTERÍA ═══════════════════════════════════════
-//
-// Portería solo necesita ver Salidas, pero además debe
-// enterarse apenas se registre una nueva sin tener que estar
-// refrescando la página. Como es un puesto fijo con la
-// pantalla siempre abierta, basta con revisar cada cierto
-// tiempo si hay salidas nuevas (comparando el id más alto
-// visto) y, si las hay, sonar un aviso y refrescar la tabla.
-
-let ultimoIdSalidaPorteria = null;
-let audioCtxPorteria       = null;
-
-function iniciarPollingPorteria() {
-
-    if (usuario.rol !== 'porteria') return;
-
-    // Revisa cada 15 segundos.
-    setInterval(
-        verificarSalidasNuevasPorteria,
-        15000
-    );
-}
-
-async function verificarSalidasNuevasPorteria() {
-
-    const res = await apiFetch(urlConSede(`${API}/salidas/`));
-
-    if (!res || !res.ok) return;
-
-    const salidas = await res.json();
-
-    if (!Array.isArray(salidas)) return;
-
-    const idMaximo =
-        salidas.length > 0
-            ? Math.max(...salidas.map(s => s.id))
-            : 0;
-
-    if (ultimoIdSalidaPorteria === null) {
-        // No debería pasar (cargarSalidas ya deja la base
-        // lista antes de que arranque este sondeo), pero por
-        // si acaso: solo guardamos la referencia sin sonar la
-        // alarma todavía.
-        ultimoIdSalidaPorteria = idMaximo;
-        return;
-    }
-
-    if (idMaximo > ultimoIdSalidaPorteria) {
-        ultimoIdSalidaPorteria = idMaximo;
-
-        salidasCache = salidas;
-        renderizarSalidas(salidasCache);
-        filtrarSalidas();
-
-        reproducirSonidoAlertaPorteria();
-        mostrarNotificacion('Nueva salida registrada', 'exito');
-    }
-}
-
-function reproducirSonidoAlertaPorteria() {
-
-    try {
-
-        if (!audioCtxPorteria) {
-            audioCtxPorteria =
-                new (window.AudioContext || window.webkitAudioContext)();
-        }
-
-        const ctx   = audioCtxPorteria;
-        const ahora = ctx.currentTime;
-
-        // Dos tonos cortos para que se note claramente.
-        [880, 1046].forEach((frecuencia, i) => {
-
-            const osc  = ctx.createOscillator();
-            const gain = ctx.createGain();
-
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-
-            osc.type = 'sine';
-            osc.frequency.value = frecuencia;
-
-            const inicio = ahora + i * 0.35;
-
-            gain.gain.setValueAtTime(0.3, inicio);
-            gain.gain.exponentialRampToValueAtTime(0.001, inicio + 0.3);
-
-            osc.start(inicio);
-            osc.stop(inicio + 0.3);
-        });
-
-    } catch (error) {
-        console.warn('No se pudo reproducir el sonido de alerta:', error);
-    }
 }
 
 function renderizarSalidas(salidas) {
@@ -2623,15 +2201,15 @@ function renderizarSalidas(salidas) {
             <tr>
                 <td><strong>${s.numero_documento}</strong></td>
                 <td>${s.obra || 'Almacen'}</td>
-                <td>${s.destino || '—'}</td>
-                <td><span style="font-size:11px;color:#4a6080">${s.sede_nombre || '—'}</span></td> 
+                <td>${s.destino || 'â€”'}</td>
+                <td><span style="font-size:11px;color:#4a6080">${s.sede_nombre || 'â€”'}</span></td> 
                 <td>${s.total_items} producto(s)</td>
                 <td>${fecha}</td>
                 <td>
                     <div class="acciones">
-                        <button class="btn-accion" onclick="verPDFSalida(${s.id})">📄 PDF</button>
-                        ${usuario.rol === 'admin' ? `
-                            <button class="btn-accion danger" onclick="eliminarSalida(${s.id}, '${s.numero_documento}')">🗑️ Eliminar</button>
+                        <button class="btn-accion" onclick="verPDFSalida(${s.id})">ðŸ“„ PDF</button>
+                        ${usuario.rol !== 'consulta' ? `
+                            <button class="btn-accion danger" onclick="eliminarSalida(${s.id}, '${s.numero_documento}')">ðŸ—‘ï¸ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -2686,7 +2264,7 @@ async function agregarItemSalida() {
                 data-stock="${p.stock || 0}"
                 data-unidad="${p.unidad || 'UND'}"
                 data-serializado="${p.requiere_serial ? '1' : '0'}">
-                [${p.codigo || '—'}] ${p.nombre}
+                [${p.codigo || 'â€”'}] ${p.nombre}
                 (disp: ${p.stock || 0})
             </option>
         `)
@@ -2725,50 +2303,19 @@ async function agregarItemSalida() {
             align-items:start;
         ">
 
-            <div style="position:relative;">
-
-                <input
-                    type="text"
-                    class="buscador-producto"
-                    placeholder="Escribe código o nombre..."
-                    autocomplete="off"
-                    style="
-                        border:0.5px solid #c8d8ea;
-                        border-radius:8px;
-                        padding:6px 8px;
-                        font-size:12px;
-                        color:#0d2137;
-                        width:100%;
-                        height:32px;
-                        box-sizing:border-box;
-                    ">
-
-                <div
-                    class="resultados-producto"
-                    style="
-                        display:none;
-                        position:absolute;
-                        left:0;
-                        right:0;
-                        top:100%;
-                        background:white;
-                        border:0.5px solid #c8d8ea;
-                        border-radius:8px;
-                        margin-top:4px;
-                        max-height:220px;
-                        overflow-y:auto;
-                        z-index:50;
-                        box-shadow:0 4px 15px rgba(0,0,0,.12);
-                    ">
-                </div>
-
-                <select
-                    class="select-producto"
-                    style="display:none">
-                    ${opciones}
-                </select>
-
-            </div>
+            <select
+                class="select-producto"
+                style="
+                    border:0.5px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 8px;
+                    font-size:12px;
+                    color:#0d2137;
+                    width:100%;
+                    height:32px;
+                ">
+                ${opciones}
+            </select>
 
             <select
                 class="select-unidad"
@@ -2816,7 +2363,7 @@ async function agregarItemSalida() {
                 font-size:13px;
                 margin-bottom:7px;
             ">
-                📦 Equipos serializados
+                ðŸ“¦ Equipos serializados
             </div>
 
             <div class="equipos-salida-lista"></div>
@@ -2839,7 +2386,7 @@ async function agregarItemSalida() {
                     font-size:12px;
                     padding:6px 10px;
                 ">
-                ✕ Quitar producto
+                âœ• Quitar producto
             </button>
         </div>
     `;
@@ -2865,12 +2412,6 @@ async function agregarItemSalida() {
         item.querySelector('.btn-quitar-salida');
 
     let equiposDisponibles = [];
-
-    inicializarBuscadorProducto(
-        item,
-        selectProducto,
-        productosCacheSalida
-    );
 
     botonQuitar.addEventListener('click', () => {
         item.remove();
@@ -3097,7 +2638,7 @@ function crearFilaEquipo(indice) {
 
 
     // --------------------------------------------------------
-    // VERIFICAR SI EL SERIAL YA ESTÁ UTILIZADO
+    // VERIFICAR SI EL SERIAL YA ESTÃ UTILIZADO
     // --------------------------------------------------------
 
     function serialYaSeleccionado(serial) {
@@ -3143,7 +2684,7 @@ function crearFilaEquipo(indice) {
         const serial =
             inputSerial.value.trim();
 
-        // Limpiar si está vacío
+        // Limpiar si estÃ¡ vacÃ­o
         if (!serial) {
 
             inputEquipoId.value = '';
@@ -3242,7 +2783,7 @@ function crearFilaEquipo(indice) {
                 return;
             }
 
-            // Si encontró el serial automáticamente,
+            // Si encontrÃ³ el serial automÃ¡ticamente,
             // rellenamos marca y modelo
             procesarSerial();
         }
@@ -3618,7 +3159,7 @@ function mostrarNotificacionSalida(mensaje, tipo = 'error') {
             font-size:18px;
             line-height:1;
         ">
-            ${esError ? '⚠️' : '✓'}
+            ${esError ? 'âš ï¸' : 'âœ“'}
         </div>
 
         <div style="
@@ -3639,7 +3180,7 @@ function mostrarNotificacionSalida(mensaje, tipo = 'error') {
                 padding:0;
             "
         >
-            ×
+            Ã—
         </button>
     `;
 
@@ -3670,7 +3211,7 @@ async function guardarSalida(event) {
 
     if (!numero) {
         mostrarNotificacionSalida(
-            'Escribe el Destino para generar el número de documento.',
+            'Escribe el Destino para generar el nÃºmero de documento.',
             'error'
         );
         return;
@@ -3782,7 +3323,7 @@ async function guardarSalida(event) {
                     inputSerial?.value?.trim() || '';
 
                 // --------------------------------------------------
-                // VALIDAR SERIAL VACÍO
+                // VALIDAR SERIAL VACÃO
                 // --------------------------------------------------
 
                 if (!serial) {
@@ -3832,7 +3373,7 @@ async function guardarSalida(event) {
                 ) {
 
                     mostrarNotificacionSalida(
-                        `El serial "${serial}" está repetido. No puedes utilizar el mismo serial más de una vez.`,
+                        `El serial "${serial}" estÃ¡ repetido. No puedes utilizar el mismo serial mÃ¡s de una vez.`,
                         'error'
                     );
 
@@ -3866,7 +3407,7 @@ async function guardarSalida(event) {
             ) {
 
                 mostrarNotificacionSalida(
-                    'No puedes seleccionar el mismo equipo/serial más de una vez.',
+                    'No puedes seleccionar el mismo equipo/serial mÃ¡s de una vez.',
                     'error'
                 );
 
@@ -3928,10 +3469,6 @@ async function guardarSalida(event) {
         destino:
             document.getElementById('sal-destino').value,
 
-        cliente:
-            document.getElementById('sal-cliente')?.value
-                ?.trim() || '',
-
         observaciones:
             document.getElementById(
                 'sal-observaciones'
@@ -3974,7 +3511,7 @@ async function guardarSalida(event) {
         await res.json();
 
     // ==========================================================
-    // ÉXITO
+    // Ã‰XITO
     // ==========================================================
 
     if (res.ok) {
@@ -4009,7 +3546,6 @@ function limpiarFormSalida() {
     document.getElementById('sal-fecha').value         = '';
     document.getElementById('sal-obra').value          = 'Almacen';
     document.getElementById('sal-destino').value       = '';
-    document.getElementById('sal-cliente').value       = '';
     document.getElementById('sal-observaciones').value = '';
     document.getElementById('sal-items').innerHTML     = '';
     document.getElementById('sal-sede').value = '';
@@ -4021,13 +3557,13 @@ function verPDFSalida(id) {
 }
 
 async function eliminarSalida(id, numero) {
-    if (!await mostrarConfirm(`¿Eliminar la salida "${numero}"? Esto devolvera el stock descontado.`)) return;
+    if (!await mostrarConfirm(`Â¿Eliminar la salida "${numero}"? Esto devolvera el stock descontado.`)) return;
     await apiFetch(`${API}/salidas/${id}`, { method: 'DELETE' });
     cargarSalidas();
     cargarProductos();
 }
 
-// ══ DEVOLUCIONES ════════════════════════════════════════════
+// â•â• DEVOLUCIONES â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function cargarSelectorSalidas() {
     const sedeDev = parseInt(document.getElementById('dev-sede').value) || sedeActual;
@@ -4040,193 +3576,34 @@ async function cargarSelectorSalidas() {
     const salidas = await res.json();
 
     const select = document.getElementById('dev-salida');
-    select.innerHTML = '<option value="">— Selecciona la salida —</option>';
+    select.innerHTML = '<option value="">â€” Selecciona la salida â€”</option>';
 
     salidas.forEach(s => {
         const fecha = new Date(s.fecha).toLocaleDateString('es-CO', {
             day: '2-digit', month: '2-digit', year: 'numeric'
         });
         select.insertAdjacentHTML('beforeend',
-            `<option value="${s.id}" data-destino="${s.destino || ''}">${s.numero_documento} — ${s.destino || 'sin destino'} (${fecha})</option>`
+            `<option value="${s.id}" data-destino="${s.destino || ''}">${s.numero_documento} â€” ${s.destino || 'sin destino'} (${fecha})</option>`
         );
     });
-}
-
-// Normaliza texto para comparar búsquedas sin que le afecten
-// espacios "raros" (espacios de ancho fijo, NBSP, etc.) ni
-// caracteres invisibles de ancho cero que a veces quedan
-// pegados en datos digitados o copiados desde Word/otras apps.
-// Visualmente son indistinguibles de un espacio normal, pero
-// una comparación exacta de texto los trata como diferentes.
-function normalizarBusqueda(texto) {
-    return String(texto || '')
-        .normalize('NFKC')
-        .replace(/[\u200B-\u200D\uFEFF]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .toLowerCase();
-}
-
-// ================================================================
-// BUSCADOR DE PRODUCTOS (Entradas, Salidas, Traslados)
-//
-// Convierte un <select> normal (oculto) en un campo donde se
-// puede escribir el c\u00F3digo o el nombre del producto para
-// filtrarlo, en vez de tener que buscarlo uno por uno en una
-// lista larga.
-//
-// El <select> original NO se toca ni se elimina: sigue teniendo
-// todas sus <option> con sus data-* (unidad, stock, serializado,
-// etc.), as\u00ED que todo el c\u00F3digo que ya lee ese <select> (unidad
-// autom\u00E1tica, seriales, stock disponible...) sigue funcionando
-// igual. Solo se oculta visualmente y se controla desde el
-// campo de texto de al lado.
-// ================================================================
-
-function inicializarBuscadorProducto(fila, selectOculto, listaProductos) {
-
-    const buscador =
-        fila.querySelector('.buscador-producto');
-
-    const resultados =
-        fila.querySelector('.resultados-producto');
-
-    if (!buscador || !resultados || !selectOculto) return;
-
-    function sincronizarTexto() {
-
-        const opcion =
-            selectOculto.options[selectOculto.selectedIndex];
-
-        buscador.value = opcion
-            ? opcion.textContent.replace(/\s+/g, ' ').trim()
-            : '';
-    }
-
-    function cerrarResultados() {
-        resultados.style.display = 'none';
-        resultados.innerHTML = '';
-    }
-
-    function seleccionarProducto(producto) {
-
-        selectOculto.value = producto.id;
-        selectOculto.dispatchEvent(new Event('change'));
-
-        sincronizarTexto();
-        cerrarResultados();
-    }
-
-    function filtrar() {
-
-        const texto = normalizarBusqueda(buscador.value);
-
-        if (!texto) {
-            cerrarResultados();
-            return;
-        }
-
-        const coincidencias = listaProductos.filter(p =>
-            normalizarBusqueda(p.codigo).includes(texto) ||
-            normalizarBusqueda(p.nombre).includes(texto)
-        );
-
-        resultados.innerHTML = '';
-
-        if (coincidencias.length === 0) {
-            resultados.innerHTML = `
-                <div style="
-                    padding:10px 12px;
-                    font-size:12px;
-                    color:#6b8aab;
-                ">
-                    No se encontraron productos con ese c\u00F3digo o nombre.
-                </div>
-            `;
-            resultados.style.display = 'block';
-            return;
-        }
-
-        coincidencias.slice(0, 50).forEach(p => {
-
-            const opcionDiv = document.createElement('div');
-
-            opcionDiv.style.cssText = `
-                padding:8px 10px;
-                cursor:pointer;
-                border-bottom:0.5px solid #edf2f7;
-                font-size:12.5px;
-                color:#0d2137;
-            `;
-
-            opcionDiv.innerHTML = `
-                <strong>[${sanitizar(p.codigo || '\u2014')}]</strong>
-                ${sanitizar(p.nombre)}
-                ${p.stock !== undefined
-                    ? `<span style="color:#6b8aab;font-size:11px"> (disp: ${p.stock || 0})</span>`
-                    : ''}
-            `;
-
-            opcionDiv.onmouseenter = () => {
-                opcionDiv.style.background = '#f5f8fc';
-            };
-
-            opcionDiv.onmouseleave = () => {
-                opcionDiv.style.background = 'white';
-            };
-
-            // mousedown (no click) para que se dispare antes
-            // del "blur" del campo de texto
-            opcionDiv.onmousedown = (ev) => {
-                ev.preventDefault();
-                seleccionarProducto(p);
-            };
-
-            resultados.appendChild(opcionDiv);
-        });
-
-        resultados.style.display = 'block';
-    }
-
-    buscador.addEventListener('input', filtrar);
-
-    buscador.addEventListener('focus', () => {
-        buscador.select();
-        filtrar();
-    });
-
-    buscador.addEventListener('blur', () => {
-        setTimeout(() => {
-            cerrarResultados();
-            sincronizarTexto();
-        }, 150);
-    });
-
-    sincronizarTexto();
 }
 
 function filtrarPuntos() {
-    const texto = normalizarBusqueda(
-        document.getElementById('buscar-punto').value
-    );
+    const texto = document.getElementById('buscar-punto').value.trim().toLowerCase();
+    const select = document.getElementById('selector-punto');
+    const opciones = select.querySelectorAll('option');
 
-    const filtrados = !texto
-        ? puntosCache
-        : puntosCache.filter(p =>
-            normalizarBusqueda(p.destino).includes(texto) ||
-            normalizarBusqueda(p.sede_nombre).includes(texto)
-        );
+    opciones.forEach(op => {
+        if (op.value === '') return;
+        op.style.display = op.text.toLowerCase().includes(texto) ? '' : 'none';
+    });
 
-    pintarSelectorPuntos(filtrados);
-
-    // Si al escribir queda un solo punto que coincide, se
-    // selecciona y se carga su historial automáticamente,
-    // sin que el usuario tenga que abrir el desplegable y
-    // elegirlo a mano.
-    if (texto && filtrados.length === 1) {
-        const select = document.getElementById('selector-punto');
-        select.value = filtrados[0].destino;
-        cargarHistorialPunto();
+    // Si el punto actualmente seleccionado ya no coincide, lo reseteamos
+    const seleccionado = select.options[select.selectedIndex];
+    if (seleccionado && seleccionado.value && seleccionado.style.display === 'none') {
+        select.value = '';
+        document.getElementById('consolidado-contenido').innerHTML =
+            '<p style="color:#6b8aab;font-size:13px;padding:2rem 0">Selecciona un punto arriba para ver su historial.</p>';
     }
 }
 
@@ -4279,13 +3656,13 @@ async function cargarItemsDeSalida() {
             item.requiere_serial;
 
         const serial =
-            item.serial || '—';
+            item.serial || 'â€”';
 
         const modelo =
-            item.modelo_nombre || '—';
+            item.modelo_nombre || 'â€”';
 
         const marca =
-            item.marca_nombre || '—';
+            item.marca_nombre || 'â€”';
 
         return `
 
@@ -4357,7 +3734,7 @@ async function cargarItemsDeSalida() {
                         ${serializado ? `
 
                             <strong>
-                                🔢 Serial:
+                                ðŸ”¢ Serial:
                             </strong>
 
                             ${serial}
@@ -4365,7 +3742,7 @@ async function cargarItemsDeSalida() {
                             <br>
 
                             <strong>
-                                📦 Modelo:
+                                ðŸ“¦ Modelo:
                             </strong>
 
                             ${modelo}
@@ -4373,7 +3750,7 @@ async function cargarItemsDeSalida() {
                             <br>
 
                             <strong>
-                                🏷️ Marca:
+                                ðŸ·ï¸ Marca:
                             </strong>
 
                             ${marca}
@@ -4395,7 +3772,7 @@ async function cargarItemsDeSalida() {
                     "
                 >
 
-                    Salió:
+                    SaliÃ³:
                     ${item.cantidad_original || item.cantidad}
 
                     ${item.unidad || ''}
@@ -4571,11 +3948,11 @@ function buscarSalidasDevolucion() {
 
         resultado.innerHTML = `
             <strong>
-                ${salida.numero_documento || 'Sin número'}
+                ${salida.numero_documento || 'Sin nÃºmero'}
             </strong>
 
             <span style="color:#4a6080">
-                — ${salida.destino || 'Sin destino'}
+                â€” ${salida.destino || 'Sin destino'}
             </span>
 
             <div style="
@@ -4621,9 +3998,6 @@ function seleccionarSalidaDevolucion(salida) {
     const origen =
         document.getElementById('dev-origen');
 
-    const cliente =
-        document.getElementById('dev-cliente');
-
     if (!buscador || !salidaHidden) return;
 
     // Guardar el ID real de la salida
@@ -4631,19 +4005,12 @@ function seleccionarSalidaDevolucion(salida) {
 
     // Mostrar la salida seleccionada
     buscador.value =
-        `${salida.numero_documento} — ${salida.destino || 'Sin destino'}`;
+        `${salida.numero_documento} â€” ${salida.destino || 'Sin destino'}`;
 
-    // Mostrar de dónde procede
+    // Mostrar de dÃ³nde procede
     if (origen) {
         origen.value =
             salida.destino || '';
-    }
-
-    // Mostrar el cliente de esa salida (solo lectura,
-    // se toma tal cual quedó registrado en la salida)
-    if (cliente) {
-        cliente.value =
-            salida.cliente_nombre || '—';
     }
 
     // Ocultar resultados
@@ -4736,7 +4103,7 @@ async function cargarSalidasDisponibles() {
             : [];
 
     buscador.placeholder =
-        'Escribe nombre clave, destino o N° de salida...';
+        'Escribe nombre clave, destino o NÂ° de salida...';
 
     if (salidasDisponiblesDevolucion.length === 0) {
 
@@ -4791,7 +4158,7 @@ function renderizarDevoluciones(devoluciones) {
                         year: 'numeric'
                     }
                 )
-                : '—';
+                : 'â€”';
 
         tbody.insertAdjacentHTML(
             'beforeend',
@@ -4800,22 +4167,22 @@ function renderizarDevoluciones(devoluciones) {
 
                 <td>
                     <strong>
-                        ${d.numero_documento || '—'}
+                        ${d.numero_documento || 'â€”'}
                     </strong>
                 </td>
 
                 <td>
-                    ${d.salida_numero || '—'}
+                    ${d.salida_numero || 'â€”'}
                 </td>
 
                 <td>
                     ${d.salida_numero
-                        ? 'Salida de almacén'
-                        : '—'}
+                        ? 'Salida de almacÃ©n'
+                        : 'â€”'}
                 </td>
 
                 <td>
-                    ${d.motivo || '—'}
+                    ${d.motivo || 'â€”'}
                 </td>
 
                 <td>
@@ -4826,7 +4193,7 @@ function renderizarDevoluciones(devoluciones) {
                     <span style="
                         font-size:11px;
                         color:#4a6080">
-                        ${d.sede_nombre || '—'}
+                        ${d.sede_nombre || 'â€”'}
                     </span>
                 </td>
 
@@ -4841,7 +4208,7 @@ function renderizarDevoluciones(devoluciones) {
                         <button
                             class="btn-accion"
                             onclick="verPDFDevolucion(${d.id})">
-                            📄 PDF
+                            ðŸ“„ PDF
                         </button>
 
                         ${
@@ -4855,7 +4222,7 @@ function renderizarDevoluciones(devoluciones) {
                                             d.numero_documento || ''
                                         ).replace(/'/g, "\\'")}'
                                     )">
-                                    🗑️ Anular
+                                    ðŸ—‘ï¸ Anular
                                 </button>
                             `
                             : ''
@@ -4954,7 +4321,7 @@ async function guardarDevolucion(event) {
     if (!salidaId) {
 
         alert(
-            'Selecciona la salida de la que está regresando la mercancía'
+            'Selecciona la salida de la que estÃ¡ regresando la mercancÃ­a'
         );
 
         return;
@@ -4966,7 +4333,7 @@ async function guardarDevolucion(event) {
     if (!numero) {
 
         alert(
-            'No se pudo generar el número de documento. Verifica fecha y salida.'
+            'No se pudo generar el nÃºmero de documento. Verifica fecha y salida.'
         );
 
         return;
@@ -4980,18 +4347,6 @@ async function guardarDevolucion(event) {
         document.querySelectorAll('.dev-item-fila');
 
     const detalle = [];
-
-    // El motivo de la devolución decide con qué condición
-    // regresa el equipo. Por ahora solo distinguimos "Dañado"
-    // (pasa a condición DANADO y a mantenimiento) de todo lo
-    // demás (regresa en buen estado, sin cambiar su condición).
-    const motivoDevolucion =
-        document.getElementById('dev-motivo')?.value || '';
-
-    const condicionRetorno =
-        motivoDevolucion === 'Dañado'
-            ? 'DANADO'
-            : 'BUEN_ESTADO';
 
     filas.forEach(fila => {
 
@@ -5024,15 +4379,15 @@ async function guardarDevolucion(event) {
             producto_id: productoId,
 
             // IMPORTANTE:
-            // Para productos serializados se envía
-            // automáticamente el equipo_id original
+            // Para productos serializados se envÃ­a
+            // automÃ¡ticamente el equipo_id original
             // de la salida.
             equipo_id: equipoId,
 
             cantidad: cantidad,
 
             condicion_retorno:
-                condicionRetorno,
+                'BUEN_ESTADO',
 
             observaciones: ''
 
@@ -5048,7 +4403,7 @@ async function guardarDevolucion(event) {
     if (detalle.length === 0) {
 
         alert(
-            'Marca al menos un producto que esté regresando'
+            'Marca al menos un producto que estÃ© regresando'
         );
 
         return;
@@ -5056,7 +4411,7 @@ async function guardarDevolucion(event) {
 
 
     // =====================================================
-    // DATOS DE LA DEVOLUCIÓN
+    // DATOS DE LA DEVOLUCIÃ“N
     // =====================================================
 
     const datos = {
@@ -5139,7 +4494,7 @@ async function guardarDevolucion(event) {
         alert(
             'Error: ' +
             (resultado.error ||
-                'No se pudo registrar la devolución')
+                'No se pudo registrar la devoluciÃ³n')
         );
 
     }
@@ -5154,19 +4509,19 @@ async function anularDevolucion(id, numero) {
 
     const confirmar =
         await mostrarConfirm(
-            `¿Anular la devolución "${numero}"?`
+            `Â¿Anular la devoluciÃ³n "${numero}"?`
         );
 
     if (!confirmar) return;
 
     const motivo =
         prompt(
-            'Escribe el motivo de la anulación:'
+            'Escribe el motivo de la anulaciÃ³n:'
         );
 
     if (!motivo || !motivo.trim()) {
         mostrarNotificacionSalida(
-            'Debes indicar el motivo de la anulación.',
+            'Debes indicar el motivo de la anulaciÃ³n.',
             'error'
         );
         return;
@@ -5192,7 +4547,7 @@ async function anularDevolucion(id, numero) {
     if (res.ok) {
 
         mostrarNotificacionSalida(
-            'Devolución anulada correctamente.',
+            'DevoluciÃ³n anulada correctamente.',
             'success'
         );
 
@@ -5203,7 +4558,7 @@ async function anularDevolucion(id, numero) {
 
         mostrarNotificacionSalida(
             resultado.error ||
-            'No se pudo anular la devolución.',
+            'No se pudo anular la devoluciÃ³n.',
             'error'
         );
     }
@@ -5214,7 +4569,6 @@ function limpiarFormDevolucion() {
     document.getElementById('dev-fecha').value         = '';
     document.getElementById('dev-salida').value        = '';
     document.getElementById('dev-origen').value        = '';
-    document.getElementById('dev-cliente').value       = '';
     document.getElementById('dev-motivo').value        = 'No se uso';
     document.getElementById('dev-observaciones').value = '';
     document.getElementById('dev-sede').value = '';
@@ -5222,11 +4576,11 @@ function limpiarFormDevolucion() {
         '<p style="font-size:12px;color:#6b8aab">Selecciona primero una salida arriba.</p>';
 }
 
-// ══ MODAL DE CONFIRMACION ════════════════════════════════════
+// â•â• MODAL DE CONFIRMACION â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let _resolverConfirm = null;
 
-function mostrarConfirm(mensaje, titulo = '¿Eliminar?', icono = '🗑️', textoBtn = 'Eliminar') {
+function mostrarConfirm(mensaje, titulo = 'Â¿Eliminar?', icono = 'ðŸ—‘ï¸', textoBtn = 'Eliminar') {
     document.getElementById('confirm-mensaje').textContent = mensaje;
     document.getElementById('confirm-titulo').textContent  = titulo;
     document.getElementById('confirm-icono').textContent   = icono;
@@ -5235,7 +4589,7 @@ function mostrarConfirm(mensaje, titulo = '¿Eliminar?', icono = '🗑️', text
 
     boton.textContent = textoBtn;
 
-    // Cambiar color según la acción
+    // Cambiar color segÃºn la acciÃ³n
     if (textoBtn === 'Confirmar') {
         boton.style.background = '#27ae60';
         boton.style.color = '#fff';
@@ -5257,84 +4611,15 @@ function resolverConfirm(valor) {
     _resolverConfirm = null;
 }
 
-// ══ INICIO ══════════════════════════════════════════════════
+// â•â• INICIO â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // IMPORTANTE: hay que esperar a que el selector de sede termine
-    // de inicializarse (y de resetear sedeActual) ANTES de cargar
-    // productos. Si no, cargarProductos() se dispara con el
-    // sedeActual viejo (guardado en el navegador de una sesión
-    // anterior) mientras inicializarSelectorSede() todavía está
-    // resolviendo su petición al backend, y la tabla queda "pegada"
-    // con el filtro de sede antiguo aunque el selector ya muestre
-    // "Todas las sedes".
-    await inicializarSelectorSede();
-
-    if (usuario.rol === 'porteria') {
-        // Portería no necesita productos ni catálogos —
-        // solo entra directo a ver las salidas de su sede.
-        document.body.classList.add('rol-porteria');
-        mostrarSeccion('salidas', document.getElementById('nav-salidas'));
-        iniciarPollingPorteria();
-    } else {
-        await cargarProductos();
-        cargarCatalogos();
-    }
+document.addEventListener('DOMContentLoaded', () => {
+    inicializarSelectorSede();
+    cargarProductos();
+    cargarCatalogos();
 
     if (usuario.rol === 'consulta') {
         document.body.classList.add('rol-consulta');
-    }
-
-    // Los filtros de "— Todas las sedes —" son solo para admin y
-    // consulta. Para almacenistas (rol "sede") y cualquier otro
-    // rol se ocultan de forma explícita aquí, sin depender de que
-    // el CSS ya los tenga ocultos por defecto.
-    if (usuario.rol !== 'admin' && usuario.rol !== 'consulta') {
-        [
-            'selector-sede',
-            'filtro-sede-productos',
-            'filtro-sede-entradas',
-            'filtro-sede-salidas',
-            'filtro-sede-devoluciones',
-            'filtro-sede-consolidado',
-            'filtro-sede-traslados',
-        ].forEach(id => {
-            const el = document.getElementById(id);
-            // Se usa setProperty(..., 'important') porque hay una
-            // regla en el CSS con !important que, si no, le gana
-            // a un simple el.style.display = 'none' y el cuadro
-            // se seguiría viendo aunque aquí digamos que se oculte.
-            if (el) el.style.setProperty('display', 'none', 'important');
-        });
-    }
-
-    // Elementos marcados con la clase "admin-only" (el menú de
-    // "Usuarios", "+ Nuevo modelo", "+ Nueva marca" y
-    // "+ Nuevo usuario") son solo para admin.
-    if (usuario.rol !== 'admin') {
-        document.querySelectorAll('.admin-only').forEach(el => {
-            el.style.setProperty('display', 'none', 'important');
-        });
-    }
-
-    // Elementos marcados con "no-consulta" ("+ Nuevo producto",
-    // "+ Nueva entrada", "+ Nueva salida", "+ Nuevo traslado") sí
-    // los puede usar el almacenista (rol "sede"), pero no un
-    // usuario de consulta ni uno de portería, que son de solo
-    // lectura.
-    if (usuario.rol === 'consulta' || usuario.rol === 'porteria') {
-        document.querySelectorAll('.no-consulta').forEach(el => {
-            el.style.setProperty('display', 'none', 'important');
-        });
-    }
-
-    // Portería solo ve la sección de Salidas en el menú lateral.
-    if (usuario.rol === 'porteria') {
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            if (btn.id !== 'nav-salidas') {
-                btn.style.setProperty('display', 'none', 'important');
-            }
-        });
     }
 
     const nom = usuario.nombre || 'Usuario';
@@ -5342,9 +4627,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ? 'Administrador'
     : usuario.rol === 'sede'
         ? 'Almacenista'
-        : usuario.rol === 'porteria'
-            ? 'Portería'
-            : 'Consulta';
+        : 'Consulta';
 
     document.getElementById('nombre-usuario').textContent = nom;
     document.getElementById('rol-usuario').textContent    = rolTexto;
@@ -5371,14 +4654,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const devSede = document.getElementById('dev-sede');
     if (devSede) {
         devSede.addEventListener('change', () => {
-            document.getElementById('dev-salida').innerHTML = '<option value="">— Selecciona la salida —</option>';
+            document.getElementById('dev-salida').innerHTML = '<option value="">â€” Selecciona la salida â€”</option>';
             document.getElementById('dev-items').innerHTML = '<p style="font-size:12px;color:#6b8aab">Selecciona primero una salida arriba.</p>';
             cargarSelectorSalidas();
         });
     }
 });
 
-// ══ USUARIOS ════════════════════════════════════════════════
+// â•â• USUARIOS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Agregar estas funciones al final de app.js
 
 async function cargarUsuarios() {
@@ -5398,9 +4681,9 @@ async function cargarUsuarios() {
     }
 
     usuarios.forEach(u => {
-        const rolTexto  = u.rol === 'admin' ? 'Administrador' : u.rol === 'sede' ? 'Almacenista' : u.rol === 'porteria' ? 'Portería' : 'Consulta';
-        const rolColor  = u.rol === 'admin' ? '#1a6fc4' : u.rol === 'sede' ? '#1a7a4a' : u.rol === 'porteria' ? '#a5680c' : '#6b8aab';
-        const rolBg     = u.rol === 'admin' ? '#e8f0fb' : u.rol === 'sede' ? '#e6f4ec' : u.rol === 'porteria' ? '#fbf1e0' : '#f0f4f8';
+        const rolTexto  = u.rol === 'admin' ? 'Administrador' : u.rol === 'sede' ? 'Almacenista' : 'Consulta';
+        const rolColor  = u.rol === 'admin' ? '#1a6fc4' : u.rol === 'sede' ? '#1a7a4a' : '#6b8aab';
+        const rolBg     = u.rol === 'admin' ? '#e8f0fb' : u.rol === 'sede' ? '#e6f4ec' : '#f0f4f8';
         const estadoBadge = u.activo
             ? '<span class="badge badge-ok">Activo</span>'
             : '<span class="badge badge-agotado">Inactivo</span>';
@@ -5408,19 +4691,19 @@ async function cargarUsuarios() {
         tbody.insertAdjacentHTML('beforeend', `
             <tr>
                 <td><strong>${u.nombre}</strong></td>
-                <td style="color:#6b8aab;font-size:12px">${u.email || u.correo || '—'}</td>
+                <td style="color:#6b8aab;font-size:12px">${u.email || u.correo || 'â€”'}</td>
                 <td>
                     <span style="background:${rolBg};color:${rolColor};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500">
                         ${rolTexto}
                     </span>
                 </td>
-                <td>${u.sede_nombre || '—'}</td>
+                <td>${u.sede_nombre || 'â€”'}</td>
                 <td>${estadoBadge}</td>
                 <td>
                     <div class="acciones">
-                        <button class="btn-accion" onclick="editarUsuario(${u.id})">✏️ Editar</button>
+                        <button class="btn-accion" onclick="editarUsuario(${u.id})">âœï¸ Editar</button>
                         <button class="btn-accion danger" onclick="toggleUsuario(${u.id}, ${u.activo}, '${u.nombre}')">
-                            ${u.activo ? '🔒 Desactivar' : '🔓 Activar'}
+                            ${u.activo ? 'ðŸ”’ Desactivar' : 'ðŸ”“ Activar'}
                         </button>
                     </div>
                 </td>
@@ -5436,7 +4719,7 @@ async function abrirModalUsuario() {
     const sedes = await res.json();
 
     const select = document.getElementById('usr-sede');
-    select.innerHTML = '<option value="">— Sin sede —</option>';
+    select.innerHTML = '<option value="">â€” Sin sede â€”</option>';
     sedes.forEach(s => {
         select.insertAdjacentHTML('beforeend',
             `<option value="${s.id}">${s.nombre}</option>`
@@ -5457,7 +4740,7 @@ async function editarUsuario(id) {
     if (!resSedes) return;
     const sedes = await resSedes.json();
     const selectSede = document.getElementById('usr-sede');
-    selectSede.innerHTML = '<option value="">— Sin sede —</option>';
+    selectSede.innerHTML = '<option value="">â€” Sin sede â€”</option>';
     sedes.forEach(s => {
         selectSede.insertAdjacentHTML('beforeend',
             `<option value="${s.id}" ${s.id === u.sede_id ? 'selected' : ''}>${s.nombre}</option>`
@@ -5530,7 +4813,7 @@ async function guardarUsuario(event) {
 
 async function toggleUsuario(id, activo, nombre) {
     const accion = activo ? 'desactivar' : 'activar';
-    if (!await mostrarConfirm(`¿${accion.charAt(0).toUpperCase() + accion.slice(1)} al usuario "${nombre}"?`, '¿Confirmar accion?', '👤', accion.charAt(0).toUpperCase() + accion.slice(1))) return;
+    if (!await mostrarConfirm(`Â¿${accion.charAt(0).toUpperCase() + accion.slice(1)} al usuario "${nombre}"?`, 'Â¿Confirmar accion?', 'ðŸ‘¤', accion.charAt(0).toUpperCase() + accion.slice(1))) return;
 
     const res = await apiFetch(`${API}/auth/usuarios/${id}/toggle`, {
         method: 'PUT'
@@ -5551,13 +4834,11 @@ function limpiarFormUsuario() {
     document.getElementById('modal-usuario-titulo').textContent    = 'Nuevo usuario';
 }
 
-// ══ CONSOLIDADO POR PUNTO ════════════════════════════════════
-
-let puntosCache = [];
+// â•â• CONSOLIDADO POR PUNTO â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function cargarPuntos() {
-    // Carga sedes en filtro si es admin o consulta
-    if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
+    // Carga sedes en filtro si es admin
+    if (usuario.rol === 'admin') {
         const sel = document.getElementById('filtro-sede-consolidado');
         const valorActual = sel.value;
         const resSedes = await apiFetch(`${API}/auth/sedes`);
@@ -5581,41 +4862,19 @@ async function cargarPuntos() {
     if (!res) return;
     const puntos = await res.json();
 
-    puntosCache = puntos;
+    const select = document.getElementById('selector-punto');
+    const valorActual = select.value;
+    select.innerHTML = '<option value="">â€” Selecciona un punto â€”</option>';
+    puntos.forEach(p => {
+        const sede = p.sede_nombre ? ` (${p.sede_nombre})` : '';
+        select.insertAdjacentHTML('beforeend',
+            `<option value="${p.destino}">${p.destino}${sede} â€” ${p.total_salidas} salida(s)</option>`
+        );
+    });
+    select.value = valorActual;
 
     document.getElementById('subtitulo-consolidado').textContent =
         `${puntos.length} puntos con movimientos`;
-
-    // Vuelve a pintar el selector aplicando el texto de
-    // búsqueda actual (si había algo escrito antes de recargar).
-    filtrarPuntos();
-}
-
-function pintarSelectorPuntos(lista) {
-    const select = document.getElementById('selector-punto');
-    const valorActual = select.value;
-
-    select.innerHTML = '<option value="">— Selecciona un punto —</option>';
-
-    lista.forEach(p => {
-        const sede = p.sede_nombre ? ` (${p.sede_nombre})` : '';
-        select.insertAdjacentHTML('beforeend',
-            `<option value="${p.destino}">${p.destino}${sede} — ${p.total_salidas} salida(s)</option>`
-        );
-    });
-
-    // Si el punto que estaba seleccionado ya no está en la
-    // lista filtrada, se pierde la selección y se limpia el
-    // historial mostrado.
-    const sigueExistiendo = lista.some(p => p.destino === valorActual);
-
-    if (valorActual && sigueExistiendo) {
-        select.value = valorActual;
-    } else if (valorActual) {
-        select.value = '';
-        document.getElementById('consolidado-contenido').innerHTML =
-            '<p style="color:#6b8aab;font-size:13px;padding:2rem 0">Selecciona un punto arriba para ver su historial.</p>';
-    }
 }
 
 async function cargarHistorialPunto() {
@@ -5650,7 +4909,7 @@ async function cargarHistorialPunto() {
 
         html += `
             <h3 style="font-size:13px;color:#0d2137;margin:1rem 0 0.5rem">
-                📦 Equipos en "${destino}"
+                ðŸ“¦ Equipos en "${destino}"
             </h3>
 
             <div style="background:white;border:0.5px solid #dce6f0;border-radius:10px;padding:12px 16px;margin-bottom:16px">
@@ -5673,7 +4932,7 @@ async function cargarHistorialPunto() {
                             </th>
 
                             <th style="font-size:10px;color:#6b8aab;text-align:right;padding:4px 8px;background:#f7f9fc">
-                                Salió
+                                SaliÃ³
                             </th>
 
                             <th style="font-size:10px;color:#c0392b;text-align:right;padding:4px 8px;background:#f7f9fc">
@@ -5694,15 +4953,15 @@ async function cargarHistorialPunto() {
                             <tr>
 
                                 <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8">
-                                    ${r.nombre || '—'}
+                                    ${r.nombre || 'â€”'}
                                 </td>
 
                                 <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">
-                                    ${r.modelo || '—'}
+                                    ${r.modelo || 'â€”'}
                                 </td>
 
                                 <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">
-                                    ${r.serial || '—'}
+                                    ${r.serial || 'â€”'}
                                 </td>
 
                                 <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right">
@@ -5736,7 +4995,7 @@ async function cargarHistorialPunto() {
 
     html += `
         <h3 style="font-size:13px;color:#0d2137;margin:1.5rem 0 0.5rem">
-            🔄 Devoluciones desde "${destino}"
+            ðŸ”„ Devoluciones desde "${destino}"
         </h3>
     `;
 
@@ -5762,7 +5021,7 @@ async function cargarHistorialPunto() {
                         year: 'numeric'
                     }
                 )
-                : '—';
+                : 'â€”';
 
 
             html += `
@@ -5772,11 +5031,11 @@ async function cargarHistorialPunto() {
                     <div style="display:flex;justify-content:space-between;margin-bottom:8px">
 
                         <strong style="font-size:13px;color:#0d2137">
-                            ${d.numero_documento || '—'}
+                            ${d.numero_documento || 'â€”'}
                         </strong>
 
                         <span style="font-size:11px;color:#6b8aab">
-                            ${fecha}${d.sede_nombre ? ' · ' + d.sede_nombre : ''}
+                            ${fecha}${d.sede_nombre ? ' Â· ' + d.sede_nombre : ''}
                         </span>
 
                     </div>
@@ -5784,9 +5043,9 @@ async function cargarHistorialPunto() {
 
                     <div style="font-size:11px;color:#6b8aab;margin-bottom:8px">
 
-                        Motivo: ${d.motivo || '—'}
-                        ·
-                        Salida origen: ${d.salida_numero || '—'}
+                        Motivo: ${d.motivo || 'â€”'}
+                        Â·
+                        Salida origen: ${d.salida_numero || 'â€”'}
 
                     </div>
 
@@ -5829,19 +5088,19 @@ async function cargarHistorialPunto() {
                                 <tr>
 
                                     <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8">
-                                        ${item.producto_nombre || item.nombre || '—'}
+                                        ${item.producto_nombre || item.nombre || 'â€”'}
                                     </td>
 
                                     <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">
-                                        ${item.modelo_nombre || item.modelo || '—'}
+                                        ${item.modelo_nombre || item.modelo || 'â€”'}
                                     </td>
 
                                     <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">
-                                        ${item.marca_nombre || item.marca || '—'}
+                                        ${item.marca_nombre || item.marca || 'â€”'}
                                     </td>
 
                                     <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;color:#6b8aab">
-                                        ${item.serial || '—'}
+                                        ${item.serial || 'â€”'}
                                     </td>
 
                                     <td style="font-size:12px;padding:4px 8px;border-top:0.5px solid #f0f4f8;text-align:right">
@@ -5864,7 +5123,7 @@ async function cargarHistorialPunto() {
 
 
     // ========================================================
-    // BOTÓN PDF
+    // BOTÃ“N PDF
     // ========================================================
 
     html = `
@@ -5873,7 +5132,7 @@ async function cargarHistorialPunto() {
             <button
                 onclick="descargarPDFConsolidado('${destino}')"
                 class="btn-primario">
-                📄 Exportar PDF
+                ðŸ“„ Exportar PDF
             </button>
 
         </div>
@@ -5912,8 +5171,8 @@ async function cargarSedesTraslado() {
 
     if (!origen || !destino) return;
 
-    origen.innerHTML = '<option value="">— Selecciona origen —</option>';
-    destino.innerHTML = '<option value="">— Selecciona destino —</option>';
+    origen.innerHTML = '<option value="">â€” Selecciona origen â€”</option>';
+    destino.innerHTML = '<option value="">â€” Selecciona destino â€”</option>';
 
     // ADMIN
     if (usuario.rol === 'admin') {
@@ -5923,14 +5182,14 @@ async function cargarSedesTraslado() {
             origen.insertAdjacentHTML(
                 'beforeend',
                 `<option value="${s.id}">
-                    ${sanitizar(s.nombre)} — ${sanitizar(s.ciudad)}
+                    ${sanitizar(s.nombre)} â€” ${sanitizar(s.ciudad)}
                 </option>`
             );
 
             destino.insertAdjacentHTML(
                 'beforeend',
                 `<option value="${s.id}">
-                    ${sanitizar(s.nombre)} — ${sanitizar(s.ciudad)}
+                    ${sanitizar(s.nombre)} â€” ${sanitizar(s.ciudad)}
                 </option>`
             );
 
@@ -5947,7 +5206,7 @@ async function cargarSedesTraslado() {
 
             origen.innerHTML = `
                 <option value="${miSede.id}" selected>
-                    ${sanitizar(miSede.nombre)} — ${sanitizar(miSede.ciudad)}
+                    ${sanitizar(miSede.nombre)} â€” ${sanitizar(miSede.ciudad)}
                 </option>
             `;
 
@@ -5959,7 +5218,7 @@ async function cargarSedesTraslado() {
                     destino.insertAdjacentHTML(
                         'beforeend',
                         `<option value="${s.id}">
-                            ${sanitizar(s.nombre)} — ${sanitizar(s.ciudad)}
+                            ${sanitizar(s.nombre)} â€” ${sanitizar(s.ciudad)}
                         </option>`
                     );
 
@@ -5967,7 +5226,7 @@ async function cargarSedesTraslado() {
 
             });
 
-            // Cargar productos automáticamente de su sede
+            // Cargar productos automÃ¡ticamente de su sede
             cargarProductosTraslado();
         }
     }
@@ -6034,7 +5293,7 @@ async function agregarItemTraslado() {
                     data-stock="${p.stock || 0}"
                     data-unidad="${p.unidad || 'UND'}"
                     data-serializado="${p.requiere_serial ? '1' : '0'}">
-                    [${p.codigo || '—'}] ${sanitizar(p.nombre)}
+                    [${p.codigo || 'â€”'}] ${sanitizar(p.nombre)}
                     (disp: ${p.stock || 0})
                 </option>
             `)
@@ -6080,50 +5339,19 @@ async function agregarItemTraslado() {
             align-items:start;
         ">
 
-            <div style="position:relative;">
-
-                <input
-                    type="text"
-                    class="buscador-producto"
-                    placeholder="Escribe código o nombre..."
-                    autocomplete="off"
-                    style="
-                        border:0.5px solid #c8d8ea;
-                        border-radius:8px;
-                        padding:6px 8px;
-                        font-size:12px;
-                        color:#0d2137;
-                        width:100%;
-                        height:32px;
-                        box-sizing:border-box;
-                    ">
-
-                <div
-                    class="resultados-producto"
-                    style="
-                        display:none;
-                        position:absolute;
-                        left:0;
-                        right:0;
-                        top:100%;
-                        background:white;
-                        border:0.5px solid #c8d8ea;
-                        border-radius:8px;
-                        margin-top:4px;
-                        max-height:220px;
-                        overflow-y:auto;
-                        z-index:50;
-                        box-shadow:0 4px 15px rgba(0,0,0,.12);
-                    ">
-                </div>
-
-                <select
-                    class="tras-producto"
-                    style="display:none">
-                    ${opciones}
-                </select>
-
-            </div>
+            <select
+                class="tras-producto"
+                style="
+                    border:0.5px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 8px;
+                    font-size:12px;
+                    color:#0d2137;
+                    width:100%;
+                    height:32px;
+                ">
+                ${opciones}
+            </select>
 
             <select
                 class="tras-unidad"
@@ -6171,7 +5399,7 @@ async function agregarItemTraslado() {
                 font-size:13px;
                 margin-bottom:7px;
             ">
-                📦 Equipos serializados
+                ðŸ“¦ Equipos serializados
             </div>
 
             <div class="tras-equipos-lista"></div>
@@ -6194,7 +5422,7 @@ async function agregarItemTraslado() {
                     font-size:12px;
                     padding:6px 10px;
                 ">
-                ✕ Quitar producto
+                âœ• Quitar producto
             </button>
         </div>
     `;
@@ -6221,12 +5449,6 @@ async function agregarItemTraslado() {
         );
 
     let equiposDisponibles = [];
-
-    inicializarBuscadorProducto(
-        item,
-        producto,
-        productosCacheTraslado
-    );
 
     // ============================================================
     // QUITAR PRODUCTO
@@ -6891,7 +6113,7 @@ async function agregarItemTraslado() {
                 return;
             }
 
-            // Al borrar el número no destruimos
+            // Al borrar el nÃºmero no destruimos
             // los equipos existentes.
             if (
                 cantidad.value === ''
@@ -6998,7 +6220,7 @@ async function guardarTraslado(event) {
 
     if (!numero) {
         alert(
-            'Ingresa el número de documento.'
+            'Ingresa el nÃºmero de documento.'
         );
         return;
     }
@@ -7022,7 +6244,7 @@ async function guardarTraslado(event) {
 
     if (!contenedorItems) {
         alert(
-            'No se encontró el contenedor de productos del traslado.'
+            'No se encontrÃ³ el contenedor de productos del traslado.'
         );
         return;
     }
@@ -7212,7 +6434,7 @@ async function guardarTraslado(event) {
                 ) {
 
                     alert(
-                        `El equipo con serial "${serial}" está repetido.`
+                        `El equipo con serial "${serial}" estÃ¡ repetido.`
                     );
 
                     inputSerial?.focus();
@@ -7234,7 +6456,7 @@ async function guardarTraslado(event) {
                 ) {
 
                     alert(
-                        `El serial "${serial}" está repetido.`
+                        `El serial "${serial}" estÃ¡ repetido.`
                     );
 
                     inputSerial?.focus();
@@ -7342,13 +6564,13 @@ async function guardarTraslado(event) {
 
     if (!detalle.length) {
         alert(
-            'No hay productos válidos para trasladar.'
+            'No hay productos vÃ¡lidos para trasladar.'
         );
         return;
     }
 
     // ============================================================
-    // DATOS QUE SE ENVÍAN AL BACKEND
+    // DATOS QUE SE ENVÃAN AL BACKEND
     // ============================================================
 
     const datos = {
@@ -7428,7 +6650,7 @@ async function guardarTraslado(event) {
     }
 
     // ============================================================
-    // ÉXITO
+    // Ã‰XITO
     // ============================================================
 
     await mostrarConfirm(
@@ -7437,7 +6659,7 @@ async function guardarTraslado(event) {
             numero
         } fue creado correctamente.`,
         'Traslado creado',
-        '✓',
+        'âœ“',
         'Aceptar'
     );
 
@@ -7542,7 +6764,6 @@ function limpiarFormTraslado() {
 
 // TRASLADOS ENTRE SEDES
 let trasladosData = [];
-let sedesTrasladosMap = {};
 
 async function cargarTraslados() {
     const res = await apiFetch(`${API}/traslados/`);
@@ -7550,39 +6771,17 @@ async function cargarTraslados() {
 
     trasladosData = await res.json();
 
-    if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
-        const sel = document.getElementById('filtro-sede-traslados');
-
-        if (sel) {
-            const valorActual = sel.value;
-
-            const resSedes = await apiFetch(`${API}/auth/sedes`);
-
-            if (resSedes) {
-                const sedes = await resSedes.json();
-
-                sedesTrasladosMap = {};
-                sedes.forEach(s => {
-                    sedesTrasladosMap[s.id] = s.nombre;
-                });
-
-                sel.innerHTML = '<option value="">&#8212; Todas las sedes &#8212;</option>';
-                sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                    `<option value="${s.id}">${s.nombre}</option>`
-                ));
-                sel.style.display = 'block';
-                sel.value = valorActual;
-            }
-        }
-    }
-
     renderizarTraslados(trasladosData);
 
-    filtrarTraslados();
+    const subtitulo = document.getElementById('subtitulo-traslados');
+    if (subtitulo) {
+        subtitulo.textContent =
+            `${trasladosData.length} traslado${trasladosData.length !== 1 ? 's' : ''} registrado${trasladosData.length !== 1 ? 's' : ''}`;
+    }
 }
 
 function formatearFechaTraslado(fechaTexto) {
-    if (!fechaTexto) return '—';
+    if (!fechaTexto) return 'â€”';
 
     const texto = String(fechaTexto).trim();
 
@@ -7590,10 +6789,10 @@ function formatearFechaTraslado(fechaTexto) {
         Sun: 'dom',
         Mon: 'lun',
         Tue: 'mar',
-        Wed: 'mié',
+        Wed: 'miÃ©',
         Thu: 'jue',
         Fri: 'vie',
-        Sat: 'sáb'
+        Sat: 'sÃ¡b'
     };
 
     const meses = {
@@ -7629,12 +6828,6 @@ function formatearFechaTraslado(fechaTexto) {
 }
 
 function renderizarTraslados(lista) {
-    const subtitulo = document.getElementById('subtitulo-traslados');
-    if (subtitulo) {
-        subtitulo.textContent =
-            `${lista.length} traslado${lista.length !== 1 ? 's' : ''} registrado${lista.length !== 1 ? 's' : ''}`;
-    }
-
     const tbody = document.getElementById('tabla-traslados');
 
     if (!tbody) return;
@@ -7679,11 +6872,11 @@ function renderizarTraslados(lista) {
                 </td>
 
                 <td>
-                    ${sanitizar(t.sede_origen_nombre || '—')}
+                    ${sanitizar(t.sede_origen_nombre || 'â€”')}
                 </td>
 
                 <td>
-                    ${sanitizar(t.sede_destino_nombre || '—')}
+                    ${sanitizar(t.sede_destino_nombre || 'â€”')}
                 </td>
 
                 <td>
@@ -7705,13 +6898,13 @@ function renderizarTraslados(lista) {
                         <button
                             class="btn-accion"
                             onclick="verTraslado(${t.id})">
-                            👁️ Ver
+                            ðŸ‘ï¸ Ver
                         </button>
 
                         <button
                             class="btn-accion"
                             onclick="verPDFTraslado(${t.id})">
-                            📄 PDF
+                            ðŸ“„ PDF
                         </button>
 
                         ${
@@ -7720,7 +6913,7 @@ function renderizarTraslados(lista) {
                                 <button
                                     class="btn-accion"
                                     onclick="recibirTraslado(${t.id})">
-                                    ✅ Recibir
+                                    âœ… Recibir
                                 </button>
                             `
                             : ''
@@ -7739,50 +6932,12 @@ function filtrarTraslados() {
         .trim()
         .toLowerCase();
 
-    const sedeFiltro = document.getElementById('filtro-sede-traslados')?.value || '';
-
-    // Nombre de la sede seleccionada (respaldo por si el backend
-    // no devuelve sede_origen_id / sede_destino_id en el listado)
-    const nombreSedeFiltro =
-        sedeFiltro
-            ? String(sedesTrasladosMap[sedeFiltro] || '').toLowerCase()
-            : '';
-
-    let filtrados = trasladosData.filter(t =>
+    const filtrados = trasladosData.filter(t =>
         String(t.numero_documento || '').toLowerCase().includes(texto) ||
         String(t.sede_origen_nombre || '').toLowerCase().includes(texto) ||
         String(t.sede_destino_nombre || '').toLowerCase().includes(texto) ||
         String(t.estado || '').toLowerCase().includes(texto)
     );
-
-    if (sedeFiltro) {
-        filtrados = filtrados.filter(t => {
-
-            const coincideOrigenId =
-                t.sede_origen_id != null &&
-                String(t.sede_origen_id) === String(sedeFiltro);
-
-            const coincideDestinoId =
-                t.sede_destino_id != null &&
-                String(t.sede_destino_id) === String(sedeFiltro);
-
-            const coincideOrigenNombre =
-                nombreSedeFiltro &&
-                String(t.sede_origen_nombre || '').toLowerCase() === nombreSedeFiltro;
-
-            const coincideDestinoNombre =
-                nombreSedeFiltro &&
-                String(t.sede_destino_nombre || '').toLowerCase() === nombreSedeFiltro;
-
-            // La sede coincide si el traslado la tiene como origen o como destino
-            return (
-                coincideOrigenId ||
-                coincideDestinoId ||
-                coincideOrigenNombre ||
-                coincideDestinoNombre
-            );
-        });
-    }
 
     renderizarTraslados(filtrados);
 }
@@ -7805,40 +6960,13 @@ async function verTraslado(id) {
     );
 
     // ============================================================
-    // EL SERVIDOR RECHAZÓ O NO ENCONTRÓ EL TRASLADO
-    // ============================================================
-    //
-    // Antes esto seguía de largo y pintaba el modal con todos los
-    // campos vacíos (mostrando "—" en todo), sin avisar que la
-    // petición había fallado. Ahora se detiene y avisa.
-    // ============================================================
-
-    if (!res.ok || !traslado || !traslado.numero_documento) {
-
-        console.error(
-            'No se pudo cargar el detalle del traslado:',
-            res.status,
-            traslado
-        );
-
-        alert(
-            traslado?.error ||
-            'No se pudo cargar el detalle de este traslado. ' +
-            'Puede que tu usuario no tenga permiso para verlo, ' +
-            'o que el traslado no exista.'
-        );
-
-        return;
-    }
-
-    // ============================================================
-    // INFORMACIÓN GENERAL
+    // INFORMACIÃ“N GENERAL
     // ============================================================
 
     document.getElementById(
         'ver-tras-numero'
     ).textContent =
-        `Traslado ${traslado.numero_documento || '—'}`;
+        `Traslado ${traslado.numero_documento || 'â€”'}`;
 
     // ------------------------------------------------------------
     // ORIGEN
@@ -7847,12 +6975,12 @@ async function verTraslado(id) {
     document.getElementById(
         'ver-tras-origen'
     ).textContent =
-        traslado.sede_origen_nombre || '—';
+        traslado.sede_origen_nombre || 'â€”';
 
     document.getElementById(
         'ver-tras-origen-ciudad'
     ).textContent =
-        traslado.sede_origen_ciudad || '—';
+        traslado.sede_origen_ciudad || 'â€”';
 
     // ------------------------------------------------------------
     // DESTINO
@@ -7861,12 +6989,12 @@ async function verTraslado(id) {
     document.getElementById(
         'ver-tras-destino'
     ).textContent =
-        traslado.sede_destino_nombre || '—';
+        traslado.sede_destino_nombre || 'â€”';
 
     document.getElementById(
         'ver-tras-destino-ciudad'
     ).textContent =
-        traslado.sede_destino_ciudad || '—';
+        traslado.sede_destino_ciudad || 'â€”';
 
     // ------------------------------------------------------------
     // ESTADO
@@ -7875,10 +7003,10 @@ async function verTraslado(id) {
     document.getElementById(
         'ver-tras-estado'
     ).textContent =
-        traslado.estado || '—';
+        traslado.estado || 'â€”';
 
     // ------------------------------------------------------------
-    // FECHA DE CREACIÓN
+    // FECHA DE CREACIÃ“N
     // ------------------------------------------------------------
 
     document.getElementById(
@@ -7889,7 +7017,7 @@ async function verTraslado(id) {
         );
 
     // ------------------------------------------------------------
-    // FECHA DE RECEPCIÓN
+    // FECHA DE RECEPCIÃ“N
     // ------------------------------------------------------------
 
     document.getElementById(
@@ -7911,7 +7039,7 @@ async function verTraslado(id) {
     document.getElementById(
         'ver-tras-creado'
     ).textContent =
-        traslado.creador_nombre || '—';
+        traslado.creador_nombre || 'â€”';
 
     // ------------------------------------------------------------
     // RECIBIDO POR
@@ -7923,7 +7051,7 @@ async function verTraslado(id) {
     document.getElementById(
         'ver-tras-recibido'
     ).textContent =
-        traslado.recibido_nombre || '—';
+        traslado.recibido_nombre || 'â€”';
 
     // ------------------------------------------------------------
     // OBSERVACIONES
@@ -7982,7 +7110,7 @@ async function verTraslado(id) {
 
                 const producto =
                     item.producto_nombre ||
-                    '—';
+                    'â€”';
 
                 // ------------------------------------------------
                 // MODELO
@@ -7990,7 +7118,7 @@ async function verTraslado(id) {
 
                 const modelo =
                     item.modelo_nombre ||
-                    '—';
+                    'â€”';
 
                 // ------------------------------------------------
                 // MARCA
@@ -7998,7 +7126,7 @@ async function verTraslado(id) {
 
                 const marca =
                     item.marca_nombre ||
-                    '—';
+                    'â€”';
 
                 // ------------------------------------------------
                 // SERIAL
@@ -8006,7 +7134,7 @@ async function verTraslado(id) {
 
                 const serial =
                     item.equipo_serial ||
-                    '—';
+                    'â€”';
 
                 // ------------------------------------------------
                 // UNIDAD
@@ -8079,9 +7207,9 @@ async function recibirTraslado(id) {
     }
 
     if (!await mostrarConfirm(
-        '¿Confirmar recepción de este traslado?',
-        '¿Recibir traslado?',
-        '📦',
+        'Â¿Confirmar recepciÃ³n de este traslado?',
+        'Â¿Recibir traslado?',
+        'ðŸ“¦',
         'Confirmar'
     )) {
         return;
@@ -8117,7 +7245,7 @@ function verPDFTraslado(id) {
     const token = localStorage.getItem('token');
 
     if (!token) {
-        alert('Sesión no válida.');
+        alert('SesiÃ³n no vÃ¡lida.');
         return;
     }
 
@@ -8148,7 +7276,7 @@ async function verEquiposProducto(productoId) {
         const equipos = resultado.equipos || [];
 
         document.getElementById('modal-equipos-titulo').textContent =
-            `${producto.codigo || ''} — ${producto.nombre || 'Producto'}`;
+            `${producto.codigo || ''} â€” ${producto.nombre || 'Producto'}`;
 
         const tbody =
             document.getElementById('tabla-equipos-producto');
@@ -8172,28 +7300,24 @@ async function verEquiposProducto(productoId) {
                     <tr>
                         <td>
                             <strong>
-                                ${sanitizar(equipo.serial || '—')}
+                                ${sanitizar(equipo.serial || 'â€”')}
                             </strong>
                         </td>
 
                         <td>
-                            ${sanitizar(equipo.marca_nombre || '—')}
+                            ${sanitizar(equipo.marca_nombre || 'â€”')}
                         </td>
 
                         <td>
-                            ${sanitizar(equipo.modelo_nombre || '—')}
+                            ${sanitizar(equipo.modelo_nombre || 'â€”')}
                         </td>
 
                         <td>
-                            ${sanitizar(
-                                equipo.condicion === 'DANADO'
-                                    ? 'Dañado'
-                                    : (equipo.condicion || '—')
-                            )}
+                            ${sanitizar(equipo.condicion || 'â€”')}
                         </td>
 
                         <td>
-                            ${sanitizar(equipo.estado || '—')}
+                            ${sanitizar(equipo.estado || 'â€”')}
                         </td>
                     </tr>
                     `
@@ -8215,3 +7339,8 @@ async function verEquiposProducto(productoId) {
         );
     }
 }
+
+
+
+
+

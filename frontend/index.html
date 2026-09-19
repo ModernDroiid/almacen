@@ -89,6 +89,7 @@
 
 
         <button
+            id="nav-salidas"
             class="nav-btn"
             onclick="mostrarSeccion('salidas', this)"
         >
@@ -168,6 +169,20 @@
             </span>
 
             Marcas
+
+        </button>
+
+
+        <button
+            class="nav-btn"
+            onclick="mostrarSeccion('clientes', this)"
+        >
+
+            <span class="icono">
+                🧑‍💼
+            </span>
+
+            Clientes
 
         </button>
 
@@ -1222,6 +1237,81 @@
 
 
 <!-- ========================================================= -->
+<!-- CLIENTES -->
+<!-- ========================================================= -->
+
+<section
+    id="sec-clientes"
+    class="seccion"
+>
+
+
+    <div class="topbar">
+
+
+        <div class="topbar-titulo">
+
+            <h2>
+                Clientes
+            </h2>
+
+            <p id="subtitulo-clientes">
+                Cargando...
+            </p>
+
+        </div>
+
+
+        <button
+            class="btn-primario admin-only"
+            onclick="abrirModal('modal-cliente')"
+        >
+            + Nuevo cliente
+        </button>
+
+
+    </div>
+
+
+
+    <div class="tabla-wrap">
+
+
+        <table class="tabla">
+
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        Cliente
+                    </th>
+
+                    <th>
+                        Acciones
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody id="tabla-clientes">
+            </tbody>
+
+
+        </table>
+
+
+    </div>
+
+
+</section>
+
+
+
+<!-- ========================================================= -->
 <!-- USUARIOS -->
 <!-- ========================================================= -->
 
@@ -1960,6 +2050,47 @@
             </div>
 
 
+            <div class="campo" style="position:relative;">
+
+                <label>
+                    Cliente
+                </label>
+
+                <input
+                    type="text"
+                    id="sal-cliente"
+                    class="buscador-cliente"
+                    placeholder="Ej: Constructora Bolívar (opcional)"
+                    autocomplete="off"
+                >
+
+                <div
+                    id="resultados-cliente"
+                    class="resultados-cliente"
+                    style="
+                        display:none;
+                        position:absolute;
+                        left:0;
+                        right:0;
+                        top:100%;
+                        background:white;
+                        border:1px solid #ccd8e5;
+                        border-radius:8px;
+                        margin-top:4px;
+                        max-height:220px;
+                        overflow-y:auto;
+                        z-index:50;
+                        box-shadow:0 4px 15px rgba(0,0,0,.12);
+                    ">
+                </div>
+
+                <small style="color:#6b8aab;font-size:12px">
+                    Si el cliente no existe todavía, se crea solo al guardar.
+                </small>
+
+            </div>
+
+
             <div class="campo">
 
                 <label>
@@ -2670,6 +2801,100 @@
 
 
 <!-- ============================================================= -->
+<!-- MODAL: NUEVO / EDITAR CLIENTE -->
+<!-- ============================================================= -->
+
+<div
+    id="modal-cliente"
+    class="modal-fondo"
+>
+
+
+    <div
+        class="modal"
+        style="width:400px"
+    >
+
+
+        <div class="modal-header">
+
+
+            <h3 id="modal-cliente-titulo">
+                Nuevo cliente
+            </h3>
+
+
+            <button
+                onclick="cerrarModal('modal-cliente')"
+            >
+                ✕
+            </button>
+
+
+        </div>
+
+
+
+        <form onsubmit="guardarCliente(event)">
+
+
+            <input
+                type="hidden"
+                id="cliente-id"
+            >
+
+
+            <div class="campo">
+
+                <label>
+                    Nombre del cliente *
+                </label>
+
+                <input
+                    type="text"
+                    id="cliente-nombre"
+                    required
+                    placeholder="Ej: Constructora Bolívar"
+                >
+
+            </div>
+
+
+
+            <div class="modal-footer">
+
+
+                <button
+                    type="button"
+                    class="btn-secundario"
+                    onclick="cerrarModal('modal-cliente')"
+                >
+                    Cancelar
+                </button>
+
+
+                <button
+                    type="submit"
+                    class="btn-primario"
+                >
+                    Guardar
+                </button>
+
+
+            </div>
+
+
+        </form>
+
+
+    </div>
+
+
+</div>
+
+
+
+<!-- ============================================================= -->
 <!-- MODAL: NUEVA DEVOLUCION -->
 <!-- ============================================================= -->
 
@@ -2928,6 +3153,28 @@
             <div class="campo">
 
                 <label>
+                    Cliente
+                </label>
+
+                <input
+                    type="text"
+                    id="dev-cliente"
+                    readonly
+                    placeholder="Se llena automático al elegir la salida"
+                    style="
+                        background:#f7f9fc;
+                        color:#6b8aab;
+                        cursor:not-allowed;
+                    "
+                >
+
+            </div>
+
+
+
+            <div class="campo">
+
+                <label>
                     Observaciones
                 </label>
 
@@ -3091,6 +3338,10 @@
 
                         <option value="consulta">
                             Consulta
+                        </option>
+
+                        <option value="porteria">
+                            Portería
                         </option>
 
                     </select>
@@ -3386,7 +3637,7 @@
 
 
 
-<script src="js/app.js?v=10"></script>
+<script src="js/app.js?v=16"></script>
 
 
 </body>

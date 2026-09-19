@@ -87,7 +87,9 @@ def generar_pdf_devolucion(id):
                     ua.nombre AS anulada_por_nombre,
 
                     s.numero_documento AS salida_numero,
-                    s.destino AS salida_destino
+                    s.destino AS salida_destino,
+
+                    c.nombre AS cliente_nombre
 
                 FROM devoluciones dv
 
@@ -102,6 +104,9 @@ def generar_pdf_devolucion(id):
 
                 LEFT JOIN salidas s
                     ON s.id = dv.salida_id
+
+                LEFT JOIN clientes c
+                    ON c.id = s.cliente_id
 
                 WHERE dv.id = %s
             """, (id,))
@@ -572,13 +577,17 @@ def generar_pdf_devolucion(id):
 
 
             Paragraph(
-                "Estado:",
+                "Cliente:",
                 estilo_label
             ),
 
 
             Paragraph(
-                estado,
+
+                devolucion.get(
+                    "cliente_nombre"
+                ) or "—",
+
                 estilo_valor
             )
         ],

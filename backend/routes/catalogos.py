@@ -686,3 +686,260 @@ def listar_unidades():
         conn.close()
 
     return jsonify(unidades)
+
+
+# ============================================================
+# CLIENTES
+#
+# Catálogo simple, igual que marcas/modelos: se usa sobre todo
+# desde Salidas, donde el cliente se crea solo si no existe
+# todavía (ver salidas.py). Este POST queda disponible por si
+# se quiere crear uno manualmente desde algún lado.
+# ============================================================
+
+# GET /api/catalogos/clientes
+@catalogos_bp.route('/clientes', methods=['GET'])
+@jwt_required()
+def listar_clientes():
+
+    conn = get_connection()
+
+    try:
+        with conn.cursor() as cursor:
+
+            cursor.execute('''
+                SELECT
+                    id,
+                    nombre,
+                    activo,
+                    fecha_creacion
+                FROM clientes
+                WHERE activo = TRUE
+                ORDER BY nombre
+            ''')
+
+            clientes = [
+                dict(cliente)
+                for cliente in cursor.fetchall()
+            ]
+
+    finally:
+        conn.close()
+
+    return jsonify(clientes)
+
+
+# POST /api/catalogos/clientes
+@catalogos_bp.route('/clientes', methods=['POST'])
+@jwt_required()
+def agregar_cliente():
+
+    permiso = requiere_admin_o_sede()
+
+    if permiso:
+        return permiso
+
+    datos = request.get_json() or {}
+
+    nombre = datos.get('nombre', '').strip()
+
+    if not nombre:
+        return jsonify({
+            'error': 'El nombre es obligatorio'
+        }), 400
+
+    conn = get_connection()
+
+    try:
+
+        with conn.cursor() as cursor:
+
+            # Verificar duplicado
+            cursor.execute('''
+                SELECT id
+                FROM clientes
+                WHERE LOWER(nombre) = LOWER(%s)
+            ''', (nombre,))
+
+            if cursor.fetchone():
+
+                conn.rollback()
+
+                return jsonify({
+                    'error': f'El cliente "{nombre}" ya existe'
+                }), 400
+
+            cursor.execute('''
+                INSERT INTO clientes (
+                    nombre
+                )
+                VALUES (%s)
+                RETURNING id
+            ''', (nombre,))
+
+            nuevo_id = cursor.fetchone()['id']
+
+        conn.commit()
+
+    except Exception as e:
+
+        conn.rollback()
+
+        return jsonify({
+            'error': str(e)
+        }), 400
+
+    finally:
+        conn.close()
+
+    return jsonify({
+        'mensaje': 'Cliente creado',
+        'id': nuevo_id
+    }), 201
+
+
+# PUT /api/catalogos/clientes/<id>
+@catalogos_bp.route('/clientes/<int:id>', methods=['PUT'])
+@jwt_required()
+def editar_cliente(id):
+
+    permiso = requiere_admin()
+
+    if permiso:
+        return permiso
+
+    datos = request.get_json() or {}
+
+    nombre = datos.get('nombre', '').strip()
+
+    if not nombre:
+        return jsonify({
+            'error': 'El nombre es obligatorio'
+        }), 400
+
+    conn = get_connection()
+
+    try:
+
+        with conn.cursor() as cursor:
+
+            # Verificar que exista
+            cursor.execute('''
+                SELECT id
+                FROM clientes
+                WHERE id = %s
+            ''', (id,))
+
+            if not cursor.fetchone():
+
+                conn.rollback()
+
+                return jsonify({
+                    'error': 'Cliente no encontrado'
+                }), 404
+
+            # Verificar duplicado
+            cursor.execute('''
+                SELECT id
+                FROM clientes
+                WHERE LOWER(nombre) = LOWER(%s)
+                  AND id <> %s
+            ''', (
+                nombre,
+                id
+            ))
+
+            if cursor.fetchone():
+
+                conn.rollback()
+
+                return jsonify({
+                    'error': f'El cliente "{nombre}" ya existe'
+                }), 400
+
+            cursor.execute('''
+                UPDATE clientes
+                SET nombre = %s
+                WHERE id = %s
+            ''', (
+                nombre,
+                id
+            ))
+
+        conn.commit()
+
+    except Exception as e:
+
+        conn.rollback()
+
+        return jsonify({
+            'error': str(e)
+        }), 400
+
+    finally:
+        conn.close()
+
+    return jsonify({
+        'mensaje': 'Cliente actualizado'
+    })
+
+
+# DELETE /api/catalogos/clientes/<id>
+@catalogos_bp.route('/clientes/<int:id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_cliente(id):
+
+    permiso = requiere_admin()
+
+    if permiso:
+        return permiso
+
+    conn = get_connection()
+
+    try:
+
+        with conn.cursor() as cursor:
+
+            # Verificar existencia
+            cursor.execute('''
+                SELECT id
+                FROM clientes
+                WHERE id = %s
+            ''', (id,))
+
+            if not cursor.fetchone():
+
+                conn.rollback()
+
+                return jsonify({
+                    'error': 'Cliente no encontrado'
+                }), 404
+
+            # No hacemos DELETE físico.
+            # Lo desactivamos para conservar el historial
+            # de salidas que ya lo referencian.
+            cursor.execute('''
+                UPDATE clientes
+                SET activo = FALSE
+                WHERE id = %s
+            ''', (id,))
+
+        conn.commit()
+
+    except Exception as e:
+
+        conn.rollback()
+
+        return jsonify({
+            'error': (
+                'No se puede eliminar el cliente. '
+                f'Detalle: {str(e)}'
+            )
+        }), 400
+
+    finally:
+        conn.close()
+
+    return jsonify({
+        'mensaje': 'Cliente eliminado'
+    })

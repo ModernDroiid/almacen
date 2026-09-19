@@ -1,0 +1,591 @@
+﻿
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:34:        notificacion.classList.remove('visible');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:35:    }, 3000);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:36:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:37:// ══ SESION ══════════════════════════════════════════════════
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:38:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:39:const token   = localStorage.getItem('token');
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:40:const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:41:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:42:if (!token) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:43:    window.location.href = 'login.html';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:44:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:45:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:46:async function apiFetch(url, opciones = {}) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:47:    const headers = {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:48:        'Content-Type': 'application/json',
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:49:        'Authorization': `Bearer ${token}`,
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:50:        ...(opciones.headers || {})
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:51:    };
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:52:    const res = await fetch(url, { ...opciones, headers });
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:53:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:54:    if (res.status === 401) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:55:        localStorage.removeItem('token');
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:56:        localStorage.removeItem('usuario');
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:57:        window.location.href = 'login.html';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:58:        return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:59:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:60:    return res;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:61:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:62:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:63:function cerrarSesion() {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:64:    localStorage.removeItem('token');
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:65:    localStorage.removeItem('usuario');
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:66:    window.location.href = 'login.html';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:67:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:68:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:69:// ══ SEDES (solo admin) ══════════════════════════════════════
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:70:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:71:let sedeActual = usuario.rol === 'admin' ? null : (parseInt(localStorage.getItem('sedeActual')) || usuario.sede_id || 1);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:72:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:73:async function inicializarSelectorSede() {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:74:    if (usuario.rol !== 'admin') return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:75:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:76:    const select = document.getElementById('selector-sede');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:77:    const res    = await apiFetch(`${API}/auth/sedes`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:78:    if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:79:    const sedes  = await res.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:88:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:89:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:90:function cambiarSedeActual() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:91:    const val = document.getElementById('selector-sede').value;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:92:    sedeActual = val ? parseInt(val) : null;
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:93:    localStorage.setItem('sedeActual', sedeActual || '');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:94:    cargarProductos();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:95:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:96:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:97:function urlConSede(base) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:98:    if (usuario.rol === 'admin' && sedeActual) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:99:        const sep = base.includes('?') ? '&' : '?';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:100:        return `${base}${sep}sede_id=${sedeActual}`;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:101:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:102:    return base;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:103:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:104:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:105:// ══ NAVEGACIÓN ══════════════════════════════════════════════
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:106:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:107:function mostrarSeccion(nombre, btn) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:108:    if (nombre === 'usuarios' && usuario.rol !== 'admin') return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:109:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:110:    document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:111:    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:112:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:113:    document.getElementById('sec-' + nombre).classList.add('activa');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:119:    if (nombre === 'devoluciones')  cargarDevoluciones();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:120:    if (nombre === 'traslados')     cargarTraslados();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:121:    if (nombre === 'consolidado') cargarPuntos();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:122:    if (nombre === 'modelos')       cargarModelos();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:123:    if (nombre === 'marcas')        cargarMarcas();
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:124:    if (nombre === 'usuarios')      cargarUsuarios();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:125:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:126:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:127:// ══ MODALES ═════════════════════════════════════════════════
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:128:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:129:function abrirModal(id) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:133:        const hoy = new Date().toISOString().split('T')[0];
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:134:        document.getElementById('ent-fecha').value = hoy;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:135:        generarNumeroEntrada();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:136:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:137:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:138:    if (id === 'modal-entrada' && usuario.rol === 'admin') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:139:        apiFetch(`${API}/auth/sedes`).then(r => r.json()).then(sedes => {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:140:            const sel = document.getElementById('ent-sede');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:141:            sel.innerHTML = '<option value="">— Selecciona la sede —</option>';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:142:            sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:143:                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre} — ${s.ciudad}</option>`
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:151:        const hoy = new Date().toISOString().split('T')[0];
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:152:        document.getElementById('sal-fecha').value = hoy;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:153:        generarNumeroSalida();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:154:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:155:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:156:    if (id === 'modal-salida' && usuario.rol === 'admin') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:157:            apiFetch(`${API}/auth/sedes`).then(r => r.json()).then(sedes => {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:158:                const sel = document.getElementById('sal-sede');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:159:                sel.innerHTML = '<option value="">— Selecciona la sede —</option>';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:160:                sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:161:                    `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre} — ${s.ciudad}</option>`
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:169:        const hoy = new Date().toISOString().split('T')[0];
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:170:        document.getElementById('dev-fecha').value = hoy;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:171:        cargarSelectorSalidas();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:172:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:173:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:174:    if (id === 'modal-devolucion' && usuario.rol === 'admin') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:175:        apiFetch(`${API}/auth/sedes`).then(r => r.json()).then(sedes => {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:176:            const sel = document.getElementById('dev-sede');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:177:            sel.innerHTML = '<option value="">— Selecciona la sede —</option>';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:178:            sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:179:                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre} — ${s.ciudad}</option>`
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:201:            `TR-${fecha}-${hora}`;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:202:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:203:        cargarSedesTraslado();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:204:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:205:    
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:206:    if (id === 'modal-producto' && usuario.rol === 'admin') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:207:        apiFetch(`${API}/auth/sedes`).then(r => r.json()).then(sedes => {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:208:            const sel = document.getElementById('prod-sede');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:209:            sel.innerHTML = '<option value="">— Selecciona la sede —</option>';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:210:            sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:211:                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre} — ${s.ciudad}</option>`
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:422:        tbody.insertAdjacentHTML('beforeend', `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:423:            <tr>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:424:                <td><strong>${m.nombre}</strong></td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:425:                <td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:426:                    <div class="acciones">
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:427:                        ${usuario.rol !== 'consulta' ? `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:428:                            <button class="btn-accion" onclick="editarModelo(${m.id}, '${m.nombre}')">✏️ Editar</button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:429:                            <button class="btn-accion danger" onclick="eliminarModelo(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:430:                        ` : ''}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:431:                    </div>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:432:                </td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:490:        tbody.insertAdjacentHTML('beforeend', `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:491:            <tr>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:492:                <td><strong>${m.nombre}</strong></td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:493:                <td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:494:                    <div class="acciones">
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:495:                        ${usuario.rol !== 'consulta' ? `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:496:                            <button class="btn-accion" onclick="editarMarca(${m.id}, '${m.nombre}')">✏️ Editar</button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:497:                            <button class="btn-accion danger" onclick="eliminarMarca(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:498:                        ` : ''}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:499:                    </div>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:500:                </td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:672:                    <div class="acciones">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:673:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:674:                        ${botonEquipos}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:675:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:676:                        ${
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:677:                            usuario.rol === 'admin'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:678:                                ? `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:679:                                    <button
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:680:                                        class="btn-accion"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:681:                                        onclick="editarProducto(${p.id})">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:682:                                        ✏️ Editar
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:709:    event.preventDefault();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:710:    const id = document.getElementById('prod-id').value;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:711:    
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:712:    const sede_id = parseInt(document.getElementById('prod-sede').value) || sedeActual;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:713:    
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:714:    if (usuario.rol === 'admin' && !sede_id) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:715:        alert('Selecciona una sede para el producto');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:716:        return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:717:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:718:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:719:    const datos = {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:826:async function cargarEntradas() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:827:    const res = await apiFetch(urlConSede(`${API}/entradas/`));
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:828:    if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:829:    entradasCache = await res.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:830:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:831:    if (usuario.rol === 'admin') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:832:        const sel = document.getElementById('filtro-sede-entradas');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:833:        const valorActual = sel.value; // ✅ guardamos el valor antes de recargar
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:834:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:835:        const resSedes = await apiFetch(`${API}/auth/sedes`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:836:        if (resSedes) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:873:                <td>${e.total_items} producto(s)</td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:874:                <td>${fecha}</td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:875:                <td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:876:                    <div class="acciones">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:877:                        <button class="btn-accion" onclick="verPDFEntrada(${e.id})">📄 PDF</button>
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:878:                        ${usuario.rol !== 'consulta' ? `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:879:                            <button class="btn-accion danger" onclick="eliminarEntrada(${e.id}, '${e.numero_documento}')">🗑️ 
+Eliminar</button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:880:                        ` : ''}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:881:                    </div>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:882:                </td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:883:            </tr>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:910:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:911:    const sedeEntrada =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:912:        parseInt(document.getElementById('ent-sede').value) || sedeActual;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:913:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:914:    const urlProductos =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:915:        usuario.rol === 'admin' && sedeEntrada
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:916:            ? `${API}/productos/?sede_id=${sedeEntrada}`
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:917:            : urlConSede(`${API}/productos/`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:918:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:919:    const res = await apiFetch(urlProductos);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:920:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1961:        entItems.innerHTML = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1962:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1963:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1964:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1965:function verPDFEntrada(id) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:1966:    window.open(`${API}/pdf/entrada/${id}?token=${token}`, '_blank');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1967:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1968:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1969:async function eliminarEntrada(id, numero) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1970:    if (!await mostrarConfirm(`¿Eliminar la entrada "${numero}"? Esto revertira el stock.`)) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1971:    await apiFetch(`${API}/entradas/${id}`, { method: 'DELETE' });
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1995:async function cargarSalidas() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1996:    const res = await apiFetch(urlConSede(`${API}/salidas/`));
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1997:    if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1998:    salidasCache = await res.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:1999:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:2000:    if (usuario.rol === 'admin') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2001:        const sel = document.getElementById('filtro-sede-salidas');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2002:        const valorActual = sel.value;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2003:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2004:        const resSedes = await apiFetch(`${API}/auth/sedes`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2005:        if (resSedes) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2042:                <td>${s.total_items} producto(s)</td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2043:                <td>${fecha}</td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2044:                <td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2045:                    <div class="acciones">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2046:                        <button class="btn-accion" onclick="verPDFSalida(${s.id})">📄 PDF</button>
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:2047:                        ${usuario.rol !== 'consulta' ? `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2048:                            <button class="btn-accion danger" onclick="eliminarSalida(${s.id}, '${s.numero_documento}')">🗑️ 
+Eliminar</button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2049:                        ` : ''}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2050:                    </div>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2051:                </td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2052:            </tr>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2078:async function agregarItemSalida() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2079:    const sedeSalida =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2080:        parseInt(document.getElementById('sal-sede').value) || sedeActual;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2081:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2082:    const urlProductos =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:2083:        usuario.rol === 'admin' && sedeSalida
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2084:            ? `${API}/productos/?sede_id=${sedeSalida}`
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2085:            : urlConSede(`${API}/productos/`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2086:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2087:    const res = await apiFetch(urlProductos);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:2088:    if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3387:    document.getElementById('sal-sede').value = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3388:    productosCacheSalida = [];
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3389:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3390:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3391:function verPDFSalida(id) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:3392:    window.open(`${API}/pdf/salida/${id}?token=${token}`, '_blank');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3393:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3394:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3395:async function eliminarSalida(id, numero) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3396:    if (!await mostrarConfirm(`¿Eliminar la salida "${numero}"? Esto devolvera el stock descontado.`)) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3397:    await apiFetch(`${API}/salidas/${id}`, { method: 'DELETE' });
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3401:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3402:// ══ DEVOLUCIONES ════════════════════════════════════════════
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3403:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3404:async function cargarSelectorSalidas() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3405:    const sedeDev = parseInt(document.getElementById('dev-sede').value) || sedeActual;
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:3406:    const url = usuario.rol === 'admin' && sedeDev
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3407:        ? `${API}/devoluciones/salidas-disponibles?sede_id=${sedeDev}`
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3408:        : `${API}/devoluciones/salidas-disponibles`;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3409:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3410:    const res = await apiFetch(url);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3411:    if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3704:    const texto =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3705:        buscador.value
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3706:            .trim()
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3707:            .toLowerCase();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3708:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:3709:    // Si el usuario vuelve a escribir,
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3710:    // quitamos la salida seleccionada anteriormente
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3711:    salidaHidden.value = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3712:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3713:    if (!texto) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3714:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3863:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3864:    if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3865:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3866:    devolucionesCache = await res.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3867:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:3868:    if (usuario.rol === 'admin') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3869:        const sel = document.getElementById('filtro-sede-devoluciones');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3870:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3871:        if (sel) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3872:            const valorActual = sel.value;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:3873:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4046:                            onclick="verPDFDevolucion(${d.id})">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4047:                            📄 PDF
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4048:                        </button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4049:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4050:                        ${
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4051:                            usuario.rol === 'admin'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4052:                            ? `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4053:                                <button
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4054:                                    class="btn-accion danger"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4055:                                    onclick="anularDevolucion(
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4056:                                        ${d.id},
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4336:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4337:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4338:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4339:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4340:function verPDFDevolucion(id) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4341:    window.open(`${API}/pdf/devolucion/${id}?token=${token}`, '_blank');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4342:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4343:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4344:async function anularDevolucion(id, numero) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4345:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4346:    const confirmar =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4452:document.addEventListener('DOMContentLoaded', () => {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4453:    inicializarSelectorSede();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4454:    cargarProductos();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4455:    cargarCatalogos();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4456:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4457:    if (usuario.rol === 'consulta') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4458:        document.body.classList.add('rol-consulta');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4459:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4460:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4461:    const nom = usuario.nombre || 'Usuario';
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4462:    const rolTexto = usuario.rol === 'admin'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4463:    ? 'Administrador'
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4464:    : usuario.rol === 'sede'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4465:        ? 'Almacenista'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4466:        : 'Consulta';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4467:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4468:    document.getElementById('nombre-usuario').textContent = nom;
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4469:    document.getElementById('rol-usuario').textContent    = rolTexto;
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4470:    document.getElementById('sede-usuario').textContent   = usuario.sede_nombre || usuario.ciudad || '';
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4471:    document.getElementById('avatar-usuario').textContent =
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4472:        nom.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4473:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4474:    const entSede = document.getElementById('ent-sede');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4475:    if (entSede) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4476:        entSede.addEventListener('change', () => {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4495:            cargarSelectorSalidas();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4496:        });
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4497:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4498:});
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4499:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4500:// ══ USUARIOS ════════════════════════════════════════════════
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4501:// Agregar estas funciones al final de app.js
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4502:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4503:async function cargarUsuarios() {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4504:    const res      = await apiFetch(`${API}/auth/usuarios`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4505:    if (!res) return;
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4506:    const usuarios = await res.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4507:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4508:    document.getElementById('subtitulo-usuarios').textContent =
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4509:        `${usuarios.length} usuarios registrados`;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4510:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4511:    const tbody = document.getElementById('tabla-usuarios');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4512:    tbody.innerHTML = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4513:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4514:    if (usuarios.length === 0) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4515:        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#6b8aab;padding:2rem">Sin usuarios registrados</td></tr>';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4516:        return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4517:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4518:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4519:    usuarios.forEach(u => {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4520:        const rolTexto  = u.rol === 'admin' ? 'Administrador' : u.rol === 'sede' ? 'Almacenista' : 'Consulta';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4521:        const rolColor  = u.rol === 'admin' ? '#1a6fc4' : u.rol === 'sede' ? '#1a7a4a' : '#6b8aab';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4522:        const rolBg     = u.rol === 'admin' ? '#e8f0fb' : u.rol === 'sede' ? '#e6f4ec' : '#f0f4f8';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4523:        const estadoBadge = u.activo
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4524:            ? '<span class="badge badge-ok">Activo</span>'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4535:                </td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4536:                <td>${u.sede_nombre || '—'}</td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4537:                <td>${estadoBadge}</td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4538:                <td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4539:                    <div class="acciones">
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4540:                        <button class="btn-accion" onclick="editarUsuario(${u.id})">✏️ Editar</button>
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4541:                        <button class="btn-accion danger" onclick="toggleUsuario(${u.id}, ${u.activo}, '${u.nombre}')">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4542:                            ${u.activo ? '🔒 Desactivar' : '🔓 Activar'}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4543:                        </button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4544:                    </div>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4545:                </td>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4546:            </tr>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4547:        `);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4548:    });
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4549:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4550:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4551:async function abrirModalUsuario() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4552:    // Cargamos las sedes en el select antes de abrir
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4553:    const res = await apiFetch(`${API}/auth/sedes`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4554:    if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4555:    const sedes = await res.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4556:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4559:    sedes.forEach(s => {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4560:        select.insertAdjacentHTML('beforeend',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4561:            `<option value="${s.id}">${s.nombre} — ${s.ciudad}</option>`
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4562:        );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4563:    });
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4564:    abrirModal('modal-usuario');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4565:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4566:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4567:async function editarUsuario(id) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4568:    const res      = await apiFetch(`${API}/auth/usuarios`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4569:    if (!res) return;
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4570:    const usuarios = await res.json();
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4571:    const u        = usuarios.find(x => x.id === id);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4572:    if (!u) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4573:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4574:    // Cargamos sedes
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4575:    const resSedes = await apiFetch(`${API}/auth/sedes`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4576:    if (!resSedes) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4581:        selectSede.insertAdjacentHTML('beforeend',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4582:            `<option value="${s.id}" ${s.id === u.sede_id ? 'selected' : ''}>${s.nombre} — ${s.ciudad}</option>`
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4583:        );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4584:    });
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4585:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4586:    document.getElementById('modal-usuario-titulo').textContent = 'Editar usuario';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4587:    document.getElementById('usr-id').value     = u.id;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4588:    document.getElementById('usr-nombre').value = u.nombre;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4589:    document.getElementById('usr-correo').value = u.email;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4590:    document.getElementById('usr-rol').value    = u.rol;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4591:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4592:    // En edicion mostramos campo de nueva contrasena opcional
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4593:    document.getElementById('campo-password').style.display       = 'none';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4594:    document.getElementById('campo-password-editar').style.display = 'block';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4595:    document.getElementById('usr-password-nuevo').value           = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4596:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4597:    abrirModal('modal-usuario');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4598:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4599:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4600:async function guardarUsuario(event) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4601:    event.preventDefault();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4602:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4603:    const id      = document.getElementById('usr-id').value;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4604:    const nombre  = document.getElementById('usr-nombre').value;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4605:    const correo  = document.getElementById('usr-correo').value;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4606:    const rol     = document.getElementById('usr-rol').value;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4607:    const sede_id = document.getElementById('usr-sede').value || null;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4608:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4609:    if (id) {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4610:        // Editar usuario existente
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4611:        const datos = { nombre, email: correo, rol, sede_id };
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4612:        const nuevaPassword = document.getElementById('usr-password-nuevo').value;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4613:        if (nuevaPassword) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4614:            if (nuevaPassword.length < 6) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4615:                alert('La contrasena debe tener al menos 6 caracteres');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4616:                return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4617:            }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4618:            datos.password = nuevaPassword;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4619:        }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4620:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4621:        const res = await apiFetch(`${API}/auth/usuarios/${id}`, {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4622:            method: 'PUT',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4623:            body: JSON.stringify(datos)
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4624:        });
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4625:        if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4626:        const resultado = await res.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4627:        if (!res.ok) { alert('Error: ' + resultado.error); return; }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4628:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4629:    } else {
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4630:        // Crear usuario nuevo
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4631:        const password = document.getElementById('usr-password').value;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4632:        if (!password || password.length < 6) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4633:            alert('La contrasena debe tener al menos 6 caracteres');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4634:            return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4635:        }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4636:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4637:        const res = await apiFetch(`${API}/auth/usuarios`, {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4638:            method: 'POST',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4639:            body: JSON.stringify({ nombre, email: correo, password, rol, sede_id })
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4640:        });
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4641:        if (!res) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4642:        const resultado = await res.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4643:        if (!res.ok) { alert('Error: ' + resultado.error); return; }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4644:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4645:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4646:    cerrarModal('modal-usuario');
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4647:    cargarUsuarios();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4648:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4649:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4650:async function toggleUsuario(id, activo, nombre) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4651:    const accion = activo ? 'desactivar' : 'activar';
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4652:    if (!await mostrarConfirm(`¿${accion.charAt(0).toUpperCase() + accion.slice(1)} al usuario "${nombre}"?`, '¿Confirmar accion?', '👤', 
+accion.charAt(0).toUpperCase() + accion.slice(1))) return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4653:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4654:    const res = await apiFetch(`${API}/auth/usuarios/${id}/toggle`, {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4655:        method: 'PUT'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4656:    });
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4657:    if (!res) return;
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4658:    cargarUsuarios();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4659:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4660:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4661:function limpiarFormUsuario() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4662:    document.getElementById('usr-id').value            = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4663:    document.getElementById('usr-nombre').value        = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4664:    document.getElementById('usr-correo').value        = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4665:    document.getElementById('usr-rol').value           = 'sede';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4666:    document.getElementById('usr-password').value      = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4667:    document.getElementById('usr-password-nuevo').value = '';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4668:    document.getElementById('campo-password').style.display        = 'block';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4669:    document.getElementById('campo-password-editar').style.display = 'none';
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4670:    document.getElementById('modal-usuario-titulo').textContent    = 'Nuevo usuario';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4671:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4672:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4673:// ══ CONSOLIDADO POR PUNTO ════════════════════════════════════
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4674:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4675:async function cargarPuntos() {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4676:    // Carga sedes en filtro si es admin
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4677:    if (usuario.rol === 'admin') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4678:        const sel = document.getElementById('filtro-sede-consolidado');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4679:        const valorActual = sel.value;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4680:        const resSedes = await apiFetch(`${API}/auth/sedes`);
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4681:        if (resSedes) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4682:            const sedes = await resSedes.json();
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4845:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4846:    origen.innerHTML = '<option value="">— Selecciona origen —</option>';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4847:    destino.innerHTML = '<option value="">— Selecciona destino —</option>';
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4848:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4849:    // ADMIN
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4850:    if (usuario.rol === 'admin') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4851:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4852:        sedes.forEach(s => {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4853:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4854:            origen.insertAdjacentHTML(
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4855:                'beforeend',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4869:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4870:    } else {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4871:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4872:        // ALMACENISTA: origen = su propia sede
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4873:        const miSede = sedes.find(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4874:            s => Number(s.id) === Number(usuario.sede_id)
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4875:        );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4876:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4877:        if (miSede) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4878:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4879:            origen.innerHTML = `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4883:            `;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4884:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4885:            // El almacenista puede enviar a cualquier otra sede
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4886:            sedes.forEach(s => {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4887:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:4888:                if (Number(s.id) !== Number(usuario.sede_id)) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4889:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4890:                    destino.insertAdjacentHTML(
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4891:                        'beforeend',
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4892:                        `<option value="${s.id}">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:4893:                            ${sanitizar(s.nombre)} — ${sanitizar(s.ciudad)}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5314:                            onclick="verPDFTraslado(${t.id})">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5315:                            📄 PDF
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5316:                        </button>
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5317:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5318:                        ${
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5319:                            usuario.rol === 'admin' && t.estado === 'PENDIENTE'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5320:                            ? `
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5321:                                <button
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5322:                                    class="btn-accion"
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5323:                                    onclick="recibirTraslado(${t.id})">
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5324:                                    ✅ Recibir
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5441:        .classList.add('visible');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5442:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5443:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5444:async function recibirTraslado(id) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5445:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5446:    if (usuario.rol !== 'admin') {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5447:        alert('No tienes permisos para recibir traslados.');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5448:        return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5449:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5450:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5451:    if (!await mostrarConfirm(
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5482:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5483:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5484:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5485:function verPDFTraslado(id) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5486:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5487:    const token = localStorage.getItem('token');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5488:
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5489:    if (!token) {
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5490:        alert('Sesión no válida.');
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5491:        return;
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5492:    }
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5493:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5494:    window.open(
+> C:\Users\Andres\Documents\almacen\frontend\js\app.js:5495:        `${API}/pdf/traslados/${id}?token=${encodeURIComponent(token)}`,
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5496:        '_blank'
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5497:    );
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5498:}
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5499:
+  C:\Users\Andres\Documents\almacen\frontend\js\app.js:5500:async function verEquiposProducto(productoId) {
+
+

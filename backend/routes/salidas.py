@@ -70,13 +70,54 @@ def usuario_puede_ver_salida(salida):
             or int(salida["sede_id"]) == int(sede_id)
         )
 
-    if rol == "sede":
+    if rol in ("sede", "porteria"):
 
         return (
             salida["sede_id"] == sede_id
         )
 
     return False
+
+
+def obtener_o_crear_cliente(cursor, nombre):
+    """
+    Busca un cliente por nombre (sin importar mayúsculas ni
+    espacios de más). Si no existe, lo crea. Igual que las
+    marcas/modelos "sobre la marcha".
+
+    Devuelve None si no se escribió ningún nombre (el cliente
+    es opcional en una salida).
+    """
+
+    nombre = (nombre or "").strip()
+
+    if not nombre:
+        return None
+
+    cursor.execute("""
+        SELECT id
+        FROM clientes
+        WHERE LOWER(TRIM(nombre)) = LOWER(%s)
+    """, (
+        nombre,
+    ))
+
+    existente = cursor.fetchone()
+
+    if existente:
+        return existente["id"]
+
+    cursor.execute("""
+        INSERT INTO clientes (
+            nombre
+        )
+        VALUES (%s)
+        RETURNING id
+    """, (
+        nombre,
+    ))
+
+    return cursor.fetchone()["id"]
 
 
 # ============================================================
@@ -113,11 +154,14 @@ def listar_salidas():
                         s.estado,
                         s.fecha_anulacion,
                         s.motivo_anulacion,
+                        s.cliente_id,
 
                         se.nombre AS sede_nombre,
                         se.ciudad,
 
                         u.nombre AS usuario_nombre,
+
+                        c.nombre AS cliente_nombre,
 
                         COUNT(
                             DISTINCT d.producto_id
@@ -134,6 +178,9 @@ def listar_salidas():
                     LEFT JOIN usuarios u
                         ON u.id = s.usuario_id
 
+                    LEFT JOIN clientes c
+                        ON c.id = s.cliente_id
+
                     GROUP BY
                         s.id,
                         s.numero_documento,
@@ -144,9 +191,11 @@ def listar_salidas():
                         s.estado,
                         s.fecha_anulacion,
                         s.motivo_anulacion,
+                        s.cliente_id,
                         se.nombre,
                         se.ciudad,
-                        u.nombre
+                        u.nombre,
+                        c.nombre
 
                     ORDER BY
                         s.fecha DESC
@@ -169,11 +218,14 @@ def listar_salidas():
                         s.estado,
                         s.fecha_anulacion,
                         s.motivo_anulacion,
+                        s.cliente_id,
 
                         se.nombre AS sede_nombre,
                         se.ciudad,
 
                         u.nombre AS usuario_nombre,
+
+                        c.nombre AS cliente_nombre,
 
                         COUNT(
                             DISTINCT d.producto_id
@@ -190,6 +242,9 @@ def listar_salidas():
                     LEFT JOIN usuarios u
                         ON u.id = s.usuario_id
 
+                    LEFT JOIN clientes c
+                        ON c.id = s.cliente_id
+
                     WHERE s.sede_id = %s
 
                     GROUP BY
@@ -202,9 +257,11 @@ def listar_salidas():
                         s.estado,
                         s.fecha_anulacion,
                         s.motivo_anulacion,
+                        s.cliente_id,
                         se.nombre,
                         se.ciudad,
-                        u.nombre
+                        u.nombre,
+                        c.nombre
 
                     ORDER BY
                         s.fecha DESC
@@ -259,11 +316,14 @@ def obtener_salida(id):
                     s.anulada_por,
                     s.fecha_anulacion,
                     s.motivo_anulacion,
+                    s.cliente_id,
 
                     se.nombre AS sede_nombre,
                     se.ciudad,
 
-                    u.nombre AS usuario_nombre
+                    u.nombre AS usuario_nombre,
+
+                    c.nombre AS cliente_nombre
 
                 FROM salidas s
 
@@ -272,6 +332,9 @@ def obtener_salida(id):
 
                 LEFT JOIN usuarios u
                     ON u.id = s.usuario_id
+
+                LEFT JOIN clientes c
+                    ON c.id = s.cliente_id
 
                 WHERE s.id = %s
             """, (
@@ -396,11 +459,11 @@ def crear_salida():
     # PERMISOS
     # ========================================================
 
-    if rol == "consulta":
+    if rol in ("consulta", "porteria"):
 
         return jsonify({
             "error": (
-                "El usuario de consulta no puede "
+                "Este usuario no puede "
                 "registrar salidas"
             )
         }), 403
@@ -516,6 +579,21 @@ def crear_salida():
         }), 400
 
     # ========================================================
+    # CLIENTE (opcional)
+    #
+    # Se busca o se crea sobre la marcha, igual que
+    # marcas/modelos. Si el campo viene vacío, la salida
+    # simplemente queda sin cliente asociado.
+    # ========================================================
+
+    cliente_nombre = str(
+        datos.get(
+            "cliente",
+            ""
+        )
+    ).strip()
+
+    # ========================================================
     # OBSERVACIONES
     # ========================================================
 
@@ -577,6 +655,15 @@ def crear_salida():
                         f'"{numero_documento}"'
                     )
                 )
+
+            # =================================================
+            # CLIENTE: BUSCAR O CREAR
+            # =================================================
+
+            cliente_id = obtener_o_crear_cliente(
+                cursor,
+                cliente_nombre
+            )
 
             # =================================================
             # VALIDAR DETALLE
@@ -1080,9 +1167,11 @@ def crear_salida():
                     destino,
                     observaciones,
                     usuario_id,
+                    cliente_id,
                     estado
                 )
                 VALUES (
+                    %s,
                     %s,
                     %s,
                     %s,
@@ -1096,7 +1185,8 @@ def crear_salida():
                 sede_id,
                 destino,
                 observaciones,
-                usuario_id
+                usuario_id,
+                cliente_id
             ))
 
             salida_id = cursor.fetchone()["id"]
@@ -1214,6 +1304,9 @@ def crear_salida():
 
                 "destino":
                     destino,
+
+                "cliente":
+                    cliente_nombre,
 
                 "observaciones":
                     observaciones,

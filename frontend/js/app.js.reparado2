@@ -1,4 +1,4 @@
-﻿const API = '/api';
+const API = '/api';
 
 function sanitizar(texto) {
     if (!texto) return '—';
@@ -34,7 +34,7 @@ function mostrarNotificacion(mensaje, tipo = 'exito') {
         notificacion.classList.remove('visible');
     }, 3000);
 }
-// ══ SESION ══════════════════════════════════════════════════
+// â•â• SESION â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const token   = localStorage.getItem('token');
 const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
@@ -68,7 +68,7 @@ function cerrarSesion() {
     window.location.href = 'login.html';
 }
 
-// ══ SEDES (solo admin) ══════════════════════════════════════
+// â•â• SEDES (solo admin) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let sedeActual = usuario.rol === 'admin' ? null : (parseInt(localStorage.getItem('sedeActual')) || usuario.sede_id || 1);
 
@@ -129,9 +129,6 @@ function urlConSede(base) {
 function mostrarSeccion(nombre, btn) {
     if (nombre === 'usuarios' && usuario.rol !== 'admin') return;
 
-    // Portería solo tiene acceso a la sección de Salidas.
-    if (usuario.rol === 'porteria' && nombre !== 'salidas') return;
-
     document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
 
@@ -146,7 +143,6 @@ function mostrarSeccion(nombre, btn) {
     if (nombre === 'consolidado') cargarPuntos();
     if (nombre === 'modelos')       cargarModelos();
     if (nombre === 'marcas')        cargarMarcas();
-    if (nombre === 'clientes')      cargarClientesLista();
     if (nombre === 'usuarios')      cargarUsuarios();
 }
 
@@ -175,7 +171,6 @@ function abrirModal(id) {
         const hoy = new Date().toISOString().split('T')[0];
         document.getElementById('sal-fecha').value = hoy;
         generarNumeroSalida();
-        cargarClientesDatalist();
     }
 
     if (id === 'modal-salida' && usuario.rol === 'admin') {
@@ -253,11 +248,10 @@ function cerrarModal(id) {
     if (id === 'modal-salida')     limpiarFormSalida();
     if (id === 'modal-modelo')     limpiarFormModelo();
     if (id === 'modal-marca')      limpiarFormMarca();
-    if (id === 'modal-cliente')    limpiarFormCliente();
     if (id === 'modal-devolucion') limpiarFormDevolucion();
 }
 
-// ══ CATALOGOS (compartidos entre sedes) ══════════════════════
+// â•â• CATALOGOS (compartidos entre sedes) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let catalogoModelos = [];
 let catalogoMarcas  = [];
@@ -269,128 +263,6 @@ async function cargarCatalogos() {
     ]);
     catalogoModelos = await resModelos.json();
     catalogoMarcas  = await resMarcas.json();
-}
-
-// ================================================================
-// CLIENTES (Salidas)
-//
-// Se maneja igual que marcas/modelos: es un catálogo simple.
-// Cargamos los nombres ya existentes para sugerirlos con un
-// desplegable propio (mismo estilo que el buscador de productos).
-// Si el usuario escribe uno que no está en la lista, el backend
-// lo crea solo al guardar la salida — no hace falta un botón de
-// "+ Nuevo cliente".
-// ================================================================
-
-let clientesCache = [];
-
-async function cargarClientesDatalist() {
-    const res = await apiFetch(`${API}/catalogos/clientes`);
-
-    if (!res) return;
-
-    const clientes = await res.json();
-
-    if (!Array.isArray(clientes)) return;
-
-    clientesCache = clientes;
-
-    inicializarBuscadorCliente();
-}
-
-function inicializarBuscadorCliente() {
-
-    const buscador = document.getElementById('sal-cliente');
-    const resultados = document.getElementById('resultados-cliente');
-
-    if (!buscador || !resultados) return;
-
-    if (buscador.dataset.buscadorListo === '1') return;
-    buscador.dataset.buscadorListo = '1';
-
-    function cerrarResultados() {
-        resultados.style.display = 'none';
-        resultados.innerHTML = '';
-    }
-
-    function seleccionarCliente(cliente) {
-        buscador.value = cliente.nombre;
-        cerrarResultados();
-    }
-
-    function filtrar() {
-
-        const texto = normalizarBusqueda(buscador.value);
-
-        if (!texto) {
-            cerrarResultados();
-            return;
-        }
-
-        const coincidencias = clientesCache.filter(c =>
-            normalizarBusqueda(c.nombre).includes(texto)
-        );
-
-        resultados.innerHTML = '';
-
-        if (coincidencias.length === 0) {
-            resultados.innerHTML = `
-                <div style="
-                    padding:10px 12px;
-                    font-size:12px;
-                    color:#6b8aab;
-                ">
-                    Cliente nuevo — se creará al guardar la salida.
-                </div>
-            `;
-            resultados.style.display = 'block';
-            return;
-        }
-
-        coincidencias.slice(0, 50).forEach(c => {
-
-            const opcionDiv = document.createElement('div');
-
-            opcionDiv.style.cssText = `
-                padding:8px 10px;
-                cursor:pointer;
-                border-bottom:0.5px solid #edf2f7;
-                font-size:12.5px;
-                color:#0d2137;
-            `;
-
-            opcionDiv.innerHTML = sanitizar(c.nombre);
-
-            opcionDiv.onmouseenter = () => {
-                opcionDiv.style.background = '#f5f8fc';
-            };
-
-            opcionDiv.onmouseleave = () => {
-                opcionDiv.style.background = 'white';
-            };
-
-            // mousedown (no click) para que se dispare antes
-            // del "blur" del campo de texto
-            opcionDiv.onmousedown = (ev) => {
-                ev.preventDefault();
-                seleccionarCliente(c);
-            };
-
-            resultados.appendChild(opcionDiv);
-        });
-
-        resultados.style.display = 'block';
-    }
-
-    buscador.addEventListener('input', filtrar);
-
-    buscador.addEventListener('focus', () => {
-        filtrar();
-    });
-
-    buscador.addEventListener('blur', () => {
-        setTimeout(cerrarResultados, 150);
-    });
 }
 
 async function guardarMarcaEnCatalogo(nombre) {
@@ -552,7 +424,7 @@ function activarCombo(wrapEl) {
     });
 }
 
-// ══ MODELOS ══════════════════════════════════════════════════
+// â•â• MODELOS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function cargarModelos() {
     const res     = await apiFetch(`${API}/catalogos/modelos`);
@@ -577,8 +449,8 @@ async function cargarModelos() {
                 <td>
                     <div class="acciones">
                         ${usuario.rol !== 'consulta' ? `
-                            <button class="btn-accion" onclick="editarModelo(${m.id}, '${m.nombre}')">✏️ Editar</button>
-                            <button class="btn-accion danger" onclick="eliminarModelo(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+                            <button class="btn-accion" onclick="editarModelo(${m.id}, '${m.nombre}')">âœï¸ Editar</button>
+                            <button class="btn-accion danger" onclick="eliminarModelo(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -620,7 +492,7 @@ function limpiarFormModelo() {
     document.getElementById('modal-modelo-titulo').textContent = 'Nuevo modelo';
 }
 
-// ══ MARCAS ════════════════════════════════════════════════════
+// â•â• MARCAS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function cargarMarcas() {
     const res    = await apiFetch(`${API}/catalogos/marcas`);
@@ -645,8 +517,8 @@ async function cargarMarcas() {
                 <td>
                     <div class="acciones">
                         ${usuario.rol !== 'consulta' ? `
-                            <button class="btn-accion" onclick="editarMarca(${m.id}, '${m.nombre}')">✏️ Editar</button>
-                            <button class="btn-accion danger" onclick="eliminarMarca(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+                            <button class="btn-accion" onclick="editarMarca(${m.id}, '${m.nombre}')">âœï¸ Editar</button>
+                            <button class="btn-accion danger" onclick="eliminarMarca(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -688,89 +560,7 @@ function limpiarFormMarca() {
     document.getElementById('modal-marca-titulo').textContent = 'Nueva marca';
 }
 
-// ══ CLIENTES (catálogo) ══════════════════════════════════════
-//
-// Sección dedicada para ver/editar/eliminar clientes. Admin,
-// almacenista y consulta pueden VER esta lista; solo admin
-// puede editar o eliminar (igual que marcas/modelos). La
-// creación "sobre la marcha" desde el modal de Salidas sigue
-// funcionando aparte (ver cargarClientesDatalist más abajo).
-
-async function cargarClientesLista() {
-    const res = await apiFetch(`${API}/catalogos/clientes`);
-    if (!res) return;
-    const clientes = await res.json();
-
-    document.getElementById('subtitulo-clientes').textContent =
-        `${clientes.length} clientes registrados`;
-
-    const tbody = document.getElementById('tabla-clientes');
-    tbody.innerHTML = '';
-
-    if (clientes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#6b8aab;padding:2rem">Sin clientes registrados</td></tr>';
-        return;
-    }
-
-    clientes.forEach(c => {
-        tbody.insertAdjacentHTML('beforeend', `
-            <tr>
-                <td><strong>${sanitizar(c.nombre)}</strong></td>
-                <td>
-                    <div class="acciones">
-                        ${usuario.rol === 'admin' ? `
-                            <button class="btn-accion" onclick="editarCliente(${c.id}, '${sanitizar(c.nombre)}')">✏️ Editar</button>
-                            <button class="btn-accion danger" onclick="eliminarCliente(${c.id}, '${sanitizar(c.nombre)}')">🗑️ Eliminar</button>
-                        ` : ''}
-                    </div>
-                </td>
-            </tr>
-        `);
-    });
-}
-
-function editarCliente(id, nombre) {
-    document.getElementById('modal-cliente-titulo').textContent = 'Editar cliente';
-    document.getElementById('cliente-id').value     = id;
-    document.getElementById('cliente-nombre').value = nombre;
-    abrirModal('modal-cliente');
-}
-
-async function guardarCliente(event) {
-    event.preventDefault();
-    const id     = document.getElementById('cliente-id').value;
-    const nombre = document.getElementById('cliente-nombre').value;
-    const url    = id ? `${API}/catalogos/clientes/${id}` : `${API}/catalogos/clientes`;
-    const metodo = id ? 'PUT' : 'POST';
-
-    const res = await apiFetch(url, {
-        method: metodo,
-        body: JSON.stringify({ nombre })
-    });
-    if (!res) return;
-    const resultado = await res.json();
-    if (!res.ok) { alert('Error: ' + resultado.error); return; }
-
-    cerrarModal('modal-cliente');
-    cargarClientesLista();
-}
-
-async function eliminarCliente(id, nombre) {
-    if (!await mostrarConfirm(`¿Eliminar el cliente "${nombre}"?`)) return;
-    const res = await apiFetch(`${API}/catalogos/clientes/${id}`, { method: 'DELETE' });
-    if (!res) return;
-    const resultado = await res.json();
-    if (!res.ok) { alert('Error: ' + resultado.error); return; }
-    cargarClientesLista();
-}
-
-function limpiarFormCliente() {
-    document.getElementById('cliente-id').value     = '';
-    document.getElementById('cliente-nombre').value = '';
-    document.getElementById('modal-cliente-titulo').textContent = 'Nuevo cliente';
-}
-
-// ══ PRODUCTOS/SERIALES (separados por sede) ════════════════════════════
+// â•â• PRODUCTOS/SERIALES (separados por sede) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function cargarProductos() {
 
@@ -891,7 +681,7 @@ function pintarProductos(productos) {
                     <button
                         class="btn-accion"
                         onclick="verEquiposProducto(${p.id})">
-                        👁️ Ver equipos
+                        ðŸ‘ï¸ Ver equipos
                     </button>
                   `
                 : '';
@@ -912,7 +702,7 @@ function pintarProductos(productos) {
                             font-weight:600
                         "
                     >
-                        ${p.codigo || '—'}
+                        ${p.codigo || '✏️ Editar'}
                     </span>
                 </td>
 
@@ -934,7 +724,7 @@ function pintarProductos(productos) {
                         "
                     >
                         ${sanitizar(
-                            p.sede_nombre || '—'
+                            p.sede_nombre || '✏️ Editar'
                         )}
                     </span>
                 </td>
@@ -969,7 +759,7 @@ function pintarProductos(productos) {
                                         class="btn-accion"
                                         onclick="editarProducto(${p.id})"
                                     >
-                                        ✏️ Editar
+                                        âœï¸ Editar
                                     </button>
 
                                     <button
@@ -984,7 +774,7 @@ function pintarProductos(productos) {
                                             )}'
                                         )"
                                     >
-                                        🗑️ Eliminar
+                                        🗑️ Eliminar
                                     </button>
                                   `
                                 : ''
@@ -999,59 +789,25 @@ function pintarProductos(productos) {
     });
 }
 
-// Cuando el producto es serializado, el "Stock inicial" no se
-// pone aquí (cada unidad necesita su propio serial), sino con
-// una Entrada. Este ajuste visual desactiva y limpia ESE campo
-// nada más (el de "Stock mínimo" no se toca, sigue siendo
-// editable siempre — es solo el umbral de alerta, no depende de
-// si el producto es serializado).
-function actualizarCampoStockProducto() {
-    const requiereSerial = document.getElementById('prod-requiere-serial').checked;
-    const inputStockInicial = document.getElementById('prod-stock-inicial');
-    const nota = document.getElementById('nota-stock-serializado');
-
-    inputStockInicial.disabled = requiereSerial;
-    nota.style.display = requiereSerial ? 'block' : 'none';
-
-    if (requiereSerial) {
-        inputStockInicial.value = '0';
-    }
-}
-
 async function guardarProducto(event) {
     event.preventDefault();
     const id = document.getElementById('prod-id').value;
-
+    
     const sede_id = parseInt(document.getElementById('prod-sede').value) || sedeActual;
-
+    
     if (usuario.rol === 'admin' && !sede_id) {
         alert('Selecciona una sede para el producto');
         return;
     }
 
-    const requiereSerial = document.getElementById('prod-requiere-serial').checked;
-
-    // "Stock inicial" (cantidad con la que nace el producto) y
-    // "Stock mínimo" (umbral para la alerta de "Stock bajo") son
-    // dos cosas distintas en la base de datos, así que van en
-    // campos separados. El backend solo usa "stock" al CREAR
-    // (POST); al editar (PUT) lo ignora, así que no importa qué
-    // se mande ahí en ese caso.
-    const stockInicial = requiereSerial
-        ? 0
-        : parseInt(document.getElementById('prod-stock-inicial').value) || 0;
-
-    const stockMinimo = parseInt(document.getElementById('prod-stock-minimo').value) || 0;
-
     const datos = {
-        codigo:          document.getElementById('prod-codigo').value,
-        nombre:          document.getElementById('prod-nombre').value,
-        descripcion:     document.getElementById('prod-descripcion').value,
-        unidad:          document.getElementById('prod-unidad').value,
-        stock:           stockInicial,
-        stock_minimo:    stockMinimo,
-        sede_id:         sede_id,
-        requiere_serial: requiereSerial,
+        codigo:       document.getElementById('prod-codigo').value,
+        nombre:       document.getElementById('prod-nombre').value,
+        descripcion:  document.getElementById('prod-descripcion').value,
+        unidad:       document.getElementById('prod-unidad').value,
+        stock:        parseInt(document.getElementById('prod-stock-minimo').value) || 0,
+        stock_minimo: parseInt(document.getElementById('prod-stock-minimo').value) || 0,
+        sede_id:      sede_id,
     };
 
     const url    = id ? `${API}/productos/${id}` : urlConSede(`${API}/productos/`);
@@ -1089,22 +845,6 @@ async function editarProducto(id) {
     document.getElementById('prod-descripcion').value  = p.descripcion || '';
     document.getElementById('prod-unidad').value       = p.unidad;
     document.getElementById('prod-stock-minimo').value = p.stock_minimo;
-
-    // El "Stock inicial" solo tiene sentido al CREAR (el backend
-    // lo ignora al editar), así que se esconde por completo aquí
-    // para no dar a entender que cambiarlo hace algo.
-    document.getElementById('campo-stock-inicial-producto').style.display = 'none';
-
-    // El "requiere serial" de un producto ya creado no se deja
-    // cambiar desde aquí: si ya tiene stock o equipos registrados
-    // de una forma, cambiarlo a mitad de camino puede dejar datos
-    // inconsistentes. Solo se muestra cómo quedó al crearlo.
-    const chkSerial = document.getElementById('prod-requiere-serial');
-    chkSerial.checked  = !!p.requiere_serial;
-    chkSerial.disabled = true;
-
-    document.getElementById('nota-stock-serializado').style.display = 'none';
-
     abrirModal('modal-producto');
 }
 
@@ -1161,7 +901,7 @@ async function eliminarProducto(id, nombre) {
             } else {
 
                 await mostrarConfirm(
-                    `❌ No se pudo eliminar "${nombre}".\n\n` +
+                    `âŒ No se pudo eliminar "${nombre}".\n\n` +
                     `${datos.error || 'El servidor rechazó la eliminación.'}`
                 );
             }
@@ -1189,34 +929,23 @@ async function eliminarProducto(id, nombre) {
         );
 
         await mostrarConfirm(
-            `❌ Ocurrió un error al intentar eliminar "${nombre}".`
+            `âŒ OcurriÃ³ un error al intentar eliminar "${nombre}".`
         );
     }
 }
 
 function limpiarFormProducto() {
-    document.getElementById('prod-id').value            = '';
-    document.getElementById('prod-codigo').value        = '';
-    document.getElementById('prod-nombre').value         = '';
-    document.getElementById('prod-descripcion').value   = '';
-    document.getElementById('prod-unidad').value         = 'UND';
-    document.getElementById('prod-stock-inicial').value = '0';
-    document.getElementById('prod-stock-minimo').value  = '0';
+    document.getElementById('prod-id').value           = '';
+    document.getElementById('prod-codigo').value       = '';
+    document.getElementById('prod-nombre').value       = '';
+    document.getElementById('prod-descripcion').value  = '';
+    document.getElementById('prod-unidad').value       = 'UND';
+    document.getElementById('prod-stock-minimo').value = '0';
     document.getElementById('modal-producto-titulo').textContent = 'Nuevo producto';
     document.getElementById('prod-sede').value = '';
-
-    // El campo de "Stock inicial" solo se esconde al EDITAR
-    // (ver editarProducto); al abrir para un producto nuevo
-    // siempre debe volver a verse.
-    document.getElementById('campo-stock-inicial-producto').style.display = '';
-
-    const chkSerial = document.getElementById('prod-requiere-serial');
-    chkSerial.checked  = false;
-    chkSerial.disabled = false;
-    actualizarCampoStockProducto();
 }
 
-// ══ ENTRADAS ════════════════════════════════════════════════
+// â•â• ENTRADAS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let productosCache = [];
 
@@ -1310,8 +1039,8 @@ function renderizarEntradas(entradas) {
                 <td>
                     <div class="acciones">
                         <button class="btn-accion" onclick="verPDFEntrada(${e.id})">📄 PDF</button>
-                        ${usuario.rol === 'admin' ? `
-                            <button class="btn-accion danger" onclick="eliminarEntrada(${e.id}, '${e.numero_documento}')">🗑️ Eliminar</button>
+                        ${usuario.rol !== 'consulta' ? `
+                            <button class="btn-accion danger" onclick="eliminarEntrada(${e.id}, '${e.numero_documento}')">🗑️ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -1404,47 +1133,16 @@ async function agregarItemEntrada() {
     `;
 
     item.innerHTML = `
-        <div style="position:relative;">
-
-            <input
-                type="text"
-                class="buscador-producto"
-                placeholder="Escribe código o nombre..."
-                autocomplete="off"
-                style="
-                    width:100%;
-                    padding:8px;
-                    border:1px solid #ccd8e5;
-                    border-radius:6px;
-                    box-sizing:border-box;
-                ">
-
-            <div
-                class="resultados-producto"
-                style="
-                    display:none;
-                    position:absolute;
-                    left:0;
-                    right:0;
-                    top:100%;
-                    background:white;
-                    border:1px solid #ccd8e5;
-                    border-radius:8px;
-                    margin-top:4px;
-                    max-height:220px;
-                    overflow-y:auto;
-                    z-index:50;
-                    box-shadow:0 4px 15px rgba(0,0,0,.12);
-                ">
-            </div>
-
-            <select
-                class="select-producto"
-                style="display:none">
-                ${opciones}
-            </select>
-
-        </div>
+        <select
+            class="select-producto"
+            style="
+                width:100%;
+                padding:8px;
+                border:1px solid #ccd8e5;
+                border-radius:6px;
+            ">
+            ${opciones}
+        </select>
 
         <select
             class="select-unidad"
@@ -1512,12 +1210,6 @@ async function agregarItemEntrada() {
 
     const serialesContainer =
         item.querySelector('.seriales-container');
-
-    inicializarBuscadorProducto(
-        item,
-        selectProducto,
-        productosCache
-    );
 
 
     // =========================================================
@@ -2445,7 +2137,7 @@ async function eliminarEntrada(id, numero) {
     cargarProductos();
 }
 
-// ══ SALIDAS ═════════════════════════════════════════════════
+// â•â• SALIDAS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let productosCacheSalida = [];
 
@@ -2469,23 +2161,6 @@ async function cargarSalidas() {
     if (!res) return;
     salidasCache = await res.json();
 
-    // Guarda el id más alto ya visto para que, cuando arranque
-    // el sondeo de portería, solo suene la alarma por salidas
-    // que lleguen DESPUÉS de esta carga inicial. Se establece
-    // la base SIEMPRE (incluso en 0, si todavía no hay ninguna
-    // salida) — si no, la primera salida que llegue se toma
-    // por error como si fuera solo el punto de partida, y
-    // nunca suena la alarma.
-    if (
-        usuario.rol === 'porteria' &&
-        ultimoIdSalidaPorteria === null
-    ) {
-        ultimoIdSalidaPorteria =
-            Array.isArray(salidasCache) && salidasCache.length > 0
-                ? Math.max(...salidasCache.map(s => s.id))
-                : 0;
-    }
-
     if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
         const sel = document.getElementById('filtro-sede-salidas');
         const valorActual = sel.value;
@@ -2504,103 +2179,6 @@ async function cargarSalidas() {
 
     renderizarSalidas(salidasCache);
     filtrarSalidas();
-}
-
-// ══ ALERTA DE PORTERÍA ═══════════════════════════════════════
-//
-// Portería solo necesita ver Salidas, pero además debe
-// enterarse apenas se registre una nueva sin tener que estar
-// refrescando la página. Como es un puesto fijo con la
-// pantalla siempre abierta, basta con revisar cada cierto
-// tiempo si hay salidas nuevas (comparando el id más alto
-// visto) y, si las hay, sonar un aviso y refrescar la tabla.
-
-let ultimoIdSalidaPorteria = null;
-let audioCtxPorteria       = null;
-
-function iniciarPollingPorteria() {
-
-    if (usuario.rol !== 'porteria') return;
-
-    // Revisa cada 15 segundos.
-    setInterval(
-        verificarSalidasNuevasPorteria,
-        15000
-    );
-}
-
-async function verificarSalidasNuevasPorteria() {
-
-    const res = await apiFetch(urlConSede(`${API}/salidas/`));
-
-    if (!res || !res.ok) return;
-
-    const salidas = await res.json();
-
-    if (!Array.isArray(salidas)) return;
-
-    const idMaximo =
-        salidas.length > 0
-            ? Math.max(...salidas.map(s => s.id))
-            : 0;
-
-    if (ultimoIdSalidaPorteria === null) {
-        // No debería pasar (cargarSalidas ya deja la base
-        // lista antes de que arranque este sondeo), pero por
-        // si acaso: solo guardamos la referencia sin sonar la
-        // alarma todavía.
-        ultimoIdSalidaPorteria = idMaximo;
-        return;
-    }
-
-    if (idMaximo > ultimoIdSalidaPorteria) {
-        ultimoIdSalidaPorteria = idMaximo;
-
-        salidasCache = salidas;
-        renderizarSalidas(salidasCache);
-        filtrarSalidas();
-
-        reproducirSonidoAlertaPorteria();
-        mostrarNotificacion('Nueva salida registrada', 'exito');
-    }
-}
-
-function reproducirSonidoAlertaPorteria() {
-
-    try {
-
-        if (!audioCtxPorteria) {
-            audioCtxPorteria =
-                new (window.AudioContext || window.webkitAudioContext)();
-        }
-
-        const ctx   = audioCtxPorteria;
-        const ahora = ctx.currentTime;
-
-        // Dos tonos cortos para que se note claramente.
-        [880, 1046].forEach((frecuencia, i) => {
-
-            const osc  = ctx.createOscillator();
-            const gain = ctx.createGain();
-
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-
-            osc.type = 'sine';
-            osc.frequency.value = frecuencia;
-
-            const inicio = ahora + i * 0.35;
-
-            gain.gain.setValueAtTime(0.3, inicio);
-            gain.gain.exponentialRampToValueAtTime(0.001, inicio + 0.3);
-
-            osc.start(inicio);
-            osc.stop(inicio + 0.3);
-        });
-
-    } catch (error) {
-        console.warn('No se pudo reproducir el sonido de alerta:', error);
-    }
 }
 
 function renderizarSalidas(salidas) {
@@ -2630,8 +2208,8 @@ function renderizarSalidas(salidas) {
                 <td>
                     <div class="acciones">
                         <button class="btn-accion" onclick="verPDFSalida(${s.id})">📄 PDF</button>
-                        ${usuario.rol === 'admin' ? `
-                            <button class="btn-accion danger" onclick="eliminarSalida(${s.id}, '${s.numero_documento}')">🗑️ Eliminar</button>
+                        ${usuario.rol !== 'consulta' ? `
+                            <button class="btn-accion danger" onclick="eliminarSalida(${s.id}, '${s.numero_documento}')">🗑️ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -2725,50 +2303,19 @@ async function agregarItemSalida() {
             align-items:start;
         ">
 
-            <div style="position:relative;">
-
-                <input
-                    type="text"
-                    class="buscador-producto"
-                    placeholder="Escribe código o nombre..."
-                    autocomplete="off"
-                    style="
-                        border:0.5px solid #c8d8ea;
-                        border-radius:8px;
-                        padding:6px 8px;
-                        font-size:12px;
-                        color:#0d2137;
-                        width:100%;
-                        height:32px;
-                        box-sizing:border-box;
-                    ">
-
-                <div
-                    class="resultados-producto"
-                    style="
-                        display:none;
-                        position:absolute;
-                        left:0;
-                        right:0;
-                        top:100%;
-                        background:white;
-                        border:0.5px solid #c8d8ea;
-                        border-radius:8px;
-                        margin-top:4px;
-                        max-height:220px;
-                        overflow-y:auto;
-                        z-index:50;
-                        box-shadow:0 4px 15px rgba(0,0,0,.12);
-                    ">
-                </div>
-
-                <select
-                    class="select-producto"
-                    style="display:none">
-                    ${opciones}
-                </select>
-
-            </div>
+            <select
+                class="select-producto"
+                style="
+                    border:0.5px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 8px;
+                    font-size:12px;
+                    color:#0d2137;
+                    width:100%;
+                    height:32px;
+                ">
+                ${opciones}
+            </select>
 
             <select
                 class="select-unidad"
@@ -2865,12 +2412,6 @@ async function agregarItemSalida() {
         item.querySelector('.btn-quitar-salida');
 
     let equiposDisponibles = [];
-
-    inicializarBuscadorProducto(
-        item,
-        selectProducto,
-        productosCacheSalida
-    );
 
     botonQuitar.addEventListener('click', () => {
         item.remove();
@@ -3618,7 +3159,7 @@ function mostrarNotificacionSalida(mensaje, tipo = 'error') {
             font-size:18px;
             line-height:1;
         ">
-            ${esError ? '⚠️' : '✓'}
+            ${esError ? 'âš ï¸' : '✓'}
         </div>
 
         <div style="
@@ -3928,10 +3469,6 @@ async function guardarSalida(event) {
         destino:
             document.getElementById('sal-destino').value,
 
-        cliente:
-            document.getElementById('sal-cliente')?.value
-                ?.trim() || '',
-
         observaciones:
             document.getElementById(
                 'sal-observaciones'
@@ -4009,7 +3546,6 @@ function limpiarFormSalida() {
     document.getElementById('sal-fecha').value         = '';
     document.getElementById('sal-obra').value          = 'Almacen';
     document.getElementById('sal-destino').value       = '';
-    document.getElementById('sal-cliente').value       = '';
     document.getElementById('sal-observaciones').value = '';
     document.getElementById('sal-items').innerHTML     = '';
     document.getElementById('sal-sede').value = '';
@@ -4027,7 +3563,7 @@ async function eliminarSalida(id, numero) {
     cargarProductos();
 }
 
-// ══ DEVOLUCIONES ════════════════════════════════════════════
+// â•â• DEVOLUCIONES â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function cargarSelectorSalidas() {
     const sedeDev = parseInt(document.getElementById('dev-sede').value) || sedeActual;
@@ -4052,181 +3588,22 @@ async function cargarSelectorSalidas() {
     });
 }
 
-// Normaliza texto para comparar búsquedas sin que le afecten
-// espacios "raros" (espacios de ancho fijo, NBSP, etc.) ni
-// caracteres invisibles de ancho cero que a veces quedan
-// pegados en datos digitados o copiados desde Word/otras apps.
-// Visualmente son indistinguibles de un espacio normal, pero
-// una comparación exacta de texto los trata como diferentes.
-function normalizarBusqueda(texto) {
-    return String(texto || '')
-        .normalize('NFKC')
-        .replace(/[\u200B-\u200D\uFEFF]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .toLowerCase();
-}
-
-// ================================================================
-// BUSCADOR DE PRODUCTOS (Entradas, Salidas, Traslados)
-//
-// Convierte un <select> normal (oculto) en un campo donde se
-// puede escribir el c\u00F3digo o el nombre del producto para
-// filtrarlo, en vez de tener que buscarlo uno por uno en una
-// lista larga.
-//
-// El <select> original NO se toca ni se elimina: sigue teniendo
-// todas sus <option> con sus data-* (unidad, stock, serializado,
-// etc.), as\u00ED que todo el c\u00F3digo que ya lee ese <select> (unidad
-// autom\u00E1tica, seriales, stock disponible...) sigue funcionando
-// igual. Solo se oculta visualmente y se controla desde el
-// campo de texto de al lado.
-// ================================================================
-
-function inicializarBuscadorProducto(fila, selectOculto, listaProductos) {
-
-    const buscador =
-        fila.querySelector('.buscador-producto');
-
-    const resultados =
-        fila.querySelector('.resultados-producto');
-
-    if (!buscador || !resultados || !selectOculto) return;
-
-    function sincronizarTexto() {
-
-        const opcion =
-            selectOculto.options[selectOculto.selectedIndex];
-
-        buscador.value = opcion
-            ? opcion.textContent.replace(/\s+/g, ' ').trim()
-            : '';
-    }
-
-    function cerrarResultados() {
-        resultados.style.display = 'none';
-        resultados.innerHTML = '';
-    }
-
-    function seleccionarProducto(producto) {
-
-        selectOculto.value = producto.id;
-        selectOculto.dispatchEvent(new Event('change'));
-
-        sincronizarTexto();
-        cerrarResultados();
-    }
-
-    function filtrar() {
-
-        const texto = normalizarBusqueda(buscador.value);
-
-        if (!texto) {
-            cerrarResultados();
-            return;
-        }
-
-        const coincidencias = listaProductos.filter(p =>
-            normalizarBusqueda(p.codigo).includes(texto) ||
-            normalizarBusqueda(p.nombre).includes(texto)
-        );
-
-        resultados.innerHTML = '';
-
-        if (coincidencias.length === 0) {
-            resultados.innerHTML = `
-                <div style="
-                    padding:10px 12px;
-                    font-size:12px;
-                    color:#6b8aab;
-                ">
-                    No se encontraron productos con ese c\u00F3digo o nombre.
-                </div>
-            `;
-            resultados.style.display = 'block';
-            return;
-        }
-
-        coincidencias.slice(0, 50).forEach(p => {
-
-            const opcionDiv = document.createElement('div');
-
-            opcionDiv.style.cssText = `
-                padding:8px 10px;
-                cursor:pointer;
-                border-bottom:0.5px solid #edf2f7;
-                font-size:12.5px;
-                color:#0d2137;
-            `;
-
-            opcionDiv.innerHTML = `
-                <strong>[${sanitizar(p.codigo || '\u2014')}]</strong>
-                ${sanitizar(p.nombre)}
-                ${p.stock !== undefined
-                    ? `<span style="color:#6b8aab;font-size:11px"> (disp: ${p.stock || 0})</span>`
-                    : ''}
-            `;
-
-            opcionDiv.onmouseenter = () => {
-                opcionDiv.style.background = '#f5f8fc';
-            };
-
-            opcionDiv.onmouseleave = () => {
-                opcionDiv.style.background = 'white';
-            };
-
-            // mousedown (no click) para que se dispare antes
-            // del "blur" del campo de texto
-            opcionDiv.onmousedown = (ev) => {
-                ev.preventDefault();
-                seleccionarProducto(p);
-            };
-
-            resultados.appendChild(opcionDiv);
-        });
-
-        resultados.style.display = 'block';
-    }
-
-    buscador.addEventListener('input', filtrar);
-
-    buscador.addEventListener('focus', () => {
-        buscador.select();
-        filtrar();
-    });
-
-    buscador.addEventListener('blur', () => {
-        setTimeout(() => {
-            cerrarResultados();
-            sincronizarTexto();
-        }, 150);
-    });
-
-    sincronizarTexto();
-}
-
 function filtrarPuntos() {
-    const texto = normalizarBusqueda(
-        document.getElementById('buscar-punto').value
-    );
+    const texto = document.getElementById('buscar-punto').value.trim().toLowerCase();
+    const select = document.getElementById('selector-punto');
+    const opciones = select.querySelectorAll('option');
 
-    const filtrados = !texto
-        ? puntosCache
-        : puntosCache.filter(p =>
-            normalizarBusqueda(p.destino).includes(texto) ||
-            normalizarBusqueda(p.sede_nombre).includes(texto)
-        );
+    opciones.forEach(op => {
+        if (op.value === '') return;
+        op.style.display = op.text.toLowerCase().includes(texto) ? '' : 'none';
+    });
 
-    pintarSelectorPuntos(filtrados);
-
-    // Si al escribir queda un solo punto que coincide, se
-    // selecciona y se carga su historial automáticamente,
-    // sin que el usuario tenga que abrir el desplegable y
-    // elegirlo a mano.
-    if (texto && filtrados.length === 1) {
-        const select = document.getElementById('selector-punto');
-        select.value = filtrados[0].destino;
-        cargarHistorialPunto();
+    // Si el punto actualmente seleccionado ya no coincide, lo reseteamos
+    const seleccionado = select.options[select.selectedIndex];
+    if (seleccionado && seleccionado.value && seleccionado.style.display === 'none') {
+        select.value = '';
+        document.getElementById('consolidado-contenido').innerHTML =
+            '<p style="color:#6b8aab;font-size:13px;padding:2rem 0">Selecciona un punto arriba para ver su historial.</p>';
     }
 }
 
@@ -4373,7 +3750,7 @@ async function cargarItemsDeSalida() {
                             <br>
 
                             <strong>
-                                🏷️ Marca:
+                                ðŸ·ï¸ Marca:
                             </strong>
 
                             ${marca}
@@ -4621,9 +3998,6 @@ function seleccionarSalidaDevolucion(salida) {
     const origen =
         document.getElementById('dev-origen');
 
-    const cliente =
-        document.getElementById('dev-cliente');
-
     if (!buscador || !salidaHidden) return;
 
     // Guardar el ID real de la salida
@@ -4637,13 +4011,6 @@ function seleccionarSalidaDevolucion(salida) {
     if (origen) {
         origen.value =
             salida.destino || '';
-    }
-
-    // Mostrar el cliente de esa salida (solo lectura,
-    // se toma tal cual quedó registrado en la salida)
-    if (cliente) {
-        cliente.value =
-            salida.cliente_nombre || '—';
     }
 
     // Ocultar resultados
@@ -4855,7 +4222,7 @@ function renderizarDevoluciones(devoluciones) {
                                             d.numero_documento || ''
                                         ).replace(/'/g, "\\'")}'
                                     )">
-                                    🗑️ Anular
+                                    🗑️ Anular
                                 </button>
                             `
                             : ''
@@ -4981,18 +4348,6 @@ async function guardarDevolucion(event) {
 
     const detalle = [];
 
-    // El motivo de la devolución decide con qué condición
-    // regresa el equipo. Por ahora solo distinguimos "Dañado"
-    // (pasa a condición DANADO y a mantenimiento) de todo lo
-    // demás (regresa en buen estado, sin cambiar su condición).
-    const motivoDevolucion =
-        document.getElementById('dev-motivo')?.value || '';
-
-    const condicionRetorno =
-        motivoDevolucion === 'Dañado'
-            ? 'DANADO'
-            : 'BUEN_ESTADO';
-
     filas.forEach(fila => {
 
         const check =
@@ -5032,7 +4387,7 @@ async function guardarDevolucion(event) {
             cantidad: cantidad,
 
             condicion_retorno:
-                condicionRetorno,
+                'BUEN_ESTADO',
 
             observaciones: ''
 
@@ -5214,7 +4569,6 @@ function limpiarFormDevolucion() {
     document.getElementById('dev-fecha').value         = '';
     document.getElementById('dev-salida').value        = '';
     document.getElementById('dev-origen').value        = '';
-    document.getElementById('dev-cliente').value       = '';
     document.getElementById('dev-motivo').value        = 'No se uso';
     document.getElementById('dev-observaciones').value = '';
     document.getElementById('dev-sede').value = '';
@@ -5222,11 +4576,11 @@ function limpiarFormDevolucion() {
         '<p style="font-size:12px;color:#6b8aab">Selecciona primero una salida arriba.</p>';
 }
 
-// ══ MODAL DE CONFIRMACION ════════════════════════════════════
+// â•â• MODAL DE CONFIRMACION â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let _resolverConfirm = null;
 
-function mostrarConfirm(mensaje, titulo = '¿Eliminar?', icono = '🗑️', textoBtn = 'Eliminar') {
+function mostrarConfirm(mensaje, titulo = 'Â¿Eliminar?', icono = '🗑️', textoBtn = 'Eliminar') {
     document.getElementById('confirm-mensaje').textContent = mensaje;
     document.getElementById('confirm-titulo').textContent  = titulo;
     document.getElementById('confirm-icono').textContent   = icono;
@@ -5257,84 +4611,15 @@ function resolverConfirm(valor) {
     _resolverConfirm = null;
 }
 
-// ══ INICIO ══════════════════════════════════════════════════
+// â•â• INICIO â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // IMPORTANTE: hay que esperar a que el selector de sede termine
-    // de inicializarse (y de resetear sedeActual) ANTES de cargar
-    // productos. Si no, cargarProductos() se dispara con el
-    // sedeActual viejo (guardado en el navegador de una sesión
-    // anterior) mientras inicializarSelectorSede() todavía está
-    // resolviendo su petición al backend, y la tabla queda "pegada"
-    // con el filtro de sede antiguo aunque el selector ya muestre
-    // "Todas las sedes".
-    await inicializarSelectorSede();
-
-    if (usuario.rol === 'porteria') {
-        // Portería no necesita productos ni catálogos —
-        // solo entra directo a ver las salidas de su sede.
-        document.body.classList.add('rol-porteria');
-        mostrarSeccion('salidas', document.getElementById('nav-salidas'));
-        iniciarPollingPorteria();
-    } else {
-        await cargarProductos();
-        cargarCatalogos();
-    }
+document.addEventListener('DOMContentLoaded', () => {
+    inicializarSelectorSede();
+    cargarProductos();
+    cargarCatalogos();
 
     if (usuario.rol === 'consulta') {
         document.body.classList.add('rol-consulta');
-    }
-
-    // Los filtros de "— Todas las sedes —" son solo para admin y
-    // consulta. Para almacenistas (rol "sede") y cualquier otro
-    // rol se ocultan de forma explícita aquí, sin depender de que
-    // el CSS ya los tenga ocultos por defecto.
-    if (usuario.rol !== 'admin' && usuario.rol !== 'consulta') {
-        [
-            'selector-sede',
-            'filtro-sede-productos',
-            'filtro-sede-entradas',
-            'filtro-sede-salidas',
-            'filtro-sede-devoluciones',
-            'filtro-sede-consolidado',
-            'filtro-sede-traslados',
-        ].forEach(id => {
-            const el = document.getElementById(id);
-            // Se usa setProperty(..., 'important') porque hay una
-            // regla en el CSS con !important que, si no, le gana
-            // a un simple el.style.display = 'none' y el cuadro
-            // se seguiría viendo aunque aquí digamos que se oculte.
-            if (el) el.style.setProperty('display', 'none', 'important');
-        });
-    }
-
-    // Elementos marcados con la clase "admin-only" (el menú de
-    // "Usuarios", "+ Nuevo modelo", "+ Nueva marca" y
-    // "+ Nuevo usuario") son solo para admin.
-    if (usuario.rol !== 'admin') {
-        document.querySelectorAll('.admin-only').forEach(el => {
-            el.style.setProperty('display', 'none', 'important');
-        });
-    }
-
-    // Elementos marcados con "no-consulta" ("+ Nuevo producto",
-    // "+ Nueva entrada", "+ Nueva salida", "+ Nuevo traslado") sí
-    // los puede usar el almacenista (rol "sede"), pero no un
-    // usuario de consulta ni uno de portería, que son de solo
-    // lectura.
-    if (usuario.rol === 'consulta' || usuario.rol === 'porteria') {
-        document.querySelectorAll('.no-consulta').forEach(el => {
-            el.style.setProperty('display', 'none', 'important');
-        });
-    }
-
-    // Portería solo ve la sección de Salidas en el menú lateral.
-    if (usuario.rol === 'porteria') {
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            if (btn.id !== 'nav-salidas') {
-                btn.style.setProperty('display', 'none', 'important');
-            }
-        });
     }
 
     const nom = usuario.nombre || 'Usuario';
@@ -5342,9 +4627,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ? 'Administrador'
     : usuario.rol === 'sede'
         ? 'Almacenista'
-        : usuario.rol === 'porteria'
-            ? 'Portería'
-            : 'Consulta';
+        : 'Consulta';
 
     document.getElementById('nombre-usuario').textContent = nom;
     document.getElementById('rol-usuario').textContent    = rolTexto;
@@ -5378,7 +4661,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// ══ USUARIOS ════════════════════════════════════════════════
+// â•â• USUARIOS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Agregar estas funciones al final de app.js
 
 async function cargarUsuarios() {
@@ -5398,9 +4681,9 @@ async function cargarUsuarios() {
     }
 
     usuarios.forEach(u => {
-        const rolTexto  = u.rol === 'admin' ? 'Administrador' : u.rol === 'sede' ? 'Almacenista' : u.rol === 'porteria' ? 'Portería' : 'Consulta';
-        const rolColor  = u.rol === 'admin' ? '#1a6fc4' : u.rol === 'sede' ? '#1a7a4a' : u.rol === 'porteria' ? '#a5680c' : '#6b8aab';
-        const rolBg     = u.rol === 'admin' ? '#e8f0fb' : u.rol === 'sede' ? '#e6f4ec' : u.rol === 'porteria' ? '#fbf1e0' : '#f0f4f8';
+        const rolTexto  = u.rol === 'admin' ? 'Administrador' : u.rol === 'sede' ? 'Almacenista' : 'Consulta';
+        const rolColor  = u.rol === 'admin' ? '#1a6fc4' : u.rol === 'sede' ? '#1a7a4a' : '#6b8aab';
+        const rolBg     = u.rol === 'admin' ? '#e8f0fb' : u.rol === 'sede' ? '#e6f4ec' : '#f0f4f8';
         const estadoBadge = u.activo
             ? '<span class="badge badge-ok">Activo</span>'
             : '<span class="badge badge-agotado">Inactivo</span>';
@@ -5418,7 +4701,7 @@ async function cargarUsuarios() {
                 <td>${estadoBadge}</td>
                 <td>
                     <div class="acciones">
-                        <button class="btn-accion" onclick="editarUsuario(${u.id})">✏️ Editar</button>
+                        <button class="btn-accion" onclick="editarUsuario(${u.id})">âœï¸ Editar</button>
                         <button class="btn-accion danger" onclick="toggleUsuario(${u.id}, ${u.activo}, '${u.nombre}')">
                             ${u.activo ? '🔒 Desactivar' : '🔓 Activar'}
                         </button>
@@ -5551,13 +4834,11 @@ function limpiarFormUsuario() {
     document.getElementById('modal-usuario-titulo').textContent    = 'Nuevo usuario';
 }
 
-// ══ CONSOLIDADO POR PUNTO ════════════════════════════════════
-
-let puntosCache = [];
+// â•â• CONSOLIDADO POR PUNTO â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function cargarPuntos() {
-    // Carga sedes en filtro si es admin o consulta
-    if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
+    // Carga sedes en filtro si es admin
+    if (usuario.rol === 'admin') {
         const sel = document.getElementById('filtro-sede-consolidado');
         const valorActual = sel.value;
         const resSedes = await apiFetch(`${API}/auth/sedes`);
@@ -5581,41 +4862,19 @@ async function cargarPuntos() {
     if (!res) return;
     const puntos = await res.json();
 
-    puntosCache = puntos;
-
-    document.getElementById('subtitulo-consolidado').textContent =
-        `${puntos.length} puntos con movimientos`;
-
-    // Vuelve a pintar el selector aplicando el texto de
-    // búsqueda actual (si había algo escrito antes de recargar).
-    filtrarPuntos();
-}
-
-function pintarSelectorPuntos(lista) {
     const select = document.getElementById('selector-punto');
     const valorActual = select.value;
-
     select.innerHTML = '<option value="">— Selecciona un punto —</option>';
-
-    lista.forEach(p => {
+    puntos.forEach(p => {
         const sede = p.sede_nombre ? ` (${p.sede_nombre})` : '';
         select.insertAdjacentHTML('beforeend',
             `<option value="${p.destino}">${p.destino}${sede} — ${p.total_salidas} salida(s)</option>`
         );
     });
+    select.value = valorActual;
 
-    // Si el punto que estaba seleccionado ya no está en la
-    // lista filtrada, se pierde la selección y se limpia el
-    // historial mostrado.
-    const sigueExistiendo = lista.some(p => p.destino === valorActual);
-
-    if (valorActual && sigueExistiendo) {
-        select.value = valorActual;
-    } else if (valorActual) {
-        select.value = '';
-        document.getElementById('consolidado-contenido').innerHTML =
-            '<p style="color:#6b8aab;font-size:13px;padding:2rem 0">Selecciona un punto arriba para ver su historial.</p>';
-    }
+    document.getElementById('subtitulo-consolidado').textContent =
+        `${puntos.length} puntos con movimientos`;
 }
 
 async function cargarHistorialPunto() {
@@ -6080,50 +5339,19 @@ async function agregarItemTraslado() {
             align-items:start;
         ">
 
-            <div style="position:relative;">
-
-                <input
-                    type="text"
-                    class="buscador-producto"
-                    placeholder="Escribe código o nombre..."
-                    autocomplete="off"
-                    style="
-                        border:0.5px solid #c8d8ea;
-                        border-radius:8px;
-                        padding:6px 8px;
-                        font-size:12px;
-                        color:#0d2137;
-                        width:100%;
-                        height:32px;
-                        box-sizing:border-box;
-                    ">
-
-                <div
-                    class="resultados-producto"
-                    style="
-                        display:none;
-                        position:absolute;
-                        left:0;
-                        right:0;
-                        top:100%;
-                        background:white;
-                        border:0.5px solid #c8d8ea;
-                        border-radius:8px;
-                        margin-top:4px;
-                        max-height:220px;
-                        overflow-y:auto;
-                        z-index:50;
-                        box-shadow:0 4px 15px rgba(0,0,0,.12);
-                    ">
-                </div>
-
-                <select
-                    class="tras-producto"
-                    style="display:none">
-                    ${opciones}
-                </select>
-
-            </div>
+            <select
+                class="tras-producto"
+                style="
+                    border:0.5px solid #c8d8ea;
+                    border-radius:8px;
+                    padding:6px 8px;
+                    font-size:12px;
+                    color:#0d2137;
+                    width:100%;
+                    height:32px;
+                ">
+                ${opciones}
+            </select>
 
             <select
                 class="tras-unidad"
@@ -6221,12 +5449,6 @@ async function agregarItemTraslado() {
         );
 
     let equiposDisponibles = [];
-
-    inicializarBuscadorProducto(
-        item,
-        producto,
-        productosCacheTraslado
-    );
 
     // ============================================================
     // QUITAR PRODUCTO
@@ -7542,7 +6764,6 @@ function limpiarFormTraslado() {
 
 // TRASLADOS ENTRE SEDES
 let trasladosData = [];
-let sedesTrasladosMap = {};
 
 async function cargarTraslados() {
     const res = await apiFetch(`${API}/traslados/`);
@@ -7550,35 +6771,13 @@ async function cargarTraslados() {
 
     trasladosData = await res.json();
 
-    if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
-        const sel = document.getElementById('filtro-sede-traslados');
-
-        if (sel) {
-            const valorActual = sel.value;
-
-            const resSedes = await apiFetch(`${API}/auth/sedes`);
-
-            if (resSedes) {
-                const sedes = await resSedes.json();
-
-                sedesTrasladosMap = {};
-                sedes.forEach(s => {
-                    sedesTrasladosMap[s.id] = s.nombre;
-                });
-
-                sel.innerHTML = '<option value="">&#8212; Todas las sedes &#8212;</option>';
-                sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                    `<option value="${s.id}">${s.nombre}</option>`
-                ));
-                sel.style.display = 'block';
-                sel.value = valorActual;
-            }
-        }
-    }
-
     renderizarTraslados(trasladosData);
 
-    filtrarTraslados();
+    const subtitulo = document.getElementById('subtitulo-traslados');
+    if (subtitulo) {
+        subtitulo.textContent =
+            `${trasladosData.length} traslado${trasladosData.length !== 1 ? 's' : ''} registrado${trasladosData.length !== 1 ? 's' : ''}`;
+    }
 }
 
 function formatearFechaTraslado(fechaTexto) {
@@ -7629,12 +6828,6 @@ function formatearFechaTraslado(fechaTexto) {
 }
 
 function renderizarTraslados(lista) {
-    const subtitulo = document.getElementById('subtitulo-traslados');
-    if (subtitulo) {
-        subtitulo.textContent =
-            `${lista.length} traslado${lista.length !== 1 ? 's' : ''} registrado${lista.length !== 1 ? 's' : ''}`;
-    }
-
     const tbody = document.getElementById('tabla-traslados');
 
     if (!tbody) return;
@@ -7705,7 +6898,7 @@ function renderizarTraslados(lista) {
                         <button
                             class="btn-accion"
                             onclick="verTraslado(${t.id})">
-                            👁️ Ver
+                            ðŸ‘ï¸ Ver
                         </button>
 
                         <button
@@ -7739,50 +6932,12 @@ function filtrarTraslados() {
         .trim()
         .toLowerCase();
 
-    const sedeFiltro = document.getElementById('filtro-sede-traslados')?.value || '';
-
-    // Nombre de la sede seleccionada (respaldo por si el backend
-    // no devuelve sede_origen_id / sede_destino_id en el listado)
-    const nombreSedeFiltro =
-        sedeFiltro
-            ? String(sedesTrasladosMap[sedeFiltro] || '').toLowerCase()
-            : '';
-
-    let filtrados = trasladosData.filter(t =>
+    const filtrados = trasladosData.filter(t =>
         String(t.numero_documento || '').toLowerCase().includes(texto) ||
         String(t.sede_origen_nombre || '').toLowerCase().includes(texto) ||
         String(t.sede_destino_nombre || '').toLowerCase().includes(texto) ||
         String(t.estado || '').toLowerCase().includes(texto)
     );
-
-    if (sedeFiltro) {
-        filtrados = filtrados.filter(t => {
-
-            const coincideOrigenId =
-                t.sede_origen_id != null &&
-                String(t.sede_origen_id) === String(sedeFiltro);
-
-            const coincideDestinoId =
-                t.sede_destino_id != null &&
-                String(t.sede_destino_id) === String(sedeFiltro);
-
-            const coincideOrigenNombre =
-                nombreSedeFiltro &&
-                String(t.sede_origen_nombre || '').toLowerCase() === nombreSedeFiltro;
-
-            const coincideDestinoNombre =
-                nombreSedeFiltro &&
-                String(t.sede_destino_nombre || '').toLowerCase() === nombreSedeFiltro;
-
-            // La sede coincide si el traslado la tiene como origen o como destino
-            return (
-                coincideOrigenId ||
-                coincideDestinoId ||
-                coincideOrigenNombre ||
-                coincideDestinoNombre
-            );
-        });
-    }
 
     renderizarTraslados(filtrados);
 }
@@ -7803,33 +6958,6 @@ async function verTraslado(id) {
         'Traslado recibido:',
         traslado
     );
-
-    // ============================================================
-    // EL SERVIDOR RECHAZÓ O NO ENCONTRÓ EL TRASLADO
-    // ============================================================
-    //
-    // Antes esto seguía de largo y pintaba el modal con todos los
-    // campos vacíos (mostrando "—" en todo), sin avisar que la
-    // petición había fallado. Ahora se detiene y avisa.
-    // ============================================================
-
-    if (!res.ok || !traslado || !traslado.numero_documento) {
-
-        console.error(
-            'No se pudo cargar el detalle del traslado:',
-            res.status,
-            traslado
-        );
-
-        alert(
-            traslado?.error ||
-            'No se pudo cargar el detalle de este traslado. ' +
-            'Puede que tu usuario no tenga permiso para verlo, ' +
-            'o que el traslado no exista.'
-        );
-
-        return;
-    }
 
     // ============================================================
     // INFORMACIÓN GENERAL
@@ -8185,11 +7313,7 @@ async function verEquiposProducto(productoId) {
                         </td>
 
                         <td>
-                            ${sanitizar(
-                                equipo.condicion === 'DANADO'
-                                    ? 'Dañado'
-                                    : (equipo.condicion || '—')
-                            )}
+                            ${sanitizar(equipo.condicion || '—')}
                         </td>
 
                         <td>
@@ -8215,3 +7339,10 @@ async function verEquiposProducto(productoId) {
         );
     }
 }
+
+
+
+
+
+
+

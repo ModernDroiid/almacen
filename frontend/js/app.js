@@ -725,6 +725,42 @@ window.addEventListener('resize', () => {
     Object.values(_firmaPads).forEach(pad => pad.ajustarTamano());
 });
 
+// ══ CERRAR MODALES CON LA TECLA ESC ═══════════════════════════
+//
+// Al presionar Escape se cierra el modal que esté abierto en ese
+// momento, igual que si se hiciera clic en "Cancelar" o en la
+// "✕". El modal de confirmación (modal-confirm) es un caso
+// especial: en vez de solo ocultarse, tiene que resolver la
+// promesa pendiente de mostrarConfirm() — así que Escape ahí
+// equivale a hacer clic en "Cancelar" en ese cuadro.
+document.addEventListener('keydown', function (evento) {
+
+    if (evento.key !== 'Escape' && evento.key !== 'Esc') {
+        return;
+    }
+
+    const modalConfirm = document.getElementById('modal-confirm');
+
+    if (modalConfirm && modalConfirm.classList.contains('visible')) {
+        resolverConfirm(false);
+        return;
+    }
+
+    const modalesAbiertos =
+        document.querySelectorAll('.modal-fondo.visible');
+
+    if (!modalesAbiertos.length) {
+        return;
+    }
+
+    // Si por alguna razón hay más de uno visible, se cierra el
+    // último que aparece en el HTML (el más "reciente").
+    const ultimoAbierto =
+        modalesAbiertos[modalesAbiertos.length - 1];
+
+    cerrarModal(ultimoAbierto.id);
+});
+
 // ══ CATALOGOS (compartidos entre sedes) ══════════════════════
 
 let catalogoModelos = [];

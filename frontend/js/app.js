@@ -68,6 +68,128 @@ function cerrarSesion() {
     window.location.href = 'login.html';
 }
 
+// ══ FOTO DE PERFIL (cualquier rol puede poner la suya) ═══════
+
+async function cargarFotoPerfil() {
+    const res = await apiFetch(`${API}/perfil/foto`);
+    if (!res || !res.ok) return;
+
+    const datos = await res.json();
+    aplicarFotoPerfil(datos.foto_base64);
+}
+
+function aplicarFotoPerfil(fotoBase64) {
+    const avatar = document.getElementById('avatar-usuario');
+    if (!avatar) return;
+
+    if (fotoBase64) {
+        avatar.style.backgroundImage = `url("${fotoBase64}")`;
+        avatar.style.backgroundSize = 'cover';
+        avatar.style.backgroundPosition = 'center';
+        avatar.textContent = '';
+    } else {
+        avatar.style.backgroundImage = '';
+        avatar.style.backgroundSize = '';
+        avatar.style.backgroundPosition = '';
+
+        const nom = usuario.nombre || 'Usuario';
+        avatar.textContent =
+            nom.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+    }
+}
+
+// Recorta la imagen en cuadrado (centrado) y la comprime a JPEG
+// liviano, para que quepa bien en el avatar redondo y no pese
+// mucho al guardarla en la base de datos.
+function recortarYComprimirImagen(archivo, tamano) {
+    return new Promise((resolve, reject) => {
+        const lector = new FileReader();
+
+        lector.onerror = () => reject(new Error('No se pudo leer el archivo'));
+
+        lector.onload = () => {
+            const img = new Image();
+
+            img.onerror = () => reject(new Error('No se pudo leer la imagen'));
+
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = tamano;
+                canvas.height = tamano;
+
+                const ctx = canvas.getContext('2d');
+
+                const lado = Math.min(img.width, img.height);
+                const origenX = (img.width - lado) / 2;
+                const origenY = (img.height - lado) / 2;
+
+                ctx.drawImage(
+                    img,
+                    origenX, origenY, lado, lado,
+                    0, 0, tamano, tamano
+                );
+
+                resolve(canvas.toDataURL('image/jpeg', 0.85));
+            };
+
+            img.src = lector.result;
+        };
+
+        lector.readAsDataURL(archivo);
+    });
+}
+
+async function guardarFotoPerfil(fotoBase64) {
+    const res = await apiFetch(`${API}/perfil/foto`, {
+        method: 'PUT',
+        body: JSON.stringify({ foto_base64: fotoBase64 })
+    });
+
+    if (!res) return;
+
+    const datos = await res.json();
+
+    if (!res.ok) {
+        alert(datos.error || 'No se pudo guardar la foto.');
+        return;
+    }
+
+    aplicarFotoPerfil(fotoBase64);
+    mostrarNotificacion('Foto de perfil actualizada.', 'exito');
+}
+
+function inicializarSelectorFotoPerfil() {
+    const avatar = document.getElementById('avatar-usuario');
+    const input  = document.getElementById('input-foto-perfil');
+
+    if (!avatar || !input) return;
+
+    avatar.style.cursor = 'pointer';
+    avatar.title = 'Cambiar foto de perfil';
+
+    avatar.addEventListener('click', () => input.click());
+
+    input.addEventListener('change', async () => {
+        const archivo = input.files[0];
+        input.value = '';
+
+        if (!archivo) return;
+
+        if (!archivo.type.startsWith('image/')) {
+            alert('Selecciona un archivo de imagen (jpg, png, etc.).');
+            return;
+        }
+
+        try {
+            const fotoBase64 = await recortarYComprimirImagen(archivo, 240);
+            await guardarFotoPerfil(fotoBase64);
+        } catch (error) {
+            console.error(error);
+            alert('No se pudo procesar la imagen.');
+        }
+    });
+}
+
 // ══ SEDES (solo admin) ══════════════════════════════════════
 
 let sedeActual = usuario.rol === 'admin' ? null : (parseInt(localStorage.getItem('sedeActual')) || usuario.sede_id || 1);
@@ -4538,7 +4660,7 @@ function abrirNuevaDevolucion() {
     abrirModal('modal-devolucion');
 }
 
-function buscarSalidasDevolucion() {
+function buscarSalidasDevolucion(limpiarSeleccion = true) {
 
     const buscador =
         document.getElementById('dev-salida-busqueda');
@@ -4556,36 +4678,36 @@ function buscarSalidasDevolucion() {
             .trim()
             .toLowerCase();
 
-    // Si el usuario vuelve a escribir,
-    // quitamos la salida seleccionada anteriormente
-    salidaHidden.value = '';
-
-    if (!texto) {
-
-        resultados.innerHTML = '';
-        resultados.style.display = 'none';
-
-        return;
+    // Si el usuario está escribiendo para buscar otra cosa,
+    // quitamos la salida seleccionada anteriormente. Al solo
+    // hacer clic para ver la lista completa (limpiarSeleccion
+    // = false) no se pierde lo ya elegido.
+    if (limpiarSeleccion) {
+        salidaHidden.value = '';
     }
 
+    // Sin texto: se muestra la lista completa de salidas
+    // disponibles, por si no se recuerda el número o destino.
     const coincidencias =
-        salidasDisponiblesDevolucion.filter(salida => {
+        !texto
+            ? salidasDisponiblesDevolucion
+            : salidasDisponiblesDevolucion.filter(salida => {
 
-            const numero =
-                String(
-                    salida.numero_documento || ''
-                ).toLowerCase();
+                const numero =
+                    String(
+                        salida.numero_documento || ''
+                    ).toLowerCase();
 
-            const destino =
-                String(
-                    salida.destino || ''
-                ).toLowerCase();
+                const destino =
+                    String(
+                        salida.destino || ''
+                    ).toLowerCase();
 
-            return (
-                numero.includes(texto) ||
-                destino.includes(texto)
-            );
-        });
+                return (
+                    numero.includes(texto) ||
+                    destino.includes(texto)
+                );
+            });
 
     resultados.innerHTML = '';
 
@@ -4605,7 +4727,7 @@ function buscarSalidasDevolucion() {
         return;
     }
 
-    coincidencias.forEach(salida => {
+    coincidencias.slice(0, 50).forEach(salida => {
 
         const fecha =
             salida.fecha
@@ -5414,6 +5536,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('sede-usuario').textContent   = usuario.sede_nombre || usuario.ciudad || '';
     document.getElementById('avatar-usuario').textContent =
         nom.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+
+    // Foto de perfil: cualquier usuario puede ponerse la suya
+    // haciendo clic en su avatar (círculo con las iniciales).
+    inicializarSelectorFotoPerfil();
+    cargarFotoPerfil();
 
     const entSede = document.getElementById('ent-sede');
     if (entSede) {

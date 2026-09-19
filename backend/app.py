@@ -16,6 +16,7 @@ from routes.pdf_traslados import pdf_traslados_bp
 from routes.auth import auth_bp
 from routes.consolidado import consolidado_bp
 from routes.pdf_consolidado import pdf_consolidado_bp
+from routes.perfil import perfil_bp
 from dotenv import load_dotenv
 
 import os
@@ -91,6 +92,12 @@ def restringir_rol_porteria():
     if request.path.startswith('/api/auth'):
         return None
 
+    # La foto de perfil es personal (cada quien ve y cambia
+    # solo la suya): no es un dato del almacén, así que
+    # portería también puede usarla libremente.
+    if request.path.startswith('/api/perfil'):
+        return None
+
     # Único permiso real de portería: CONSULTAR salidas
     # (listado y detalle) y ver/descargar su PDF.
     puede_ver_esto = (
@@ -125,6 +132,7 @@ app.register_blueprint(pdf_traslados_bp, url_prefix='/api/pdf')
 app.register_blueprint(auth_bp,             url_prefix='/api/auth')
 app.register_blueprint(consolidado_bp, url_prefix='/api/consolidado')
 app.register_blueprint(pdf_consolidado_bp, url_prefix='/api/pdf')
+app.register_blueprint(perfil_bp, url_prefix='/api/perfil')
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), '..', 'frontend')
 

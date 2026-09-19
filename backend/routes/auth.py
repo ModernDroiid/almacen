@@ -11,6 +11,7 @@ from flask_jwt_extended import (
     get_jwt
 )
 from database import get_connection
+from werkzeug.security import generate_password_hash, check_password_hash
 import hashlib
 
 from extensions import limiter
@@ -20,11 +21,49 @@ auth_bp = Blueprint('auth', __name__)
 
 
 # ============================================================
-# UTILIDADES
+# UTILIDADES DE CONTRASEÑA
+#
+# Las contraseñas nuevas (o cuando alguien cambia la suya) se
+# guardan con werkzeug (pbkdf2 + sal), que es lento a propósito
+# y usa una sal distinta por usuario — mucho más seguro que un
+# SHA-256 plano.
+#
+# Las contraseñas viejas de este sistema se guardaron con
+# SHA-256 sin sal (siempre 64 caracteres en hexadecimal). Para
+# no obligar a resetear la contraseña de todos los usuarios de
+# un día para otro, "verificar_password" reconoce ese formato
+# viejo, y en cuanto alguien inicia sesión con éxito, "login()"
+# la vuelve a guardar ya en el formato nuevo. Con el tiempo,
+# todas las contraseñas activas terminan migradas solas.
 # ============================================================
 
 def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+    return generate_password_hash(password)
+
+
+def es_hash_antiguo(hash_guardado):
+    return (
+        bool(hash_guardado)
+        and len(hash_guardado) == 64
+        and all(
+            c in '0123456789abcdef'
+            for c in hash_guardado.lower()
+        )
+    )
+
+
+def verificar_password(password, hash_guardado):
+
+    if not hash_guardado:
+        return False
+
+    if es_hash_antiguo(hash_guardado):
+        return (
+            hashlib.sha256(password.encode()).hexdigest()
+            == hash_guardado
+        )
+
+    return check_password_hash(hash_guardado, password)
 
 
 # ============================================================
@@ -57,6 +96,7 @@ def login():
                     u.correo,
                     u.rol,
                     u.sede_id,
+                    u.password_hash,
                     s.nombre AS sede_nombre,
                     s.ciudad
                 FROM usuarios u
@@ -64,22 +104,45 @@ def login():
                     ON s.id = u.sede_id
                 WHERE
                     u.correo = %s
-                    AND u.password_hash = %s
                     AND u.activo = TRUE
             ''', (
                 correo,
-                hash_password(password)
             ))
 
             usuario = cursor.fetchone()
 
+            if not usuario or not verificar_password(
+                password,
+                usuario['password_hash']
+            ):
+                return jsonify({
+                    'error': 'Email o contraseña incorrectos'
+                }), 401
+
+            # ================================================
+            # MIGRACIÓN SILENCIOSA AL HASH SEGURO
+            #
+            # Si esta contraseña todavía estaba en el formato
+            # viejo (SHA-256 sin sal), ya la validamos arriba;
+            # ahora la reescribimos con el método seguro para
+            # que no se vuelva a comparar con el método viejo.
+            # ================================================
+
+            if es_hash_antiguo(usuario['password_hash']):
+
+                cursor.execute('''
+                    UPDATE usuarios
+                    SET password_hash = %s
+                    WHERE id = %s
+                ''', (
+                    generate_password_hash(password),
+                    usuario['id']
+                ))
+
+                conn.commit()
+
     finally:
         conn.close()
-
-    if not usuario:
-        return jsonify({
-            'error': 'Email o contraseña incorrectos'
-        }), 401
 
     token = create_access_token(
         identity=str(usuario['id']),
@@ -554,4 +617,3 @@ def toggle_usuario(id):
         'mensaje': 'Estado actualizado',
         'activo': nuevo_estado
     })
-

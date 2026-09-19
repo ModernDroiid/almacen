@@ -5,6 +5,7 @@
 # ============================================================
 
 from flask import Blueprint, send_file, jsonify
+from flask_jwt_extended import jwt_required, get_jwt
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -46,7 +47,10 @@ pdf_entradas_bp = Blueprint(
     "/entrada/<int:id>",
     methods=["GET"]
 )
+@jwt_required()
 def generar_pdf_entrada(id):
+
+    claims = get_jwt()
 
     conn = get_connection()
 
@@ -93,6 +97,19 @@ def generar_pdf_entrada(id):
                 return jsonify({
                     "error": "Entrada no encontrada"
                 }), 404
+
+            # =================================================
+            # RESTRICCIÓN POR SEDE
+            # =================================================
+
+            if (
+                claims.get("rol") != "admin"
+                and entrada.get("sede_id") != claims.get("sede_id")
+            ):
+
+                return jsonify({
+                    "error": "No tienes permiso para ver esta entrada"
+                }), 403
 
 
             # =================================================

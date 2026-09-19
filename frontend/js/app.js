@@ -250,22 +250,30 @@ function urlConSede(base) {
 
 // ══ REPORTE DE STOCK BAJO (PDF) ═════════════════════════════
 
-function descargarPDFStockBajo() {
-    let url = `${API}/pdf/stock-bajo?token=${token}`;
+async function descargarPDFStockBajo() {
+    // El backend ya restringe por sede según el JWT (el
+    // almacenista/consulta/portería solo ven su propia sede
+    // sin importar lo que se mande aquí); este parámetro solo
+    // aplica para admin/consulta viendo una sede específica.
+    const sedeFiltro =
+        (usuario.rol === 'admin' || usuario.rol === 'consulta') && sedeActual
+            ? sedeActual
+            : null;
 
-    // El almacenista de sede siempre ve solo su propia sede
-    // (el backend no filtra por JWT en este reporte, así que
-    // el filtro se arma aquí en el front).
-    if (usuario.rol === 'sede' && usuario.sede_id) {
-        url += `&sede_id=${usuario.sede_id}`;
-    } else if (
-        (usuario.rol === 'admin' || usuario.rol === 'consulta') &&
-        sedeActual
-    ) {
-        url += `&sede_id=${sedeActual}`;
+    const url = sedeFiltro
+        ? `${API}/pdf/stock-bajo?sede_id=${sedeFiltro}`
+        : `${API}/pdf/stock-bajo`;
+
+    const res = await apiFetch(url);
+    if (!res) return;
+    if (!res.ok) {
+        const datos = await res.json().catch(() => ({}));
+        alert(datos.error || 'No se pudo generar el reporte de stock bajo.');
+        return;
     }
-
-    window.open(url, '_blank');
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
 }
 
 // =============================================================
@@ -2619,8 +2627,17 @@ function limpiarFormEntrada() {
     }
 }
 
-function verPDFEntrada(id) {
-    window.open(`${API}/pdf/entrada/${id}?token=${token}`, '_blank');
+async function verPDFEntrada(id) {
+    const res = await apiFetch(`${API}/pdf/entrada/${id}`);
+    if (!res) return;
+    if (!res.ok) {
+        const datos = await res.json().catch(() => ({}));
+        alert(datos.error || 'No se pudo generar el PDF de la entrada.');
+        return;
+    }
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
 }
 
 async function eliminarEntrada(id, numero) {
@@ -4207,8 +4224,17 @@ function limpiarFormSalida() {
     productosCacheSalida = [];
 }
 
-function verPDFSalida(id) {
-    window.open(`${API}/pdf/salida/${id}?token=${token}`, '_blank');
+async function verPDFSalida(id) {
+    const res = await apiFetch(`${API}/pdf/salida/${id}`);
+    if (!res) return;
+    if (!res.ok) {
+        const datos = await res.json().catch(() => ({}));
+        alert(datos.error || 'No se pudo generar el PDF de la salida.');
+        return;
+    }
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
 }
 
 async function eliminarSalida(id, numero) {
@@ -5351,8 +5377,17 @@ async function guardarDevolucion(event) {
 
 }
 
-function verPDFDevolucion(id) {
-    window.open(`${API}/pdf/devolucion/${id}?token=${token}`, '_blank');
+async function verPDFDevolucion(id) {
+    const res = await apiFetch(`${API}/pdf/devolucion/${id}`);
+    if (!res) return;
+    if (!res.ok) {
+        const datos = await res.json().catch(() => ({}));
+        alert(datos.error || 'No se pudo generar el PDF de la devolución.');
+        return;
+    }
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
 }
 
 async function anularDevolucion(id, numero) {
@@ -8336,19 +8371,17 @@ async function recibirTraslado(id) {
     }
 }
 
-function verPDFTraslado(id) {
-
-    const token = localStorage.getItem('token');
-
-    if (!token) {
-        alert('Sesión no válida.');
+async function verPDFTraslado(id) {
+    const res = await apiFetch(`${API}/pdf/traslados/${id}`);
+    if (!res) return;
+    if (!res.ok) {
+        const datos = await res.json().catch(() => ({}));
+        alert(datos.error || 'No se pudo generar el PDF del traslado.');
         return;
     }
-
-    window.open(
-        `${API}/pdf/traslados/${id}?token=${encodeURIComponent(token)}`,
-        '_blank'
-    );
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
 }
 
 async function verEquiposProducto(productoId) {

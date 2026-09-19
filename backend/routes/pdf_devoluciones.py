@@ -5,6 +5,7 @@
 # ============================================================
 
 from flask import Blueprint, send_file, jsonify
+from flask_jwt_extended import jwt_required, get_jwt
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -46,7 +47,10 @@ pdf_devoluciones_bp = Blueprint(
     "/devolucion/<int:id>",
     methods=["GET"]
 )
+@jwt_required()
 def generar_pdf_devolucion(id):
+
+    claims = get_jwt()
 
     conn = get_connection()
 
@@ -120,6 +124,19 @@ def generar_pdf_devolucion(id):
                 }), 404
 
             devolucion = dict(devolucion_db)
+
+            # =================================================
+            # RESTRICCIÓN POR SEDE
+            # =================================================
+
+            if (
+                claims.get("rol") != "admin"
+                and devolucion.get("sede_id") != claims.get("sede_id")
+            ):
+
+                return jsonify({
+                    "error": "No tienes permiso para ver esta devolución"
+                }), 403
 
 
             # =================================================

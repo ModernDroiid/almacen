@@ -5,6 +5,7 @@
 # ============================================================
 
 from flask import Blueprint, send_file, jsonify
+from flask_jwt_extended import jwt_required, get_jwt
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -46,7 +47,10 @@ pdf_salidas_bp = Blueprint(
     "/salida/<int:id>",
     methods=["GET"]
 )
+@jwt_required()
 def generar_pdf_salida(id):
+
+    claims = get_jwt()
 
     conn = get_connection()
 
@@ -107,6 +111,23 @@ def generar_pdf_salida(id):
                 return jsonify({
                     "error": "Salida no encontrada"
                 }), 404
+
+            # =================================================
+            # RESTRICCIÓN POR SEDE
+            #
+            # Solo el admin puede ver el PDF de una salida de
+            # cualquier sede. Cualquier otro rol solo puede ver
+            # las de su propia sede.
+            # =================================================
+
+            if (
+                claims.get("rol") != "admin"
+                and salida.get("sede_id") != claims.get("sede_id")
+            ):
+
+                return jsonify({
+                    "error": "No tienes permiso para ver esta salida"
+                }), 403
 
 
             # =================================================

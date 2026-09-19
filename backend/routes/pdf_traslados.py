@@ -4,8 +4,8 @@
 # PostgreSQL
 # ============================================================
 
-from flask import Blueprint, request, send_file, jsonify
-from flask_jwt_extended import decode_token
+from flask import Blueprint, send_file, jsonify
+from flask_jwt_extended import jwt_required, get_jwt
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -81,36 +81,22 @@ def formatear_fecha_es(fecha):
 
 
 # ============================================================
-# GET /api/pdf/traslados/<id>?token=...
+# GET /api/pdf/traslados/<id>
+#
+# Antes esta ruta validaba manualmente un ?token=... en la
+# URL. Ahora usa el mismo mecanismo de sesión que el resto de
+# la API (encabezado Authorization), igual que las demás rutas
+# de PDF, y además restringe por sede como corresponde.
 # ============================================================
 
 @pdf_traslados_bp.route(
     "/traslados/<int:id>",
     methods=["GET"]
 )
+@jwt_required()
 def generar_pdf_traslado(id):
 
-    # ========================================================
-    # VALIDAR TOKEN
-    # ========================================================
-
-    token = request.args.get("token")
-
-    if not token:
-
-        return jsonify({
-            "error": "Token requerido"
-        }), 401
-
-    try:
-
-        decode_token(token)
-
-    except Exception:
-
-        return jsonify({
-            "error": "Token inválido o expirado"
-        }), 401
+    claims = get_jwt()
 
     # ========================================================
     # CONEXIÓN BD
@@ -199,6 +185,27 @@ def generar_pdf_traslado(id):
                 return jsonify({
                     "error": "Traslado no encontrado"
                 }), 404
+
+            # =================================================
+            # RESTRICCIÓN POR SEDE
+            #
+            # El admin ve cualquier traslado. Cualquier otro rol
+            # solo puede ver traslados donde su propia sede sea
+            # el origen o el destino.
+            # =================================================
+
+            if claims.get("rol") != "admin":
+
+                sede_usuario = claims.get("sede_id")
+
+                if sede_usuario not in (
+                    traslado.get("sede_origen_id"),
+                    traslado.get("sede_destino_id")
+                ):
+
+                    return jsonify({
+                        "error": "No tienes permiso para ver este traslado"
+                    }), 403
 
             # =================================================
             # DETALLE

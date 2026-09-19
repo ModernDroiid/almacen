@@ -22,6 +22,7 @@
 # ============================================================
 
 from flask import Blueprint, request, send_file, jsonify
+from flask_jwt_extended import jwt_required, get_jwt
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -64,12 +65,27 @@ pdf_stock_bajo_bp = Blueprint(
     "/stock-bajo",
     methods=["GET"]
 )
+@jwt_required()
 def generar_pdf_stock_bajo():
+
+    claims = get_jwt()
 
     sede_id = request.args.get(
         "sede_id",
         type=int
     )
+
+    # ========================================================
+    # RESTRICCIÓN POR SEDE
+    #
+    # Solo el admin puede pedir el reporte de cualquier sede
+    # (o de todas). Cualquier otro rol (almacenista, consulta,
+    # portería) solo puede ver el de su propia sede, sin
+    # importar qué sede_id venga en la URL.
+    # ========================================================
+
+    if claims.get("rol") != "admin":
+        sede_id = claims.get("sede_id")
 
     conn = get_connection()
 

@@ -10,6 +10,26 @@ function sanitizar(texto) {
         .replace(/'/g, '&#39;');
 }
 
+// Para texto que se mete dentro de un atributo onclick="...('valor')"
+// NO basta con sanitizar(): el navegador primero decodifica las
+// entidades HTML del atributo y LUEGO ejecuta ese texto como
+// JavaScript, así que un &#39; se vuelve comilla real otra vez justo
+// antes de correr el código, y alguien podría cerrar la comilla y
+// meter código propio (por ejemplo, en el nombre de un producto,
+// modelo, marca o usuario). Esta función sí lo deja seguro para ese
+// caso específico: escapa la comilla para que siga viéndose como
+// texto dentro del JavaScript, y el símbolo " para que no se salga
+// del atributo HTML.
+function escaparParaJs(texto) {
+    if (texto === null || texto === undefined) return '';
+    return String(texto)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '&quot;')
+        .replace(/\n/g, ' ')
+        .replace(/\r/g, ' ');
+}
+
 function mostrarNotificacion(mensaje, tipo = 'exito') {
     let notificacion = document.getElementById('notificacion-app');
 
@@ -219,7 +239,7 @@ async function inicializarSelectorSede() {
 
     select.innerHTML += sedes.map(sede =>
         `<option value="${sede.id}">
-            ${sede.nombre}
+            ${sanitizar(sede.nombre)}
         </option>`
     ).join('');
 
@@ -355,7 +375,7 @@ function abrirModal(id) {
             const sel = document.getElementById('ent-sede');
             sel.innerHTML = '<option value="">&#8212; Selecciona la sede &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre}</option>`
+                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${sanitizar(s.nombre)}</option>`
             ));
             document.getElementById('campo-sede-entrada').style.display = 'block';
         });
@@ -374,7 +394,7 @@ function abrirModal(id) {
                 const sel = document.getElementById('sal-sede');
                 sel.innerHTML = '<option value="">&#8212; Selecciona la sede &#8212;</option>';
                 sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                    `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre}</option>`
+                    `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${sanitizar(s.nombre)}</option>`
                 ));
                 document.getElementById('campo-sede-salida').style.display = 'block';
             });
@@ -392,7 +412,7 @@ function abrirModal(id) {
             const sel = document.getElementById('dev-sede');
             sel.innerHTML = '<option value="">&#8212; Selecciona la sede &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre}</option>`
+                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${sanitizar(s.nombre)}</option>`
             ));
             document.getElementById('campo-sede-devolucion').style.display = 'block';
         });
@@ -428,7 +448,7 @@ function abrirModal(id) {
             const sel = document.getElementById('prod-sede');
             sel.innerHTML = '<option value="">&#8212; Selecciona la sede &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${s.nombre}</option>`
+                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${sanitizar(s.nombre)}</option>`
             ));
             document.getElementById('campo-sede-producto').style.display = 'block';
         });
@@ -764,12 +784,12 @@ async function cargarModelos() {
     modelos.forEach(m => {
         tbody.insertAdjacentHTML('beforeend', `
             <tr>
-                <td><strong>${m.nombre}</strong></td>
+                <td><strong>${sanitizar(m.nombre)}</strong></td>
                 <td>
                     <div class="acciones">
                         ${usuario.rol !== 'consulta' ? `
-                            <button class="btn-accion" onclick="editarModelo(${m.id}, '${m.nombre}')">✏️ Editar</button>
-                            <button class="btn-accion danger" onclick="eliminarModelo(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+                            <button class="btn-accion" onclick="editarModelo(${m.id}, '${escaparParaJs(m.nombre)}')">✏️ Editar</button>
+                            <button class="btn-accion danger" onclick="eliminarModelo(${m.id}, '${escaparParaJs(m.nombre)}')">🗑️ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -832,12 +852,12 @@ async function cargarMarcas() {
     marcas.forEach(m => {
         tbody.insertAdjacentHTML('beforeend', `
             <tr>
-                <td><strong>${m.nombre}</strong></td>
+                <td><strong>${sanitizar(m.nombre)}</strong></td>
                 <td>
                     <div class="acciones">
                         ${usuario.rol !== 'consulta' ? `
-                            <button class="btn-accion" onclick="editarMarca(${m.id}, '${m.nombre}')">✏️ Editar</button>
-                            <button class="btn-accion danger" onclick="eliminarMarca(${m.id}, '${m.nombre}')">🗑️ Eliminar</button>
+                            <button class="btn-accion" onclick="editarMarca(${m.id}, '${escaparParaJs(m.nombre)}')">✏️ Editar</button>
+                            <button class="btn-accion danger" onclick="eliminarMarca(${m.id}, '${escaparParaJs(m.nombre)}')">🗑️ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -910,8 +930,8 @@ async function cargarClientesLista() {
                 <td>
                     <div class="acciones">
                         ${usuario.rol === 'admin' ? `
-                            <button class="btn-accion" onclick="editarCliente(${c.id}, '${sanitizar(c.nombre)}')">✏️ Editar</button>
-                            <button class="btn-accion danger" onclick="eliminarCliente(${c.id}, '${sanitizar(c.nombre)}')">🗑️ Eliminar</button>
+                            <button class="btn-accion" onclick="editarCliente(${c.id}, '${escaparParaJs(c.nombre)}')">✏️ Editar</button>
+                            <button class="btn-accion danger" onclick="eliminarCliente(${c.id}, '${escaparParaJs(c.nombre)}')">🗑️ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -1463,7 +1483,7 @@ async function cargarEntradas() {
             const sedes = await resSedes.json();
             sel.innerHTML = '<option value="">&#8212; Todas las sedes &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}">${s.nombre}</option>`
+                `<option value="${s.id}">${sanitizar(s.nombre)}</option>`
             ));
             sel.style.display = 'block';
             sel.value = valorActual; // ✅ restauramos el valor después
@@ -1502,7 +1522,7 @@ function renderizarEntradas(entradas) {
                     <div class="acciones">
                         <button class="btn-accion" onclick="verPDFEntrada(${e.id})">📄 PDF</button>
                         ${usuario.rol === 'admin' ? `
-                            <button class="btn-accion danger" onclick="eliminarEntrada(${e.id}, '${e.numero_documento}')">🗑️ Eliminar</button>
+                            <button class="btn-accion danger" onclick="eliminarEntrada(${e.id}, '${escaparParaJs(e.numero_documento)}')">🗑️ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -1559,9 +1579,9 @@ async function agregarItemEntrada() {
     const opciones = productosCache.map(p => `
         <option
             value="${p.id}"
-            data-unidad="${p.unidad || 'UND'}"
+            data-unidad="${sanitizar(p.unidad || 'UND')}"
             data-requiere-serial="${p.requiere_serial ? 'true' : 'false'}">
-            [${p.codigo || '—'}] ${p.nombre}
+            [${sanitizar(p.codigo)}] ${sanitizar(p.nombre)}
         </option>
     `).join('');
 
@@ -1802,7 +1822,7 @@ async function agregarItemEntrada() {
                     .filter(m => m.activa !== false)
                     .map(m => `
                         <option value="${m.id}">
-                            ${m.nombre}
+                            ${sanitizar(m.nombre)}
                         </option>
                     `)
                     .join('');
@@ -1956,7 +1976,7 @@ async function agregarItemEntrada() {
 
                     ${modelosFiltrados.map(m => `
                         <option value="${m.id}">
-                            ${m.nombre}
+                            ${sanitizar(m.nombre)}
                         </option>
                     `).join('')}
 
@@ -2697,7 +2717,7 @@ async function cargarSalidas() {
             const sedes = await resSedes.json();
             sel.innerHTML = '<option value="">&#8212; Todas las sedes &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}">${s.nombre}</option>`
+                `<option value="${s.id}">${sanitizar(s.nombre)}</option>`
             ));
             sel.style.display = 'block';
             sel.value = valorActual;
@@ -2833,7 +2853,7 @@ function renderizarSalidas(salidas) {
                     <div class="acciones">
                         <button class="btn-accion" onclick="verPDFSalida(${s.id})">📄 PDF</button>
                         ${usuario.rol === 'admin' ? `
-                            <button class="btn-accion danger" onclick="eliminarSalida(${s.id}, '${s.numero_documento}')">🗑️ Eliminar</button>
+                            <button class="btn-accion danger" onclick="eliminarSalida(${s.id}, '${escaparParaJs(s.numero_documento)}')">🗑️ Eliminar</button>
                         ` : ''}
                     </div>
                 </td>
@@ -2886,9 +2906,9 @@ async function agregarItemSalida() {
             <option
                 value="${p.id}"
                 data-stock="${p.stock || 0}"
-                data-unidad="${p.unidad || 'UND'}"
+                data-unidad="${sanitizar(p.unidad || 'UND')}"
                 data-serializado="${p.requiere_serial ? '1' : '0'}">
-                [${p.codigo || '—'}] ${p.nombre}
+                [${sanitizar(p.codigo)}] ${sanitizar(p.nombre)}
                 (disp: ${p.stock || 0})
             </option>
         `)
@@ -3833,7 +3853,7 @@ function mostrarNotificacionSalida(mensaje, tipo = 'error') {
             flex:1;
             line-height:1.4;
         ">
-            ${mensaje}
+            ${sanitizar(mensaje)}
         </div>
 
         <button
@@ -4574,7 +4594,7 @@ async function cargarItemsDeSalida() {
                     <strong
                         style="font-size:12.5px"
                     >
-                        ${item.nombre}
+                        ${sanitizar(item.nombre)}
                     </strong>
 
                     <div
@@ -4912,7 +4932,7 @@ async function cargarDevoluciones() {
                     sel.insertAdjacentHTML(
                         'beforeend',
                         `<option value="${s.id}">
-                            ${s.nombre}
+                            ${sanitizar(s.nombre)}
                         </option>`
                     );
                 });
@@ -5652,19 +5672,19 @@ async function cargarUsuarios() {
 
         tbody.insertAdjacentHTML('beforeend', `
             <tr>
-                <td><strong>${u.nombre}</strong></td>
-                <td style="color:#6b8aab;font-size:12px">${u.email || u.correo || '—'}</td>
+                <td><strong>${sanitizar(u.nombre)}</strong></td>
+                <td style="color:#6b8aab;font-size:12px">${sanitizar(u.email || u.correo)}</td>
                 <td>
                     <span style="background:${rolBg};color:${rolColor};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500">
                         ${rolTexto}
                     </span>
                 </td>
-                <td>${u.sede_nombre || '—'}</td>
+                <td>${sanitizar(u.sede_nombre)}</td>
                 <td>${estadoBadge}</td>
                 <td>
                     <div class="acciones">
                         <button class="btn-accion" onclick="editarUsuario(${u.id})">✏️ Editar</button>
-                        <button class="btn-accion danger" onclick="toggleUsuario(${u.id}, ${u.activo}, '${u.nombre}')">
+                        <button class="btn-accion danger" onclick="toggleUsuario(${u.id}, ${u.activo}, '${escaparParaJs(u.nombre)}')">
                             ${u.activo ? '🔒 Desactivar' : '🔓 Activar'}
                         </button>
                     </div>
@@ -5684,7 +5704,7 @@ async function abrirModalUsuario() {
     select.innerHTML = '<option value="">— Sin sede —</option>';
     sedes.forEach(s => {
         select.insertAdjacentHTML('beforeend',
-            `<option value="${s.id}">${s.nombre}</option>`
+            `<option value="${s.id}">${sanitizar(s.nombre)}</option>`
         );
     });
     abrirModal('modal-usuario');
@@ -5705,7 +5725,7 @@ async function editarUsuario(id) {
     selectSede.innerHTML = '<option value="">— Sin sede —</option>';
     sedes.forEach(s => {
         selectSede.insertAdjacentHTML('beforeend',
-            `<option value="${s.id}" ${s.id === u.sede_id ? 'selected' : ''}>${s.nombre}</option>`
+            `<option value="${s.id}" ${s.id === u.sede_id ? 'selected' : ''}>${sanitizar(s.nombre)}</option>`
         );
     });
 
@@ -5810,7 +5830,7 @@ async function cargarPuntos() {
             const sedes = await resSedes.json();
             sel.innerHTML = '<option value="">&#8212; Todas las sedes &#8212;</option>';
             sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                `<option value="${s.id}">${s.nombre}</option>`
+                `<option value="${s.id}">${sanitizar(s.nombre)}</option>`
             ));
             sel.style.display = 'block';
             sel.value = valorActual;
@@ -5843,9 +5863,9 @@ function pintarSelectorPuntos(lista) {
     select.innerHTML = '<option value="">— Selecciona un punto —</option>';
 
     lista.forEach(p => {
-        const sede = p.sede_nombre ? ` (${p.sede_nombre})` : '';
+        const sede = p.sede_nombre ? ` (${sanitizar(p.sede_nombre)})` : '';
         select.insertAdjacentHTML('beforeend',
-            `<option value="${p.destino}">${p.destino}${sede} — ${p.total_salidas} salida(s)</option>`
+            `<option value="${sanitizar(p.destino)}">${sanitizar(p.destino)}${sede} — ${p.total_salidas} salida(s)</option>`
         );
     });
 
@@ -5895,7 +5915,7 @@ async function cargarHistorialPunto() {
 
         html += `
             <h3 style="font-size:13px;color:#0d2137;margin:1rem 0 0.5rem">
-                📦 Equipos en "${destino}"
+                📦 Equipos en "${sanitizar(destino)}"
             </h3>
 
             <div style="background:white;border:0.5px solid #dce6f0;border-radius:10px;padding:12px 16px;margin-bottom:16px">
@@ -5981,7 +6001,7 @@ async function cargarHistorialPunto() {
 
     html += `
         <h3 style="font-size:13px;color:#0d2137;margin:1.5rem 0 0.5rem">
-            🔄 Devoluciones desde "${destino}"
+            🔄 Devoluciones desde "${sanitizar(destino)}"
         </h3>
     `;
 
@@ -6116,7 +6136,7 @@ async function cargarHistorialPunto() {
         <div style="margin-bottom:1rem">
 
             <button
-                onclick="descargarPDFConsolidado('${destino}')"
+                onclick="descargarPDFConsolidado('${escaparParaJs(destino)}')"
                 class="btn-primario">
                 📄 Exportar PDF
             </button>
@@ -7819,7 +7839,7 @@ async function cargarTraslados() {
 
                 sel.innerHTML = '<option value="">&#8212; Todas las sedes &#8212;</option>';
                 sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
-                    `<option value="${s.id}">${s.nombre}</option>`
+                    `<option value="${s.id}">${sanitizar(s.nombre)}</option>`
                 ));
                 sel.style.display = 'block';
                 sel.value = valorActual;

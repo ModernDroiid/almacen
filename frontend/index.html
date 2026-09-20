@@ -1746,6 +1746,26 @@
         color: #0d2137;
     }
 
+    .firma-pad-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .firma-pad-cuerpo {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 4px;
+    }
+
+    .firma-pad-acciones {
+        display: flex;
+        gap: 8px;
+    }
+
     .firma-pad-canvas {
         width: 100%;
         height: 130px;
@@ -1756,7 +1776,14 @@
         cursor: crosshair;
     }
 
-    .btn-firma-limpiar {
+    .btn-firma-toggle {
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+        white-space: nowrap;
+    }
+
+    .btn-firma-limpiar,
+    .btn-firma-guardar {
         align-self: flex-start;
         padding: 4px 10px !important;
         font-size: 12px !important;
@@ -1994,38 +2021,78 @@
 
                 <div class="firmas-grid">
 
-                    <div class="firma-pad-item">
-                        <label>
-                            Firma de quien entrega
-                        </label>
-                        <canvas
-                            id="firma-ent-entrega"
-                            class="firma-pad-canvas"
-                        ></canvas>
-                        <button
-                            type="button"
-                            class="btn-secundario btn-firma-limpiar"
-                            onclick="limpiarFirmaPad('firma-ent-entrega')"
-                        >
-                            Limpiar firma
-                        </button>
+                    <div class="firma-pad-item" data-firma-item="firma-ent-entrega">
+                        <div class="firma-pad-header">
+                            <label>
+                                Firma de quien entrega
+                            </label>
+                            <button
+                                type="button"
+                                class="btn-secundario btn-firma-toggle"
+                                onclick="toggleFirmaPad('firma-ent-entrega')"
+                            >
+                                + Agregar firma
+                            </button>
+                        </div>
+                        <div class="firma-pad-cuerpo" style="display:none">
+                            <canvas
+                                id="firma-ent-entrega"
+                                class="firma-pad-canvas"
+                            ></canvas>
+                            <div class="firma-pad-acciones">
+                                <button
+                                    type="button"
+                                    class="btn-secundario btn-firma-limpiar"
+                                    onclick="limpiarFirmaPad('firma-ent-entrega')"
+                                >
+                                    Limpiar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-primario btn-firma-guardar"
+                                    onclick="guardarFirmaPad('firma-ent-entrega')"
+                                >
+                                    Guardar firma
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="firma-pad-item">
-                        <label>
-                            Firma de quien recibe
-                        </label>
-                        <canvas
-                            id="firma-ent-recibe"
-                            class="firma-pad-canvas"
-                        ></canvas>
-                        <button
-                            type="button"
-                            class="btn-secundario btn-firma-limpiar"
-                            onclick="limpiarFirmaPad('firma-ent-recibe')"
-                        >
-                            Limpiar firma
-                        </button>
+                    <div class="firma-pad-item" data-firma-item="firma-ent-recibe">
+                        <div class="firma-pad-header">
+                            <label>
+                                Firma de quien recibe
+                            </label>
+                            <button
+                                type="button"
+                                class="btn-secundario btn-firma-toggle"
+                                onclick="toggleFirmaPad('firma-ent-recibe')"
+                            >
+                                + Agregar firma
+                            </button>
+                        </div>
+                        <div class="firma-pad-cuerpo" style="display:none">
+                            <canvas
+                                id="firma-ent-recibe"
+                                class="firma-pad-canvas"
+                            ></canvas>
+                            <div class="firma-pad-acciones">
+                                <button
+                                    type="button"
+                                    class="btn-secundario btn-firma-limpiar"
+                                    onclick="limpiarFirmaPad('firma-ent-recibe')"
+                                >
+                                    Limpiar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-primario btn-firma-guardar"
+                                    onclick="guardarFirmaPad('firma-ent-recibe')"
+                                >
+                                    Guardar firma
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -2328,38 +2395,78 @@
 
                 <div class="firmas-grid">
 
-                    <div class="firma-pad-item">
-                        <label>
-                            Firma de quien entrega
-                        </label>
-                        <canvas
-                            id="firma-sal-entrega"
-                            class="firma-pad-canvas"
-                        ></canvas>
-                        <button
-                            type="button"
-                            class="btn-secundario btn-firma-limpiar"
-                            onclick="limpiarFirmaPad('firma-sal-entrega')"
-                        >
-                            Limpiar firma
-                        </button>
+                    <div class="firma-pad-item" data-firma-item="firma-sal-entrega">
+                        <div class="firma-pad-header">
+                            <label>
+                                Firma de quien entrega
+                            </label>
+                            <button
+                                type="button"
+                                class="btn-secundario btn-firma-toggle"
+                                onclick="toggleFirmaPad('firma-sal-entrega')"
+                            >
+                                + Agregar firma
+                            </button>
+                        </div>
+                        <div class="firma-pad-cuerpo" style="display:none">
+                            <canvas
+                                id="firma-sal-entrega"
+                                class="firma-pad-canvas"
+                            ></canvas>
+                            <div class="firma-pad-acciones">
+                                <button
+                                    type="button"
+                                    class="btn-secundario btn-firma-limpiar"
+                                    onclick="limpiarFirmaPad('firma-sal-entrega')"
+                                >
+                                    Limpiar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-primario btn-firma-guardar"
+                                    onclick="guardarFirmaPad('firma-sal-entrega')"
+                                >
+                                    Guardar firma
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="firma-pad-item">
-                        <label>
-                            Firma de quien recibe
-                        </label>
-                        <canvas
-                            id="firma-sal-recibe"
-                            class="firma-pad-canvas"
-                        ></canvas>
-                        <button
-                            type="button"
-                            class="btn-secundario btn-firma-limpiar"
-                            onclick="limpiarFirmaPad('firma-sal-recibe')"
-                        >
-                            Limpiar firma
-                        </button>
+                    <div class="firma-pad-item" data-firma-item="firma-sal-recibe">
+                        <div class="firma-pad-header">
+                            <label>
+                                Firma de quien recibe
+                            </label>
+                            <button
+                                type="button"
+                                class="btn-secundario btn-firma-toggle"
+                                onclick="toggleFirmaPad('firma-sal-recibe')"
+                            >
+                                + Agregar firma
+                            </button>
+                        </div>
+                        <div class="firma-pad-cuerpo" style="display:none">
+                            <canvas
+                                id="firma-sal-recibe"
+                                class="firma-pad-canvas"
+                            ></canvas>
+                            <div class="firma-pad-acciones">
+                                <button
+                                    type="button"
+                                    class="btn-secundario btn-firma-limpiar"
+                                    onclick="limpiarFirmaPad('firma-sal-recibe')"
+                                >
+                                    Limpiar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-primario btn-firma-guardar"
+                                    onclick="guardarFirmaPad('firma-sal-recibe')"
+                                >
+                                    Guardar firma
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -2560,21 +2667,41 @@
 
                 <div class="firmas-grid firmas-grid-1">
 
-                    <div class="firma-pad-item">
-                        <label>
-                            Firma de quien despacha (sede origen)
-                        </label>
-                        <canvas
-                            id="firma-tras-entrega"
-                            class="firma-pad-canvas"
-                        ></canvas>
-                        <button
-                            type="button"
-                            class="btn-secundario btn-firma-limpiar"
-                            onclick="limpiarFirmaPad('firma-tras-entrega')"
-                        >
-                            Limpiar firma
-                        </button>
+                    <div class="firma-pad-item" data-firma-item="firma-tras-entrega">
+                        <div class="firma-pad-header">
+                            <label>
+                                Firma de quien despacha (sede origen)
+                            </label>
+                            <button
+                                type="button"
+                                class="btn-secundario btn-firma-toggle"
+                                onclick="toggleFirmaPad('firma-tras-entrega')"
+                            >
+                                + Agregar firma
+                            </button>
+                        </div>
+                        <div class="firma-pad-cuerpo" style="display:none">
+                            <canvas
+                                id="firma-tras-entrega"
+                                class="firma-pad-canvas"
+                            ></canvas>
+                            <div class="firma-pad-acciones">
+                                <button
+                                    type="button"
+                                    class="btn-secundario btn-firma-limpiar"
+                                    onclick="limpiarFirmaPad('firma-tras-entrega')"
+                                >
+                                    Limpiar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-primario btn-firma-guardar"
+                                    onclick="guardarFirmaPad('firma-tras-entrega')"
+                                >
+                                    Guardar firma
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -2666,21 +2793,41 @@
 
                 <div class="firmas-grid firmas-grid-1">
 
-                    <div class="firma-pad-item">
-                        <label>
-                            Firma de quien recibe (sede destino)
-                        </label>
-                        <canvas
-                            id="firma-tras-recibe"
-                            class="firma-pad-canvas"
-                        ></canvas>
-                        <button
-                            type="button"
-                            class="btn-secundario btn-firma-limpiar"
-                            onclick="limpiarFirmaPad('firma-tras-recibe')"
-                        >
-                            Limpiar firma
-                        </button>
+                    <div class="firma-pad-item" data-firma-item="firma-tras-recibe">
+                        <div class="firma-pad-header">
+                            <label>
+                                Firma de quien recibe (sede destino)
+                            </label>
+                            <button
+                                type="button"
+                                class="btn-secundario btn-firma-toggle"
+                                onclick="toggleFirmaPad('firma-tras-recibe')"
+                            >
+                                + Agregar firma
+                            </button>
+                        </div>
+                        <div class="firma-pad-cuerpo" style="display:none">
+                            <canvas
+                                id="firma-tras-recibe"
+                                class="firma-pad-canvas"
+                            ></canvas>
+                            <div class="firma-pad-acciones">
+                                <button
+                                    type="button"
+                                    class="btn-secundario btn-firma-limpiar"
+                                    onclick="limpiarFirmaPad('firma-tras-recibe')"
+                                >
+                                    Limpiar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-primario btn-firma-guardar"
+                                    onclick="guardarFirmaPad('firma-tras-recibe')"
+                                >
+                                    Guardar firma
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -3574,38 +3721,78 @@
 
                 <div class="firmas-grid">
 
-                    <div class="firma-pad-item">
-                        <label>
-                            Firma de quien entrega (cliente)
-                        </label>
-                        <canvas
-                            id="firma-dev-entrega"
-                            class="firma-pad-canvas"
-                        ></canvas>
-                        <button
-                            type="button"
-                            class="btn-secundario btn-firma-limpiar"
-                            onclick="limpiarFirmaPad('firma-dev-entrega')"
-                        >
-                            Limpiar firma
-                        </button>
+                    <div class="firma-pad-item" data-firma-item="firma-dev-entrega">
+                        <div class="firma-pad-header">
+                            <label>
+                                Firma de quien entrega (cliente)
+                            </label>
+                            <button
+                                type="button"
+                                class="btn-secundario btn-firma-toggle"
+                                onclick="toggleFirmaPad('firma-dev-entrega')"
+                            >
+                                + Agregar firma
+                            </button>
+                        </div>
+                        <div class="firma-pad-cuerpo" style="display:none">
+                            <canvas
+                                id="firma-dev-entrega"
+                                class="firma-pad-canvas"
+                            ></canvas>
+                            <div class="firma-pad-acciones">
+                                <button
+                                    type="button"
+                                    class="btn-secundario btn-firma-limpiar"
+                                    onclick="limpiarFirmaPad('firma-dev-entrega')"
+                                >
+                                    Limpiar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-primario btn-firma-guardar"
+                                    onclick="guardarFirmaPad('firma-dev-entrega')"
+                                >
+                                    Guardar firma
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="firma-pad-item">
-                        <label>
-                            Firma de quien recibe (almacenista)
-                        </label>
-                        <canvas
-                            id="firma-dev-recibe"
-                            class="firma-pad-canvas"
-                        ></canvas>
-                        <button
-                            type="button"
-                            class="btn-secundario btn-firma-limpiar"
-                            onclick="limpiarFirmaPad('firma-dev-recibe')"
-                        >
-                            Limpiar firma
-                        </button>
+                    <div class="firma-pad-item" data-firma-item="firma-dev-recibe">
+                        <div class="firma-pad-header">
+                            <label>
+                                Firma de quien recibe (almacenista)
+                            </label>
+                            <button
+                                type="button"
+                                class="btn-secundario btn-firma-toggle"
+                                onclick="toggleFirmaPad('firma-dev-recibe')"
+                            >
+                                + Agregar firma
+                            </button>
+                        </div>
+                        <div class="firma-pad-cuerpo" style="display:none">
+                            <canvas
+                                id="firma-dev-recibe"
+                                class="firma-pad-canvas"
+                            ></canvas>
+                            <div class="firma-pad-acciones">
+                                <button
+                                    type="button"
+                                    class="btn-secundario btn-firma-limpiar"
+                                    onclick="limpiarFirmaPad('firma-dev-recibe')"
+                                >
+                                    Limpiar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-primario btn-firma-guardar"
+                                    onclick="guardarFirmaPad('firma-dev-recibe')"
+                                >
+                                    Guardar firma
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -4129,7 +4316,7 @@
 
 
 
-<script src="js/app.js?v=28"></script>
+<script src="js/app.js?v=29"></script>
 
 
 </body>

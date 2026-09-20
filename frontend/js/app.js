@@ -418,8 +418,8 @@ function abrirModal(id) {
         const hoy = new Date().toISOString().split('T')[0];
         document.getElementById('ent-fecha').value = hoy;
         generarNumeroEntrada();
-        inicializarFirmaPad('firma-ent-entrega');
-        inicializarFirmaPad('firma-ent-recibe');
+        colapsarFirmaPad('firma-ent-entrega');
+        colapsarFirmaPad('firma-ent-recibe');
     }
 
     if (id === 'modal-entrada' && usuario.rol === 'admin') {
@@ -439,8 +439,8 @@ function abrirModal(id) {
         document.getElementById('sal-fecha').value = hoy;
         generarNumeroSalida();
         cargarClientesDatalist();
-        inicializarFirmaPad('firma-sal-entrega');
-        inicializarFirmaPad('firma-sal-recibe');
+        colapsarFirmaPad('firma-sal-entrega');
+        colapsarFirmaPad('firma-sal-recibe');
     }
 
     if (id === 'modal-salida' && usuario.rol === 'admin') {
@@ -459,8 +459,8 @@ function abrirModal(id) {
         const hoy = new Date().toISOString().split('T')[0];
         document.getElementById('dev-fecha').value = hoy;
         cargarSelectorSalidas();
-        inicializarFirmaPad('firma-dev-entrega');
-        inicializarFirmaPad('firma-dev-recibe');
+        colapsarFirmaPad('firma-dev-entrega');
+        colapsarFirmaPad('firma-dev-recibe');
     }
 
     if (id === 'modal-devolucion' && usuario.rol === 'admin') {
@@ -498,11 +498,11 @@ function abrirModal(id) {
 
         cargarSedesTraslado();
 
-        inicializarFirmaPad('firma-tras-entrega');
+        colapsarFirmaPad('firma-tras-entrega');
     }
 
     if (id === 'modal-recibir-traslado') {
-        inicializarFirmaPad('firma-tras-recibe');
+        colapsarFirmaPad('firma-tras-recibe');
     }
 
     if (id === 'modal-producto' && usuario.rol === 'admin') {
@@ -531,6 +531,7 @@ function cerrarModal(id) {
 
     if (id === 'modal-recibir-traslado') {
         limpiarFirmaPad('firma-tras-recibe');
+        colapsarFirmaPad('firma-tras-recibe');
         trasladoIdPendienteRecibir = null;
     }
 }
@@ -710,6 +711,7 @@ function inicializarFirmaPad(canvasId) {
 function limpiarFirmaPad(canvasId) {
     const pad = _firmaPads[canvasId];
     if (pad) pad.limpiar();
+    actualizarBotonFirma(canvasId);
 }
 
 // Devuelve la firma en base64 (PNG) o null si no se ha firmado.
@@ -719,6 +721,103 @@ function obtenerFirmaBase64(canvasId) {
     const pad = _firmaPads[canvasId];
     if (!pad) return null;
     return pad.obtenerBase64();
+}
+
+// ══ ABRIR/CERRAR EL RECUADRO DE FIRMA (bajo demanda) ══════════
+//
+// Cada firma empieza OCULTA, mostrando solo un botón
+// "+ Agregar firma". Esto es útil sobre todo para probar con una
+// tableta de firma física más adelante: se abre el campo
+// específico que se va a firmar, se firma, y se guarda — en vez
+// de tener siempre dos lienzos abiertos a la vez.
+//
+// Estas funciones buscan el contenedor por el atributo
+// data-firma-item="<canvasId>" que envuelve el encabezado (label
+// + botón) y el cuerpo (canvas + acciones) de cada firma.
+
+function _contenedorFirma(canvasId) {
+    return document.querySelector(
+        `[data-firma-item="${canvasId}"]`
+    );
+}
+
+function toggleFirmaPad(canvasId) {
+
+    const contenedor = _contenedorFirma(canvasId);
+    if (!contenedor) return;
+
+    const cuerpo = contenedor.querySelector('.firma-pad-cuerpo');
+    if (!cuerpo) return;
+
+    const estaAbierto = cuerpo.style.display !== 'none';
+
+    if (estaAbierto) {
+        cuerpo.style.display = 'none';
+    } else {
+        cuerpo.style.display = 'flex';
+
+        // El canvas recién ahora tiene un tamaño real en pantalla
+        // (antes estaba oculto con display:none), así que se
+        // inicializa/ajusta justo en este momento.
+        inicializarFirmaPad(canvasId);
+    }
+
+    actualizarBotonFirma(canvasId);
+}
+
+// "Guardar firma" simplemente oculta el recuadro de vuelta — el
+// trazo dibujado en el canvas se conserva en memoria aunque esté
+// oculto, así que no hace falta ningún paso extra: al enviar el
+// formulario, obtenerFirmaBase64() sigue leyendo lo que se firmó
+// aquí, esté el recuadro abierto o cerrado.
+function guardarFirmaPad(canvasId) {
+
+    const contenedor = _contenedorFirma(canvasId);
+    if (!contenedor) return;
+
+    const cuerpo = contenedor.querySelector('.firma-pad-cuerpo');
+    if (cuerpo) cuerpo.style.display = 'none';
+
+    actualizarBotonFirma(canvasId);
+}
+
+// Oculta el recuadro de firma y limpia el botón — se usa al
+// resetear un formulario completo (por ejemplo al cerrar el
+// modal), para que la próxima vez que se abra, la firma vuelva a
+// aparecer colapsada y sin firmar.
+function colapsarFirmaPad(canvasId) {
+
+    const contenedor = _contenedorFirma(canvasId);
+    if (!contenedor) return;
+
+    const cuerpo = contenedor.querySelector('.firma-pad-cuerpo');
+    if (cuerpo) cuerpo.style.display = 'none';
+
+    actualizarBotonFirma(canvasId);
+}
+
+// Actualiza el texto del botón según el estado: abierto,
+// firmado (pero colapsado), o vacío.
+function actualizarBotonFirma(canvasId) {
+
+    const contenedor = _contenedorFirma(canvasId);
+    if (!contenedor) return;
+
+    const boton = contenedor.querySelector('.btn-firma-toggle');
+    const cuerpo = contenedor.querySelector('.firma-pad-cuerpo');
+    if (!boton || !cuerpo) return;
+
+    const estaAbierto = cuerpo.style.display !== 'none';
+    const pad = _firmaPads[canvasId];
+    const firmado = !!pad && !pad.estaVacio();
+
+    if (estaAbierto) {
+        boton.textContent = 'Ocultar';
+    } else if (firmado) {
+        boton.textContent = '✓ Firma agregada (cambiar)';
+    } else {
+        boton.textContent = '+ Agregar firma';
+    }
 }
 
 window.addEventListener('resize', () => {
@@ -2947,6 +3046,8 @@ function limpiarFormEntrada() {
 
     limpiarFirmaPad('firma-ent-entrega');
     limpiarFirmaPad('firma-ent-recibe');
+    colapsarFirmaPad('firma-ent-entrega');
+    colapsarFirmaPad('firma-ent-recibe');
 }
 
 async function verPDFEntrada(id) {
@@ -4553,6 +4654,8 @@ function limpiarFormSalida() {
 
     limpiarFirmaPad('firma-sal-entrega');
     limpiarFirmaPad('firma-sal-recibe');
+    colapsarFirmaPad('firma-sal-entrega');
+    colapsarFirmaPad('firma-sal-recibe');
 }
 
 async function verPDFSalida(id) {
@@ -5800,6 +5903,8 @@ function limpiarFormDevolucion() {
 
     limpiarFirmaPad('firma-dev-entrega');
     limpiarFirmaPad('firma-dev-recibe');
+    colapsarFirmaPad('firma-dev-entrega');
+    colapsarFirmaPad('firma-dev-recibe');
 }
 
 // ══ MODAL DE CONFIRMACION ════════════════════════════════════
@@ -8134,6 +8239,7 @@ function limpiarFormTraslado() {
     productosCacheTraslado = [];
 
     limpiarFirmaPad('firma-tras-entrega');
+    colapsarFirmaPad('firma-tras-entrega');
 }
 
 // TRASLADOS ENTRE SEDES

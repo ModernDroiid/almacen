@@ -20,7 +20,7 @@
 
     <link
         rel="stylesheet"
-        href="css/style.css?v=5"
+        href="css/style.css?v=6"
     >
 
 </head>
@@ -127,6 +127,27 @@
             </span>
 
             Traslados
+
+        </button>
+
+
+        <button
+            class="nav-btn"
+            onclick="mostrarSeccion('solicitudes', this)"
+        >
+
+            <span class="icono">
+                🧾
+            </span>
+
+            Solicitudes
+
+            <span
+                id="badge-solicitudes-pendientes"
+                class="nav-contador"
+            >
+                0
+            </span>
 
         </button>
 
@@ -1037,6 +1058,156 @@
 
 
             <tbody id="tabla-traslados">
+            </tbody>
+
+
+        </table>
+
+
+    </div>
+
+
+</section>
+
+
+
+<!-- ========================================================= -->
+<!-- SOLICITUDES DE COMPRA -->
+<!-- ========================================================= -->
+
+<section
+    id="sec-solicitudes"
+    class="seccion"
+>
+
+
+    <div class="topbar">
+
+
+        <div class="topbar-titulo">
+
+            <h2>
+                Solicitudes de compra
+            </h2>
+
+            <p id="subtitulo-solicitudes">
+                Cargando...
+            </p>
+
+        </div>
+
+
+        <button
+            class="btn-primario no-consulta"
+            onclick="abrirModal('modal-solicitud')"
+        >
+            + Nueva solicitud
+        </button>
+
+
+    </div>
+
+
+
+    <div class="filtros-listado">
+
+
+        <input
+            type="text"
+            id="buscar-solicitudes"
+            placeholder="Buscar por N°, proyecto o constructora..."
+            oninput="filtrarSolicitudes()"
+        >
+
+
+        <select
+            id="filtro-sede-solicitudes"
+            onchange="filtrarSolicitudes()"
+        >
+
+            <option value="">
+                — Todas las sedes —
+            </option>
+
+        </select>
+
+
+        <select
+            id="filtro-estado-solicitudes"
+            onchange="filtrarSolicitudes()"
+        >
+
+            <option value="">
+                — Todos los estados —
+            </option>
+
+            <option value="PENDIENTE">
+                Pendientes
+            </option>
+
+            <option value="APROBADA">
+                Aprobadas
+            </option>
+
+            <option value="RECHAZADA">
+                Rechazadas
+            </option>
+
+        </select>
+
+
+    </div>
+
+
+
+    <div class="tabla-wrap">
+
+
+        <table class="tabla">
+
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        N° Solicitud
+                    </th>
+
+                    <th>
+                        Proyecto
+                    </th>
+
+                    <th>
+                        Constructora
+                    </th>
+
+                    <th>
+                        Sede
+                    </th>
+
+                    <th>
+                        Items
+                    </th>
+
+                    <th>
+                        Estado
+                    </th>
+
+                    <th>
+                        Fecha
+                    </th>
+
+                    <th>
+                        Acciones
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody id="tabla-solicitudes">
             </tbody>
 
 
@@ -2866,6 +3037,466 @@
 
 
 <!-- ============================================================= -->
+<!-- MODAL: NUEVA SOLICITUD DE COMPRA -->
+<!-- ============================================================= -->
+
+<div
+    id="modal-solicitud"
+    class="modal-fondo"
+>
+
+
+    <div
+        class="modal"
+        style="
+            width:720px;
+            max-width:96vw;
+            max-height:90vh;
+            overflow-y:auto
+        "
+    >
+
+
+        <div class="modal-header">
+
+            <h3>
+                Nueva solicitud de compra
+            </h3>
+
+            <button
+                onclick="cerrarModal('modal-solicitud')"
+            >
+                ✕
+            </button>
+
+        </div>
+
+
+
+        <form onsubmit="guardarSolicitud(event)">
+
+
+            <div class="fila-campos">
+
+
+                <div class="campo">
+
+                    <label>
+                        N° Solicitud
+                    </label>
+
+                    <input
+                        type="text"
+                        id="sol-numero"
+                        readonly
+                        style="
+                            background:#f7f9fc;
+                            color:#6b8aab;
+                            cursor:not-allowed
+                        "
+                    >
+
+                </div>
+
+
+                <div
+                    class="campo"
+                    id="campo-sede-solicitud"
+                    style="display:none"
+                >
+
+                    <label>
+                        Sede *
+                    </label>
+
+                    <select
+                        id="sol-sede"
+                        style="
+                            border:0.5px solid #c8d8ea;
+                            border-radius:8px;
+                            padding:8px 10px;
+                            font-size:13px;
+                            color:#0d2137;
+                            width:100%
+                        "
+                    >
+
+                        <option value="">
+                            — Selecciona la sede —
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+            </div>
+
+
+            <div class="fila-campos">
+
+
+                <div class="campo">
+
+                    <label>
+                        Proyecto *
+                    </label>
+
+                    <input
+                        type="text"
+                        id="sol-proyecto"
+                        required
+                        placeholder="Ej. Torre Empresarial Norte"
+                    >
+
+                </div>
+
+
+                <div class="campo">
+
+                    <label>
+                        Constructora
+                    </label>
+
+                    <input
+                        type="text"
+                        id="sol-constructora"
+                        placeholder="Opcional"
+                    >
+
+                </div>
+
+
+                <div class="campo">
+
+                    <label>
+                        N° Orden de servicio
+                    </label>
+
+                    <input
+                        type="text"
+                        id="sol-orden-servicio"
+                        placeholder="Opcional"
+                    >
+
+                </div>
+
+
+            </div>
+
+
+            <div class="campo">
+
+                <label>
+                    Observaciones
+                </label>
+
+                <input
+                    type="text"
+                    id="sol-observaciones"
+                    placeholder="Opcional"
+                >
+
+            </div>
+
+
+            <div class="titulo-items">
+                Equipo a solicitar
+            </div>
+
+
+            <div
+                id="sol-items"
+                class="items-contenedor"
+            >
+
+                <p class="texto-ayuda">
+                    Agrega al menos un producto.
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="btn-secundario boton-ancho"
+                onclick="agregarItemSolicitud()"
+            >
+                + Agregar producto
+            </button>
+
+
+
+            <div class="firmas-captura">
+
+                <div class="titulo-items">
+                    Firma
+                </div>
+
+                <div class="firmas-grid firmas-grid-1">
+
+                    <div class="firma-pad-item" data-firma-item="firma-sol-solicitante">
+                        <div class="firma-pad-header">
+                            <label>
+                                Firma de quien solicita
+                            </label>
+                            <button
+                                type="button"
+                                class="btn-secundario btn-firma-toggle"
+                                onclick="toggleFirmaPad('firma-sol-solicitante')"
+                            >
+                                + Agregar firma
+                            </button>
+                        </div>
+                        <div class="firma-pad-cuerpo" style="display:none">
+                            <canvas
+                                id="firma-sol-solicitante"
+                                class="firma-pad-canvas"
+                            ></canvas>
+                            <div class="firma-pad-acciones">
+                                <button
+                                    type="button"
+                                    class="btn-secundario btn-firma-limpiar"
+                                    onclick="limpiarFirmaPad('firma-sol-solicitante')"
+                                >
+                                    Limpiar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-primario btn-firma-guardar"
+                                    onclick="guardarFirmaPad('firma-sol-solicitante')"
+                                >
+                                    Guardar firma
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <small style="color:#6b8aab;font-size:12px">
+                    Esta solicitud queda pendiente hasta que el admin la apruebe o la rechace.
+                    No descuenta inventario: es un pedido de compra al proveedor.
+                </small>
+
+            </div>
+
+
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn-secundario"
+                    onclick="cerrarModal('modal-solicitud')"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn-primario"
+                >
+                    Enviar solicitud
+                </button>
+
+            </div>
+
+
+        </form>
+
+
+    </div>
+
+
+</div>
+
+
+
+<!-- ============================================================= -->
+<!-- MODAL: REVISAR SOLICITUD (aprobar / rechazar) -->
+<!-- ============================================================= -->
+
+<div
+    id="modal-revisar-solicitud"
+    class="modal-fondo"
+>
+
+
+    <div
+        class="modal"
+        style="
+            width:680px;
+            max-width:96vw;
+            max-height:90vh;
+            overflow-y:auto
+        "
+    >
+
+
+        <div class="modal-header">
+
+            <h3>
+                Revisar solicitud
+            </h3>
+
+            <button
+                onclick="cerrarModal('modal-revisar-solicitud')"
+            >
+                ✕
+            </button>
+
+        </div>
+
+
+        <div
+            id="revisar-sol-info"
+            style="padding:4px 2px 12px 2px;font-size:13px;color:#3d5877;"
+        >
+        </div>
+
+
+        <div class="titulo-items">
+            Equipo solicitado
+        </div>
+
+        <div class="tabla-wrap" style="margin-bottom:14px;">
+
+            <table class="tabla">
+
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+
+                <tbody id="revisar-sol-detalle">
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <div id="revisar-sol-firma-solicitante" class="firmas-captura" style="margin-top:0;">
+        </div>
+
+
+        <div id="revisar-sol-zona-aprobacion">
+
+            <div class="firmas-captura">
+
+                <div class="titulo-items">
+                    Firma de aprobación
+                </div>
+
+                <div class="firmas-grid firmas-grid-1">
+
+                    <div class="firma-pad-item" data-firma-item="firma-sol-aprobador">
+                        <div class="firma-pad-header">
+                            <label>
+                                Firma de quien aprueba
+                            </label>
+                            <button
+                                type="button"
+                                class="btn-secundario btn-firma-toggle"
+                                onclick="toggleFirmaPad('firma-sol-aprobador')"
+                            >
+                                + Agregar firma
+                            </button>
+                        </div>
+                        <div class="firma-pad-cuerpo" style="display:none">
+                            <canvas
+                                id="firma-sol-aprobador"
+                                class="firma-pad-canvas"
+                            ></canvas>
+                            <div class="firma-pad-acciones">
+                                <button
+                                    type="button"
+                                    class="btn-secundario btn-firma-limpiar"
+                                    onclick="limpiarFirmaPad('firma-sol-aprobador')"
+                                >
+                                    Limpiar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-primario btn-firma-guardar"
+                                    onclick="guardarFirmaPad('firma-sol-aprobador')"
+                                >
+                                    Guardar firma
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <small style="color:#6b8aab;font-size:12px">
+                    La firma es opcional. Se puede firmar con el mouse, el dedo (pantalla táctil) o una tablet de firma.
+                </small>
+
+            </div>
+
+
+            <div class="campo">
+
+                <label>
+                    Motivo de rechazo (solo si vas a rechazar)
+                </label>
+
+                <input
+                    type="text"
+                    id="revisar-sol-motivo-rechazo"
+                    placeholder="Obligatorio únicamente para rechazar"
+                >
+
+            </div>
+
+        </div>
+
+
+        <div class="modal-footer">
+
+            <button
+                type="button"
+                class="btn-secundario"
+                onclick="cerrarModal('modal-revisar-solicitud')"
+            >
+                Cerrar
+            </button>
+
+            <button
+                type="button"
+                class="btn-secundario no-consulta"
+                id="btn-rechazar-solicitud"
+                style="background:#fdecea;color:#b71c1c;"
+                onclick="rechazarSolicitud()"
+            >
+                Rechazar
+            </button>
+
+            <button
+                type="button"
+                class="btn-primario no-consulta"
+                id="btn-aprobar-solicitud"
+                onclick="aprobarSolicitud()"
+            >
+                Aprobar solicitud
+            </button>
+
+        </div>
+
+
+    </div>
+
+
+</div>
+
+
+
+<!-- ============================================================= -->
 <!-- MODAL: VER TRASLADO -->
 <!-- ============================================================= -->
 
@@ -4316,7 +4947,7 @@
 
 
 
-<script src="js/app.js?v=29"></script>
+<script src="js/app.js?v=31"></script>
 
 
 </body>

@@ -404,6 +404,7 @@ function mostrarSeccion(nombre, btn) {
     if (nombre === 'salidas')       cargarSalidas();
     if (nombre === 'devoluciones')  cargarDevoluciones();
     if (nombre === 'traslados')     cargarTraslados();
+    if (nombre === 'solicitudes')  cargarSolicitudes();
     if (nombre === 'consolidado') cargarPuntos();
     if (nombre === 'modelos')       cargarModelos();
     if (nombre === 'marcas')        cargarMarcas();
@@ -517,6 +518,25 @@ function abrirModal(id) {
     } else if (id === 'modal-producto') {
         document.getElementById('campo-sede-producto').style.display = 'none';
     }
+
+    if (id === 'modal-solicitud') {
+        limpiarFormSolicitud();
+        generarNumeroSolicitud();
+        colapsarFirmaPad('firma-sol-solicitante');
+    }
+
+    if (id === 'modal-solicitud' && usuario.rol === 'admin') {
+        apiFetch(`${API}/auth/sedes`).then(r => r.json()).then(sedes => {
+            const sel = document.getElementById('sol-sede');
+            sel.innerHTML = '<option value="">&#8212; Selecciona la sede &#8212;</option>';
+            sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
+                `<option value="${s.id}" ${s.id === sedeActual ? 'selected' : ''}>${sanitizar(s.nombre)}</option>`
+            ));
+            document.getElementById('campo-sede-solicitud').style.display = 'block';
+        });
+    } else if (id === 'modal-solicitud') {
+        document.getElementById('campo-sede-solicitud').style.display = 'none';
+    }
 }
 
 function cerrarModal(id) {
@@ -533,6 +553,14 @@ function cerrarModal(id) {
         limpiarFirmaPad('firma-tras-recibe');
         colapsarFirmaPad('firma-tras-recibe');
         trasladoIdPendienteRecibir = null;
+    }
+
+    if (id === 'modal-solicitud') limpiarFormSolicitud();
+
+    if (id === 'modal-revisar-solicitud') {
+        solicitudEnRevision = null;
+        limpiarFirmaPad('firma-sol-aprobador');
+        colapsarFirmaPad('firma-sol-aprobador');
     }
 }
 
@@ -5966,6 +5994,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         cargarCatalogos();
     }
 
+    iniciarPollingSolicitudes();
+
     if (usuario.rol === 'consulta') {
         document.body.classList.add('rol-consulta');
     }
@@ -5983,6 +6013,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             'filtro-sede-devoluciones',
             'filtro-sede-consolidado',
             'filtro-sede-traslados',
+            'filtro-sede-solicitudes',
         ].forEach(id => {
             const el = document.getElementById(id);
             // Se usa setProperty(..., 'important') porque hay una
@@ -8855,6 +8886,556 @@ async function verPDFTraslado(id) {
     const blobUrl = URL.createObjectURL(blob);
     window.open(blobUrl, '_blank');
 }
+
+
+// ══ SOLICITUDES DE COMPRA DE EQUIPO ═══════════════════════════
+//
+// Reemplaza el formato en Excel que se usa para pedir que se le
+// COMPRE equipo a un proveedor con destino a un proyecto. NO
+// descuenta inventario ni genera una salida: es un flujo de
+// aprobación de compra. Un usuario (sede o admin) la crea, y el
+// admin la aprueba o la rechaza.
+// ════════════════════════════════════════════════════════════
+
+let solicitudesCache = [];
+let productosCacheSolicitud = [];
+let solicitudEnRevision = null;
+
+async function generarNumeroSolicitud() {
+
+    const ahora = new Date();
+
+    const fecha =
+        ahora.getFullYear().toString() +
+        String(ahora.getMonth() + 1).padStart(2, '0') +
+        String(ahora.getDate()).padStart(2, '0');
+
+    const base = `SOL-${fecha}`;
+
+    const res = await apiFetch(`${API}/solicitudes/`);
+    if (!res) return;
+
+    const solicitudes = await res.json();
+
+    const existentes = Array.isArray(solicitudes)
+        ? solicitudes.filter(s =>
+            (s.numero_solicitud || '').startsWith(base)
+          )
+        : [];
+
+    document.getElementById('sol-numero').value =
+        `${base}-${existentes.length + 1}`;
+}
+
+async function cargarSolicitudes() {
+
+    const res = await apiFetch(urlConSede(`${API}/solicitudes/`));
+    if (!res) return;
+
+    solicitudesCache = await res.json();
+
+    if (!Array.isArray(solicitudesCache)) {
+        solicitudesCache = [];
+    }
+
+    if (usuario.rol === 'admin' || usuario.rol === 'consulta') {
+
+        const sel = document.getElementById('filtro-sede-solicitudes');
+        const valorActual = sel.value;
+
+        const resSedes = await apiFetch(`${API}/auth/sedes`);
+
+        if (resSedes) {
+            const sedes = await resSedes.json();
+            sel.innerHTML = '<option value="">&#8212; Todas las sedes &#8212;</option>';
+            sedes.forEach(s => sel.insertAdjacentHTML('beforeend',
+                `<option value="${s.id}">${sanitizar(s.nombre)}</option>`
+            ));
+            sel.style.display = 'block';
+            sel.value = valorActual;
+        }
+    }
+
+    renderizarSolicitudes(solicitudesCache);
+    filtrarSolicitudes();
+    actualizarBadgeSolicitudes();
+}
+
+function renderizarSolicitudes(lista) {
+
+    document.getElementById('subtitulo-solicitudes').textContent =
+        `${lista.length} solicitud(es)`;
+
+    const tbody = document.getElementById('tabla-solicitudes');
+    tbody.innerHTML = '';
+
+    if (lista.length === 0) {
+        tbody.innerHTML =
+            '<tr><td colspan="8" style="text-align:center;color:#6b8aab;padding:2rem">Sin solicitudes registradas</td></tr>';
+        return;
+    }
+
+    const claseBadgePorEstado = {
+        PENDIENTE: 'badge-minimo',
+        APROBADA: 'badge-ok',
+        RECHAZADA: 'badge-agotado'
+    };
+
+    lista.forEach(s => {
+
+        const fecha = new Date(s.fecha).toLocaleDateString('es-CO', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+
+        const claseBadge = claseBadgePorEstado[s.estado] || 'badge-minimo';
+
+        tbody.insertAdjacentHTML('beforeend', `
+            <tr>
+                <td><strong>${sanitizar(s.numero_solicitud)}</strong></td>
+                <td>${sanitizar(s.proyecto)}</td>
+                <td>${sanitizar(s.constructora)}</td>
+                <td><span style="font-size:11px;color:#4a6080">${sanitizar(s.sede_nombre)}</span></td>
+                <td>${s.total_items} producto(s)</td>
+                <td><span class="badge ${claseBadge}">${sanitizar(s.estado)}</span></td>
+                <td>${fecha}</td>
+                <td>
+                    <div class="acciones">
+                        <button class="btn-accion" onclick="verSolicitud(${s.id})">&#128065; Ver</button>
+                        <button class="btn-accion" onclick="verPDFSolicitud(${s.id})">&#128196; PDF</button>
+                    </div>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+function filtrarSolicitudes() {
+
+    const texto = document.getElementById('buscar-solicitudes').value.trim().toLowerCase();
+    const sedeFiltro = document.getElementById('filtro-sede-solicitudes')?.value;
+    const estadoFiltro = document.getElementById('filtro-estado-solicitudes')?.value;
+
+    let filtradas = solicitudesCache;
+
+    if (texto) {
+        filtradas = filtradas.filter(s =>
+            (s.numero_solicitud || '').toLowerCase().includes(texto) ||
+            (s.proyecto || '').toLowerCase().includes(texto) ||
+            (s.constructora || '').toLowerCase().includes(texto)
+        );
+    }
+
+    if (sedeFiltro) {
+        filtradas = filtradas.filter(s => String(s.sede_id) === sedeFiltro);
+    }
+
+    if (estadoFiltro) {
+        filtradas = filtradas.filter(s => s.estado === estadoFiltro);
+    }
+
+    renderizarSolicitudes(filtradas);
+}
+
+async function agregarItemSolicitud() {
+
+    const sedeSolicitud =
+        parseInt(document.getElementById('sol-sede').value) || sedeActual;
+
+    const urlProductos =
+        usuario.rol === 'admin' && sedeSolicitud
+            ? `${API}/productos/?sede_id=${sedeSolicitud}`
+            : urlConSede(`${API}/productos/`);
+
+    const res = await apiFetch(urlProductos);
+    if (!res) return;
+
+    productosCacheSolicitud = await res.json();
+
+    if (!Array.isArray(productosCacheSolicitud)) {
+        alert('No se pudieron cargar los productos.');
+        return;
+    }
+
+    const opciones = productosCacheSolicitud.map(p => `
+        <option value="${p.id}">
+            [${sanitizar(p.codigo)}] ${sanitizar(p.nombre)}
+        </option>
+    `).join('');
+
+    const item = document.createElement('div');
+
+    item.className = 'item-solicitud';
+
+    item.style.cssText = `
+        display:grid;
+        grid-template-columns:2fr 90px 1.4fr auto;
+        gap:6px;
+        align-items:start;
+        margin-bottom:10px;
+        padding:8px;
+        border:1px solid #dbe5f0;
+        border-radius:8px;
+        background:#f8fbff;
+    `;
+
+    item.innerHTML = `
+        <div style="position:relative;">
+
+            <input
+                type="text"
+                class="buscador-producto"
+                placeholder="Escribe código o nombre..."
+                autocomplete="off"
+                style="
+                    width:100%;
+                    padding:8px;
+                    border:1px solid #ccd8e5;
+                    border-radius:6px;
+                    box-sizing:border-box;
+                ">
+
+            <div
+                class="resultados-producto"
+                style="
+                    display:none;
+                    position:absolute;
+                    left:0;
+                    right:0;
+                    top:100%;
+                    background:white;
+                    border:1px solid #ccd8e5;
+                    border-radius:8px;
+                    margin-top:4px;
+                    max-height:220px;
+                    overflow-y:auto;
+                    z-index:50;
+                    box-shadow:0 4px 15px rgba(0,0,0,.12);
+                ">
+            </div>
+
+            <select
+                class="select-producto"
+                style="display:none">
+                <option value="">-- Selecciona un producto --</option>
+                ${opciones}
+            </select>
+
+        </div>
+
+        <input
+            type="number"
+            class="input-cantidad"
+            min="1"
+            value="1"
+            style="
+                width:100%;
+                padding:8px;
+                border:1px solid #ccd8e5;
+                border-radius:6px;
+            ">
+
+        <input
+            type="text"
+            class="input-obs-item"
+            placeholder="Observación (opcional)"
+            style="
+                width:100%;
+                padding:8px;
+                border:1px solid #ccd8e5;
+                border-radius:6px;
+            ">
+
+        <button
+            type="button"
+            style="
+                padding:5px 10px;
+                border:none;
+                border-radius:6px;
+                background:#dc3545;
+                color:white;
+                cursor:pointer;
+                height:min-content;
+            "
+            onclick="this.parentElement.remove()">
+            ✕
+        </button>
+    `;
+
+    document.getElementById('sol-items').appendChild(item);
+
+    const selectProducto = item.querySelector('.select-producto');
+
+    inicializarBuscadorProducto(
+        item,
+        selectProducto,
+        productosCacheSolicitud,
+        true
+    );
+}
+
+function limpiarFormSolicitud() {
+
+    document.getElementById('sol-numero').value = '';
+    document.getElementById('sol-proyecto').value = '';
+    document.getElementById('sol-constructora').value = '';
+    document.getElementById('sol-orden-servicio').value = '';
+    document.getElementById('sol-observaciones').value = '';
+    document.getElementById('sol-items').innerHTML = '';
+    document.getElementById('sol-sede').value = '';
+
+    productosCacheSolicitud = [];
+
+    limpiarFirmaPad('firma-sol-solicitante');
+    colapsarFirmaPad('firma-sol-solicitante');
+}
+
+async function guardarSolicitud(evento) {
+
+    evento.preventDefault();
+
+    const items = [];
+    let huboError = false;
+
+    document.querySelectorAll('#sol-items .item-solicitud').forEach(item => {
+
+        const productoId = item.querySelector('.select-producto').value;
+        const cantidad = parseInt(item.querySelector('.input-cantidad').value);
+        const observaciones = item.querySelector('.input-obs-item').value.trim();
+
+        if (!productoId || !cantidad || cantidad <= 0) {
+            huboError = true;
+            return;
+        }
+
+        items.push({
+            producto_id: parseInt(productoId),
+            cantidad_solicitada: cantidad,
+            observaciones
+        });
+    });
+
+    if (huboError || items.length === 0) {
+        alert('Revisa los productos: cada uno debe tener un producto seleccionado y una cantidad válida.');
+        return;
+    }
+
+    const datos = {
+        numero_solicitud: document.getElementById('sol-numero').value.trim(),
+        proyecto: document.getElementById('sol-proyecto').value.trim(),
+        constructora: document.getElementById('sol-constructora').value.trim(),
+        no_orden_servicio: document.getElementById('sol-orden-servicio').value.trim(),
+        observaciones: document.getElementById('sol-observaciones').value.trim(),
+        detalle: items,
+        firma_solicitante_base64: obtenerFirmaBase64('firma-sol-solicitante')
+    };
+
+    const sedeElegida = parseInt(document.getElementById('sol-sede').value);
+    if (sedeElegida) datos.sede_id = sedeElegida;
+
+    const res = await apiFetch(`${API}/solicitudes/`, {
+        method: 'POST',
+        body: JSON.stringify(datos)
+    });
+
+    if (!res) return;
+
+    const resultado = await res.json();
+
+    if (!res.ok) {
+        alert(resultado.error || 'No se pudo registrar la solicitud.');
+        return;
+    }
+
+    cerrarModal('modal-solicitud');
+    mostrarNotificacion('Solicitud enviada. Queda pendiente de aprobación.', 'exito');
+    cargarSolicitudes();
+}
+
+async function verSolicitud(id) {
+
+    const res = await apiFetch(`${API}/solicitudes/${id}`);
+    if (!res) return;
+
+    if (!res.ok) {
+        const datos = await res.json().catch(() => ({}));
+        alert(datos.error || 'No se pudo cargar la solicitud.');
+        return;
+    }
+
+    const sol = await res.json();
+    solicitudEnRevision = sol;
+
+    const claseBadgePorEstado = {
+        PENDIENTE: 'badge-minimo',
+        APROBADA: 'badge-ok',
+        RECHAZADA: 'badge-agotado'
+    };
+
+    document.getElementById('revisar-sol-info').innerHTML = `
+        <p style="margin-bottom:6px;">
+            <strong>N° ${sanitizar(sol.numero_solicitud)}</strong>
+            &nbsp;
+            <span class="badge ${claseBadgePorEstado[sol.estado] || ''}">${sanitizar(sol.estado)}</span>
+        </p>
+        <p>Sede: ${sanitizar(sol.sede_nombre)} — ${sanitizar(sol.ciudad)}</p>
+        <p>Proyecto: ${sanitizar(sol.proyecto)}</p>
+        <p>Constructora: ${sanitizar(sol.constructora || '—')}</p>
+        <p>N° Orden de servicio: ${sanitizar(sol.no_orden_servicio || '—')}</p>
+        <p>Observaciones: ${sanitizar(sol.observaciones || '—')}</p>
+        <p>Solicitado por: ${sanitizar(sol.solicitado_por_nombre)}</p>
+        ${sol.estado !== 'PENDIENTE'
+            ? `<p>${sol.estado === 'APROBADA' ? 'Aprobado' : 'Rechazado'} por: ${sanitizar(sol.aprobado_por_nombre)}</p>`
+            : ''}
+        ${sol.estado === 'RECHAZADA'
+            ? `<p style="color:#b71c1c"><strong>Motivo de rechazo:</strong> ${sanitizar(sol.motivo_rechazo)}</p>`
+            : ''}
+    `;
+
+    const tbody = document.getElementById('revisar-sol-detalle');
+
+    tbody.innerHTML = (sol.detalle || []).map(d => `
+        <tr>
+            <td>[${sanitizar(d.codigo)}] ${sanitizar(d.nombre)}</td>
+            <td>${d.cantidad_solicitada} ${sanitizar(d.unidad || 'UND')}</td>
+            <td>${sanitizar(d.observaciones || '—')}</td>
+        </tr>
+    `).join('') || '<tr><td colspan="3" style="text-align:center;color:#6b8aab">Sin productos</td></tr>';
+
+    const contFirmaSolicitante = document.getElementById('revisar-sol-firma-solicitante');
+
+    if (sol.firma_solicitante_base64) {
+        contFirmaSolicitante.innerHTML = `
+            <div class="titulo-items">Firma de quien solicita</div>
+            <img
+                src="${sol.firma_solicitante_base64}"
+                style="max-width:280px;max-height:100px;border:1px solid #dce6f0;border-radius:8px;background:white;">
+        `;
+    } else {
+        contFirmaSolicitante.innerHTML = '';
+    }
+
+    const zonaAprobacion = document.getElementById('revisar-sol-zona-aprobacion');
+    const puedeResolver = usuario.rol === 'admin' && sol.estado === 'PENDIENTE';
+
+    zonaAprobacion.style.display = puedeResolver ? 'block' : 'none';
+    document.getElementById('btn-aprobar-solicitud').style.display = puedeResolver ? 'inline-block' : 'none';
+    document.getElementById('btn-rechazar-solicitud').style.display = puedeResolver ? 'inline-block' : 'none';
+
+    document.getElementById('revisar-sol-motivo-rechazo').value = '';
+
+    limpiarFirmaPad('firma-sol-aprobador');
+    colapsarFirmaPad('firma-sol-aprobador');
+
+    abrirModal('modal-revisar-solicitud');
+}
+
+async function aprobarSolicitud() {
+
+    if (!solicitudEnRevision) return;
+
+    if (!await mostrarConfirm('¿Aprobar esta solicitud de compra?')) return;
+
+    const res = await apiFetch(`${API}/solicitudes/${solicitudEnRevision.id}/aprobar`, {
+        method: 'PUT',
+        body: JSON.stringify({
+            firma_aprobador_base64: obtenerFirmaBase64('firma-sol-aprobador')
+        })
+    });
+
+    if (!res) return;
+
+    const resultado = await res.json();
+
+    if (!res.ok) {
+        alert(resultado.error || 'No se pudo aprobar la solicitud.');
+        return;
+    }
+
+    cerrarModal('modal-revisar-solicitud');
+    mostrarNotificacion('Solicitud aprobada', 'exito');
+    cargarSolicitudes();
+}
+
+async function rechazarSolicitud() {
+
+    if (!solicitudEnRevision) return;
+
+    const motivo = document.getElementById('revisar-sol-motivo-rechazo').value.trim();
+
+    if (!motivo) {
+        alert('Escribe el motivo del rechazo.');
+        return;
+    }
+
+    if (!await mostrarConfirm('¿Rechazar esta solicitud de compra?')) return;
+
+    const res = await apiFetch(`${API}/solicitudes/${solicitudEnRevision.id}/rechazar`, {
+        method: 'PUT',
+        body: JSON.stringify({ motivo_rechazo: motivo })
+    });
+
+    if (!res) return;
+
+    const resultado = await res.json();
+
+    if (!res.ok) {
+        alert(resultado.error || 'No se pudo rechazar la solicitud.');
+        return;
+    }
+
+    cerrarModal('modal-revisar-solicitud');
+    mostrarNotificacion('Solicitud rechazada', 'exito');
+    cargarSolicitudes();
+}
+
+async function verPDFSolicitud(id) {
+    const res = await apiFetch(`${API}/pdf/solicitud/${id}`);
+    if (!res) return;
+    if (!res.ok) {
+        const datos = await res.json().catch(() => ({}));
+        alert(datos.error || 'No se pudo generar el PDF de la solicitud.');
+        return;
+    }
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+}
+
+// ══ AVISO DE SOLICITUDES PENDIENTES (para el admin) ═══════════
+//
+// El admin necesita enterarse de que hay solicitudes esperando
+// su revisión sin tener que entrar a la sección a cada rato.
+// Se revisa un contador cada cierto tiempo (igual de simple que
+// la alerta de portería) y se muestra como una burbuja roja
+// sobre el botón "Solicitudes" del menú lateral.
+
+async function actualizarBadgeSolicitudes() {
+
+    if (usuario.rol !== 'admin') return;
+
+    const res = await apiFetch(`${API}/solicitudes/pendientes-conteo`);
+    if (!res || !res.ok) return;
+
+    const datos = await res.json();
+    const badge = document.getElementById('badge-solicitudes-pendientes');
+    if (!badge) return;
+
+    const pendientes = datos.pendientes || 0;
+
+    if (pendientes > 0) {
+        badge.textContent = pendientes > 99 ? '99+' : pendientes;
+        badge.classList.add('visible');
+    } else {
+        badge.classList.remove('visible');
+    }
+}
+
+function iniciarPollingSolicitudes() {
+    if (usuario.rol !== 'admin') return;
+    actualizarBadgeSolicitudes();
+    setInterval(actualizarBadgeSolicitudes, 30000);
+}
+
 
 async function verEquiposProducto(productoId) {
     try {

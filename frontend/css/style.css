@@ -457,6 +457,8 @@ nav {
     border-radius: 0;
     padding: 0 0 16px;
     box-shadow: none;
+    display: flex;
+    flex-direction: column-reverse;
 }
 
 .stat-card .label {
@@ -465,13 +467,14 @@ nav {
     color: #8c97aa;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    margin-top: 6px;
 }
 
 .stat-card .valor {
-    font-size: 28px;
-    font-weight: 800;
+    font-size: 30px;
+    font-weight: 700;
     color: #0d1b2e;
-    margin-top: 10px;
+    margin-top: 0;
 }
 
 .stat-card .valor.azul {

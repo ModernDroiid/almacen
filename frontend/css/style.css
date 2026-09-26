@@ -19,7 +19,7 @@
 body {
     display: flex;
     height: 100vh;
-    background: #f7f9fc;
+    background: #ffffff;
 }
 
 
@@ -156,7 +156,8 @@ select.select-abierto {
 
 .sidebar {
     width: 222px;
-    background: #0d2137;
+    background: #ffffff;
+    border-right: 1px solid #e5e7eb;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -215,27 +216,29 @@ nav {
     align-items: center;
     gap: 11px;
     padding: 10px 12px;
-    border-radius: 10px;
+    border-radius: 0 8px 8px 0;
     border: none;
+    border-left: 2px solid transparent;
     background: none;
-    color: #9aa9c2;
+    color: #64748b;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     text-align: left;
     width: 100%;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .nav-btn:hover,
 .notif-boton:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #d7e2f2;
+    background: rgba(15, 23, 42, 0.04);
+    color: #0f172a;
 }
 
 .nav-btn.active {
-    background: rgba(47, 111, 237, 0.14);
-    color: white;
+    background: #f2f6ff;
+    border-left: 2px solid #2f6fed;
+    color: #2f6fed;
     font-weight: 600;
 }
 
@@ -261,7 +264,7 @@ nav {
 
 .nav-divisor {
     height: 1px;
-    background: rgba(255, 255, 255, 0.08);
+    background: #eef0f4;
     margin: 10px 8px;
     flex-shrink: 0;
 }
@@ -299,7 +302,7 @@ nav {
 
 .sidebar-footer {
     padding: 14px 16px 6px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid #f1f5f9;
     margin: 6px 4px 0;
     display: flex;
     align-items: center;
@@ -310,13 +313,13 @@ nav {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: rgba(47, 111, 237, 0.2);
+    background: #eef2f7;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 12px;
     font-weight: 700;
-    color: #7fa8f5;
+    color: #2f6fed;
     flex-shrink: 0;
 }
 
@@ -330,13 +333,13 @@ nav {
 
 .sidebar-footer .info-usuario .nombre {
     font-size: 11px;
-    color: white;
+    color: #0f172a;
     font-weight: 500;
 }
 
 .sidebar-footer .info-usuario .ciudad {
     font-size: 10px;
-    color: #4a7fa5;
+    color: #94a3b8;
 }
 
 
@@ -358,8 +361,8 @@ nav {
 
 .topbar {
     width: 100%;
-    padding: 26px 32px 6px;
-    border-bottom: none;
+    padding: 24px 32px 20px;
+    border-bottom: 1px solid #edf0f6;
     display: flex;
     flex-direction: row;
     align-items: flex-start;
@@ -442,17 +445,18 @@ nav {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
-    padding: 18px 32px 0;
+    padding: 22px 32px 0;
     background: transparent;
     flex-shrink: 0;
 }
 
 .stat-card {
-    background: white;
-    border: 1px solid #edf0f6;
-    border-radius: 16px;
-    padding: 18px 20px;
-    box-shadow: 0 1px 2px rgba(13, 27, 46, 0.04);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #edf0f6;
+    border-radius: 0;
+    padding: 0 0 16px;
+    box-shadow: none;
 }
 
 .stat-card .label {
@@ -650,11 +654,11 @@ nav {
 .tabla {
     width: 100%;
     border-collapse: collapse;
-    background: white;
-    border-radius: 16px;
-    overflow: hidden;
-    border: 1px solid #edf0f6;
-    box-shadow: 0 1px 2px rgba(13, 27, 46, 0.04);
+    background: transparent;
+    border-radius: 0;
+    overflow: visible;
+    border: none;
+    box-shadow: none;
 }
 
 .tabla th {
@@ -664,8 +668,8 @@ nav {
     color: #8c97aa;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    background: #f8fafc;
-    border-bottom: 1px solid #edf0f6;
+    background: transparent;
+    border-bottom: 1px solid #e5e7eb;
     font-weight: 700;
 }
 
@@ -701,26 +705,35 @@ nav {
    ============================================================ */
 
 .badge {
-    display: inline-block;
-    padding: 5px 13px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    font-size: 12.5px;
+    font-weight: 600;
     white-space: nowrap;
 }
 
+.badge::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: currentColor;
+}
+
 .badge-ok {
-    background: #e7f7ee;
     color: #158a46;
 }
 
 .badge-minimo {
-    background: #fff4e0;
     color: #b7660a;
 }
 
 .badge-agotado {
-    background: #fceaea;
     color: #dc2626;
 }
 
@@ -779,7 +792,7 @@ nav {
     cursor: pointer;
     transition: filter 0.15s;
     white-space: nowrap;
-    box-shadow: 0 6px 16px rgba(47, 111, 237, 0.22);
+    box-shadow: none;
 }
 
 .btn-primario:hover {
@@ -2156,13 +2169,13 @@ body.rol-consulta .admin-only {
         height: 42px;
         border: none;
         border-radius: 10px;
-        background: #0d2137;
+        background: #2f6fed;
         color: white;
         font-size: 19px;
         line-height: 1;
         cursor: pointer;
         z-index: 250;
-        box-shadow: 0 4px 12px rgba(13, 33, 55, 0.28);
+        box-shadow: 0 4px 12px rgba(47, 111, 237, 0.28);
     }
 
     .overlay-menu-movil.visible {
@@ -2183,7 +2196,7 @@ body.rol-consulta .admin-only {
         transform: translateX(-100%);
         transition: transform 0.25s ease;
         z-index: 200;
-        box-shadow: 2px 0 24px rgba(0, 0, 0, 0.28);
+        box-shadow: 2px 0 16px rgba(15, 23, 42, 0.12);
     }
 
     .sidebar.abierta {
@@ -2542,34 +2555,34 @@ body.pagina-login .btn-login:disabled {
     display: inline-block;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12px;
-    font-weight: 700;
-    color: #3b4a61;
-    background: #f3f5f9;
-    padding: 3px 9px;
-    border-radius: 6px;
+    font-weight: 600;
+    color: #8c97aa;
+    background: none;
+    padding: 0;
+    border-radius: 0;
     white-space: nowrap;
 }
 
 .prod-sede {
     display: inline-block;
-    font-size: 12px;
-    font-weight: 600;
-    color: #2f6fed;
-    background: rgba(47, 111, 237, 0.12);
-    padding: 4px 11px;
-    border-radius: 20px;
+    font-size: 13.3px;
+    font-weight: 500;
+    color: #1c2f45;
+    background: none;
+    padding: 0;
+    border-radius: 0;
     white-space: nowrap;
 }
 
 .prod-unidad {
     display: inline-block;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    color: #5b6b82;
-    background: #f3f5f9;
-    padding: 3px 9px;
-    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: #8c97aa;
+    background: none;
+    padding: 0;
+    border-radius: 0;
     white-space: nowrap;
 }
 

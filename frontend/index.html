@@ -20,7 +20,7 @@
 
     <link
         rel="stylesheet"
-        href="css/style.css?v=6"
+        href="css/style.css?v=12"
     >
 
 </head>
@@ -48,7 +48,7 @@
             src="img/occidente.png"
             alt="Occidente Seguridad Privada"
             style="
-                width:160px;
+                width:140px;
                 object-fit:contain;
                 filter:brightness(0) invert(1);
             "
@@ -65,9 +65,7 @@
             onclick="mostrarSeccion('productos', this)"
         >
 
-            <span class="icono">
-                🗂️
-            </span>
+            <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12v9M12 12l8-4.5M12 12l-8-4.5"/></svg></span>
 
             Productos
 
@@ -79,9 +77,7 @@
             onclick="mostrarSeccion('entradas', this)"
         >
 
-            <span class="icono">
-                📥
-            </span>
+            <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10m0 0l-4-4m4 4l4-4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
 
             Entradas
 
@@ -94,9 +90,7 @@
             onclick="mostrarSeccion('salidas', this)"
         >
 
-            <span class="icono">
-                📤
-            </span>
+            <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10m0 0l-4 4m4-4l4 4"/><path d="M4 4v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V4"/></svg></span>
 
             Salidas
 
@@ -108,9 +102,7 @@
             onclick="mostrarSeccion('devoluciones', this)"
         >
 
-            <span class="icono">
-                🔄
-            </span>
+            <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9a8 8 0 1 1 2 5.3"/><path d="M4 4v5h5"/></svg></span>
 
             Devoluciones
 
@@ -119,12 +111,11 @@
 
         <button
             class="nav-btn"
+            id="nav-traslados"
             onclick="mostrarSeccion('traslados', this)"
         >
 
-            <span class="icono">
-                🚚
-            </span>
+            <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h11m0 0l-3-3m3 3l-3 3"/><path d="M20 16H9m0 0l3-3m-3 3l3 3"/></svg></span>
 
             Traslados
 
@@ -133,12 +124,11 @@
 
         <button
             class="nav-btn"
+            id="nav-solicitudes"
             onclick="mostrarSeccion('solicitudes', this)"
         >
 
-            <span class="icono">
-                🧾
-            </span>
+            <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 3h6v2H9z"/><path d="M9 9.5h6M9 13h6M9 16.5h3.5"/></svg></span>
 
             Solicitudes
 
@@ -152,14 +142,15 @@
         </button>
 
 
+        <div class="nav-divisor"></div>
+
+
         <button
             class="nav-btn"
             onclick="mostrarSeccion('consolidado', this)"
         >
 
-            <span class="icono">
-                📍
-            </span>
+            <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.1-7-11a7 7 0 1 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
 
             Puntos
 
@@ -171,9 +162,7 @@
             onclick="mostrarSeccion('modelos', this)"
         >
 
-            <span class="icono">
-                🏷️
-            </span>
+            <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></span>
 
             Modelos
 
@@ -185,9 +174,7 @@
             onclick="mostrarSeccion('marcas', this)"
         >
 
-            <span class="icono">
-                ⭐
-            </span>
+            <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3h6a2 2 0 0 1 2 2v6l-9 9-8-8 9-9z"/><circle cx="15.4" cy="7.6" r="1.3"/></svg></span>
 
             Marcas
 
@@ -199,9 +186,7 @@
             onclick="mostrarSeccion('clientes', this)"
         >
 
-            <span class="icono">
-                🧑‍💼
-            </span>
+            <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.2" cy="9" r="2.3"/><path d="M15.6 14.3c2.5.5 4.4 2.7 4.4 5.2"/></svg></span>
 
             Clientes
 
@@ -213,9 +198,7 @@
             onclick="mostrarSeccion('usuarios', this)"
         >
 
-            <span class="icono">
-                👥
-            </span>
+            <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></span>
 
             Usuarios
 
@@ -223,6 +206,49 @@
 
 
     </nav>
+
+    <div class="nav-divisor"></div>
+
+    <button
+        type="button"
+        class="notif-boton"
+        id="btn-notificaciones"
+        onclick="toggleNotificaciones(event)"
+    >
+
+        <span class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+
+        Notificaciones
+
+        <span
+            id="badge-notificaciones"
+            class="nav-contador"
+        >
+            0
+        </span>
+
+    </button>
+
+    <div class="notificaciones-panel" id="notificaciones-panel">
+
+        <div class="notificaciones-panel-header">
+            <h4>Notificaciones</h4>
+            <button
+                type="button"
+                class="notificaciones-marcar-vistas"
+                onclick="marcarNotificacionesVistas()"
+            >
+                Marcar todas como leídas
+            </button>
+        </div>
+
+        <div class="notificaciones-lista" id="notificaciones-lista">
+            <div class="notificaciones-vacio">
+                No tienes notificaciones todavía.
+            </div>
+        </div>
+
+    </div>
 
 
     <!-- FOOTER SIDEBAR -->
@@ -304,14 +330,15 @@
             style="
                 background:none;
                 border:none;
-                color:#4a7fa5;
+                color:#7c8aa3;
                 cursor:pointer;
-                font-size:16px;
+                display:flex;
+                align-items:center;
                 margin-left:auto
             "
             title="Cerrar sesion"
         >
-            ⏻
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/><path d="M15 16l4-4-4-4"/><path d="M19 12H9"/></svg>
         </button>
 
 
@@ -4803,39 +4830,34 @@
     class="modal-fondo"
 >
 
-    <div class="modal" style="width:380px;">
+    <div class="modal modal-perfil" style="width:380px;">
 
-        <div class="modal-header">
-            <h3>Mi perfil</h3>
-            <button onclick="cerrarModal('modal-mi-perfil')">✕</button>
+        <div class="perfil-modal-banner">
+            <button
+                type="button"
+                class="perfil-modal-cerrar"
+                onclick="cerrarModal('modal-mi-perfil')"
+                aria-label="Cerrar"
+            >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+            </button>
         </div>
 
         <div class="perfil-modal-avatar-wrap">
-            <div class="avatar avatar-grande" id="avatar-perfil-modal">
-                AD
+            <div class="perfil-modal-avatar-inner">
+                <div class="avatar avatar-grande" id="avatar-perfil-modal">
+                    AD
+                </div>
+                <button
+                    type="button"
+                    class="perfil-modal-btn-foto"
+                    onclick="document.getElementById('input-foto-perfil').click()"
+                    title="Cambiar foto"
+                    aria-label="Cambiar foto"
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="14" r="3.5"/></svg>
+                </button>
             </div>
-        </div>
-
-        <div class="perfil-modal-acciones">
-
-            <button
-                type="button"
-                class="btn-secundario"
-                onclick="document.getElementById('input-foto-perfil').click()"
-            >
-                Cambiar foto
-            </button>
-
-            <button
-                type="button"
-                class="btn-texto-peligro"
-                id="btn-quitar-foto-perfil"
-                onclick="quitarFotoPerfil()"
-                style="display:none"
-            >
-                Quitar foto
-            </button>
-
         </div>
 
         <input
@@ -4845,26 +4867,34 @@
             style="display:none"
         >
 
-        <div class="perfil-modal-info">
+        <div class="perfil-modal-encabezado">
+            <h4 class="perfil-modal-nombre" id="perfil-modal-nombre">—</h4>
+            <span class="perfil-modal-chip-rol" id="perfil-modal-rol">—</span>
+        </div>
+
+        <button
+            type="button"
+            class="btn-texto-peligro perfil-modal-quitar-foto"
+            id="btn-quitar-foto-perfil"
+            onclick="quitarFotoPerfil()"
+            style="display:none"
+        >
+            Quitar foto
+        </button>
+
+        <div class="perfil-modal-info" id="perfil-modal-fila-sede">
 
             <div class="perfil-modal-fila">
-                <span class="perfil-modal-label">Nombre</span>
-                <span class="perfil-modal-valor" id="perfil-modal-nombre">—</span>
-            </div>
-
-            <div class="perfil-modal-fila">
-                <span class="perfil-modal-label">Rol</span>
-                <span class="perfil-modal-valor" id="perfil-modal-rol">—</span>
-            </div>
-
-            <div class="perfil-modal-fila" id="perfil-modal-fila-sede">
-                <span class="perfil-modal-label">Sede</span>
+                <span class="perfil-modal-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><path d="M12 21s-7-6.1-7-11a7 7 0 1 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+                    Sede
+                </span>
                 <span class="perfil-modal-valor" id="perfil-modal-sede">—</span>
             </div>
 
         </div>
 
-        <div class="modal-footer">
+        <div class="modal-footer perfil-modal-footer">
             <button class="btn-secundario" onclick="cerrarModal('modal-mi-perfil')">
                 Cerrar
             </button>
@@ -4947,7 +4977,7 @@
 
 
 
-<script src="js/app.js?v=31"></script>
+<script src="js/app.js?v=35"></script>
 
 
 </body>

@@ -32,6 +32,7 @@ from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 
 from database import get_connection
 from utils.auditoria import registrar_auditoria
+from utils.notificaciones import crear_notificacion
 
 
 solicitudes_bp = Blueprint('solicitudes', __name__)
@@ -488,6 +489,23 @@ def crear_solicitud():
         )
     except Exception as e:
         print('ERROR AL REGISTRAR AUDITORIA DE SOLICITUD:', repr(e))
+
+    # ============================================================
+    # NOTIFICACIÓN AL ADMIN
+    # ============================================================
+
+    try:
+        crear_notificacion(
+            tipo='solicitud',
+            mensaje=f'Nueva solicitud {numero_solicitud} — {proyecto}',
+            rol_destino='admin',
+            sede_id=None,
+            entidad_tipo='solicitud',
+            entidad_id=solicitud_id,
+            creado_por=usuario_id
+        )
+    except Exception as e:
+        print('ERROR AL CREAR NOTIFICACION DE SOLICITUD:', repr(e))
 
     return jsonify({
         'mensaje': 'Solicitud registrada',

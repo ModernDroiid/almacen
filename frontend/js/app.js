@@ -219,7 +219,17 @@ function abrirModalPerfil() {
                 ? 'Portería'
                 : 'Consulta';
 
-    document.getElementById('perfil-modal-rol').textContent = rolTexto;
+    const claseRol = usuario.rol === 'admin'
+        ? 'chip-rol--admin'
+        : usuario.rol === 'sede'
+            ? 'chip-rol--sede'
+            : usuario.rol === 'porteria'
+                ? 'chip-rol--porteria'
+                : 'chip-rol--consulta';
+
+    const chipRol = document.getElementById('perfil-modal-rol');
+    chipRol.textContent = rolTexto;
+    chipRol.className = 'perfil-modal-chip-rol ' + claseRol;
 
     const filaSede  = document.getElementById('perfil-modal-fila-sede');
     const sedeTexto = usuario.sede_nombre || usuario.ciudad || '';
@@ -1535,14 +1545,7 @@ function pintarProductos(productos) {
             <tr>
 
                 <td>
-                    <span
-                        style="
-                            font-family:monospace;
-                            font-size:12px;
-                            color:#1a6fc4;
-                            font-weight:600
-                        "
-                    >
+                    <span class="prod-codigo">
                         ${p.codigo || '—'}
                     </span>
                 </td>
@@ -1558,12 +1561,7 @@ function pintarProductos(productos) {
                 </td>
 
                 <td>
-                    <span
-                        style="
-                            font-size:11px;
-                            color:#4a6080
-                        "
-                    >
+                    <span class="prod-sede">
                         ${sanitizar(
                             p.sede_nombre || '—'
                         )}
@@ -1571,13 +1569,17 @@ function pintarProductos(productos) {
                 </td>
 
                 <td>
-                    ${sanitizar(
-                        p.unidad || 'UND'
-                    )}
+                    <span class="prod-unidad">
+                        ${sanitizar(
+                            p.unidad || 'UND'
+                        )}
+                    </span>
                 </td>
 
                 <td>
-                    ${p.stock}
+                    <span class="prod-stock">
+                        ${p.stock}
+                    </span>
                 </td>
 
                 <td>
@@ -5995,6 +5997,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     iniciarPollingSolicitudes();
+    iniciarPollingNotificaciones();
 
     if (usuario.rol === 'consulta') {
         document.body.classList.add('rol-consulta');
@@ -9437,6 +9440,235 @@ function iniciarPollingSolicitudes() {
 }
 
 
+// ══ CENTRO DE NOTIFICACIONES ═══════════════════════════════════
+//
+// Avisa cuando pasa algo que le interesa a este usuario:
+//   - Traslado creado   -> a la sede destino
+//   - Solicitud creada  -> al admin
+//   - Salida creada     -> a portería de esa sede
+//
+// No hay conexión en tiempo real (no hay websockets): se
+// consulta el servidor cada cierto tiempo (polling), igual que
+// ya se hacía con el aviso de solicitudes pendientes. Cuando
+// aparece algo nuevo que el usuario no ha visto todavía, además
+// de sumar el contador de la campana, se muestra una etiqueta
+// emergente (toast) abajo a la derecha.
+
+// Notificaciones para las que YA se mostró el toast en esta
+// sesión (para no repetirlo cada vez que se vuelve a consultar).
+const notificacionesYaAvisadas = new Set();
+
+function iconoNotificacion(tipo) {
+    if (tipo === 'traslado') {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h11m0 0l-3-3m3 3l-3 3"/><path d="M20 16H9m0 0l3-3m-3 3l3 3"/></svg>';
+    }
+    if (tipo === 'solicitud') {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 3h6v2H9z"/><path d="M9 9.5h6M9 13h6M9 16.5h3.5"/></svg>';
+    }
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10m0 0l-4 4m4-4l4 4"/><path d="M4 4v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V4"/></svg>';
+}
+
+function tituloNotificacion(tipo) {
+    if (tipo === 'traslado')  return 'Traslado';
+    if (tipo === 'solicitud') return 'Solicitud';
+    if (tipo === 'salida')    return 'Salida';
+    return 'Notificación';
+}
+
+function formatearTiempoRelativo(fechaIso) {
+    const fecha = new Date(fechaIso);
+    const segundos = Math.floor((new Date() - fecha) / 1000);
+
+    if (segundos < 60) return 'Justo ahora';
+
+    const minutos = Math.floor(segundos / 60);
+    if (minutos < 60) return `Hace ${minutos} min`;
+
+    const horas = Math.floor(minutos / 60);
+    if (horas < 24) return `Hace ${horas} h`;
+
+    const dias = Math.floor(horas / 24);
+    if (dias === 1) return 'Ayer';
+    if (dias < 7) return `Hace ${dias} días`;
+
+    return fecha.toLocaleDateString('es-CO');
+}
+
+async function actualizarNotificaciones() {
+
+    const res = await apiFetch(`${API}/notificaciones`);
+    if (!res || !res.ok) return;
+
+    const datos = await res.json();
+    const notificaciones = datos.notificaciones || [];
+
+    const badge = document.getElementById('badge-notificaciones');
+    if (badge) {
+        const noLeidas = datos.no_leidas || 0;
+        if (noLeidas > 0) {
+            badge.textContent = noLeidas > 99 ? '99+' : noLeidas;
+            badge.classList.add('visible');
+        } else {
+            badge.classList.remove('visible');
+        }
+    }
+
+    notificaciones
+        .filter(n => !n.leida && !notificacionesYaAvisadas.has(n.id))
+        .reverse()
+        .forEach(n => {
+            notificacionesYaAvisadas.add(n.id);
+            mostrarToastNotificacion(n);
+        });
+
+    renderizarListaNotificaciones(notificaciones);
+}
+
+function renderizarListaNotificaciones(notificaciones) {
+
+    const lista = document.getElementById('notificaciones-lista');
+    if (!lista) return;
+
+    if (notificaciones.length === 0) {
+        lista.innerHTML =
+            '<div class="notificaciones-vacio">No tienes notificaciones todavía.</div>';
+        return;
+    }
+
+    lista.innerHTML = notificaciones.map(n => `
+        <button
+            type="button"
+            class="notificacion-item ${n.leida ? '' : 'no-leida'}"
+            onclick="irANotificacion('${n.entidad_tipo}')"
+        >
+            <div class="notificacion-item-icono tipo-${n.tipo}">
+                ${iconoNotificacion(n.tipo)}
+            </div>
+            <div class="notificacion-item-cuerpo">
+                <div class="notificacion-item-mensaje">${sanitizar(n.mensaje)}</div>
+                <div class="notificacion-item-fecha">${formatearTiempoRelativo(n.fecha_creacion)}</div>
+            </div>
+            ${n.leida ? '' : '<span class="notificacion-punto"></span>'}
+        </button>
+    `).join('');
+}
+
+function mostrarToastNotificacion(n) {
+
+    let contenedor = document.getElementById('toasts-notificaciones');
+
+    if (!contenedor) {
+        contenedor = document.createElement('div');
+        contenedor.id = 'toasts-notificaciones';
+        contenedor.className = 'toasts-notificaciones';
+        document.body.appendChild(contenedor);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-notificacion';
+
+    toast.innerHTML = `
+        <div class="notificacion-item-icono tipo-${n.tipo}">
+            ${iconoNotificacion(n.tipo)}
+        </div>
+        <div class="toast-notificacion-texto">
+            <div class="toast-notificacion-titulo">${tituloNotificacion(n.tipo)}</div>
+            <div class="toast-notificacion-mensaje">${sanitizar(n.mensaje)}</div>
+        </div>
+        <button type="button" class="toast-notificacion-cerrar" aria-label="Cerrar">×</button>
+    `;
+
+    toast.addEventListener('click', (e) => {
+        if (e.target.closest('.toast-notificacion-cerrar')) return;
+        irANotificacion(n.entidad_tipo);
+        toast.remove();
+    });
+
+    toast.querySelector('.toast-notificacion-cerrar').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toast.remove();
+    });
+
+    contenedor.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+    }, 7000);
+}
+
+function toggleNotificaciones(event) {
+
+    if (event) event.stopPropagation();
+
+    const panel = document.getElementById('notificaciones-panel');
+    if (!panel) return;
+
+    if (panel.classList.contains('visible')) {
+        cerrarPanelNotificaciones();
+        return;
+    }
+
+    const boton = document.getElementById('btn-notificaciones');
+    const r = boton.getBoundingClientRect();
+
+    panel.style.left   = Math.round(r.right + 10) + 'px';
+    panel.style.bottom = Math.round(window.innerHeight - r.bottom) + 'px';
+
+    panel.classList.add('visible');
+
+    document.addEventListener('click', cerrarPanelNotificacionesSiAfuera, true);
+}
+
+function cerrarPanelNotificaciones() {
+    const panel = document.getElementById('notificaciones-panel');
+    if (panel) panel.classList.remove('visible');
+    document.removeEventListener('click', cerrarPanelNotificacionesSiAfuera, true);
+}
+
+function cerrarPanelNotificacionesSiAfuera(e) {
+    const panel = document.getElementById('notificaciones-panel');
+    const boton = document.getElementById('btn-notificaciones');
+
+    if (!panel) return;
+    if (panel.contains(e.target) || (boton && boton.contains(e.target))) return;
+
+    cerrarPanelNotificaciones();
+}
+
+function irANotificacion(tipo) {
+
+    cerrarPanelNotificaciones();
+
+    const destino = {
+        traslado: 'traslados',
+        solicitud: 'solicitudes',
+        salida: 'salidas'
+    }[tipo];
+
+    if (!destino) return;
+
+    const btn = document.getElementById('nav-' + destino);
+    if (btn) mostrarSeccion(destino, btn);
+}
+
+async function marcarNotificacionesVistas() {
+
+    const res = await apiFetch(`${API}/notificaciones/marcar-vistas`, {
+        method: 'PUT'
+    });
+
+    if (!res || !res.ok) return;
+
+    await actualizarNotificaciones();
+}
+
+function iniciarPollingNotificaciones() {
+    if (!['admin', 'sede', 'porteria'].includes(usuario.rol)) return;
+    actualizarNotificaciones();
+    setInterval(actualizarNotificaciones, 20000);
+}
+
+
 async function verEquiposProducto(productoId) {
     try {
         const res = await apiFetch(
@@ -9525,3 +9757,213 @@ async function verEquiposProducto(productoId) {
         );
     }
 }
+
+
+/* ============================================================
+   SELECT PERSONALIZADO
+   ------------------------------------------------------------
+   Los navegadores (Chrome/Brave/Edge) NO permiten estilizar con
+   CSS la lista emergente de un <select> nativo: ese listado lo
+   dibuja el sistema operativo, por lo que siempre se ve con los
+   colores por defecto de Windows (el resaltado azul feo).
+
+   Esta sección reemplaza esa lista emergente por un panel propio,
+   construido en HTML/CSS, para TODOS los <select> de la app
+   (filtros y formularios de los modales), sin tener que tocar el
+   código de cada uno: sigue funcionando igual (mismo id, mismo
+   .value, mismo onchange), solo cambia cómo se ve la lista al
+   abrirla.
+   ============================================================ */
+
+(function () {
+
+    let panelActual = null;
+    let selectActual = null;
+
+    function cerrarPanelSelect() {
+        if (panelActual) {
+            panelActual.remove();
+            panelActual = null;
+        }
+        if (selectActual) {
+            selectActual.classList.remove('select-abierto');
+            selectActual = null;
+        }
+    }
+
+    function posicionarPanelSelect(select, panel) {
+        const r = select.getBoundingClientRect();
+        const margen = 8;
+
+        panel.style.left = Math.round(r.left) + 'px';
+        panel.style.minWidth = Math.round(r.width) + 'px';
+        panel.style.maxWidth = Math.max(Math.round(r.width), 340) + 'px';
+
+        const espacioAbajo = window.innerHeight - r.bottom - margen;
+        const espacioArriba = r.top - margen;
+        const alturaDeseada = Math.min(panel.scrollHeight || 260, 260);
+
+        // Preferir abrir hacia abajo si entra completo; si no, usar el
+        // lado (arriba/abajo) que tenga más espacio disponible.
+        if (espacioAbajo >= alturaDeseada || espacioAbajo >= espacioArriba) {
+            panel.style.top = Math.round(r.bottom + 4) + 'px';
+            panel.style.bottom = 'auto';
+            panel.style.maxHeight = Math.max(80, Math.min(alturaDeseada, espacioAbajo)) + 'px';
+        } else {
+            panel.style.bottom = Math.round(window.innerHeight - r.top + 4) + 'px';
+            panel.style.top = 'auto';
+            panel.style.maxHeight = Math.max(80, Math.min(alturaDeseada, espacioArriba)) + 'px';
+        }
+
+        // Evitar que el panel se salga por el borde derecho de la pantalla
+        const anchoPanel = panel.getBoundingClientRect().width;
+        if (r.left + anchoPanel > window.innerWidth - margen) {
+            const nuevoLeft = Math.max(margen, window.innerWidth - margen - anchoPanel);
+            panel.style.left = Math.round(nuevoLeft) + 'px';
+        }
+    }
+
+    function abrirPanelSelect(select) {
+        cerrarPanelSelect();
+
+        if (select.disabled) return;
+
+        const r = select.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) return; // no visible
+
+        const opciones = Array.from(select.options);
+        if (!opciones.length) return;
+
+        const panel = document.createElement('div');
+        panel.className = 'select-panel-personalizado';
+
+        opciones.forEach((opt, idx) => {
+            const item = document.createElement('div');
+            item.className = 'opcion';
+            if (opt.selected) item.classList.add('seleccionada');
+            if (opt.disabled) item.classList.add('deshabilitada');
+            item.dataset.index = String(idx);
+
+            const texto = document.createElement('span');
+            texto.className = 'texto';
+            texto.textContent = opt.textContent;
+
+            const check = document.createElement('span');
+            check.className = 'check';
+            check.textContent = '✓';
+
+            item.appendChild(texto);
+            item.appendChild(check);
+
+            if (!opt.disabled) {
+                item.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+                item.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    select.selectedIndex = idx;
+                    cerrarPanelSelect();
+                    select.dispatchEvent(new Event('input', { bubbles: true }));
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    select.focus();
+                });
+            }
+
+            panel.appendChild(item);
+        });
+
+        document.body.appendChild(panel);
+        posicionarPanelSelect(select, panel);
+
+        select.classList.add('select-abierto');
+        selectActual = select;
+        panelActual = panel;
+
+        const seleccionada = panel.querySelector('.opcion.seleccionada');
+        if (seleccionada) seleccionada.scrollIntoView({ block: 'nearest' });
+    }
+
+    document.addEventListener('mousedown', function (e) {
+        const select = e.target.closest ? e.target.closest('select') : null;
+
+        if (select) {
+            if (select.disabled) return;
+            e.preventDefault();
+            if (selectActual === select) {
+                cerrarPanelSelect();
+            } else {
+                select.focus();
+                abrirPanelSelect(select);
+            }
+            return;
+        }
+
+        if (panelActual && !panelActual.contains(e.target)) {
+            cerrarPanelSelect();
+        }
+    }, true);
+
+    document.addEventListener('mouseover', function (e) {
+        if (!panelActual) return;
+        const item = e.target.closest ? e.target.closest('.opcion') : null;
+        if (item && panelActual.contains(item) && !item.classList.contains('deshabilitada')) {
+            panelActual.querySelectorAll('.opcion.resaltada').forEach(function (i) {
+                i.classList.remove('resaltada');
+            });
+            item.classList.add('resaltada');
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        const activo = document.activeElement;
+        if (!activo || activo.tagName !== 'SELECT') return;
+
+        if (!panelActual || selectActual !== activo) {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                abrirPanelSelect(activo);
+            }
+            return;
+        }
+
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            cerrarPanelSelect();
+            return;
+        }
+
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            const resaltada = panelActual.querySelector('.opcion.resaltada') || panelActual.querySelector('.opcion.seleccionada');
+            if (resaltada && e.key === 'Enter') {
+                e.preventDefault();
+                resaltada.click();
+            } else if (e.key === 'Tab') {
+                cerrarPanelSelect();
+            }
+            return;
+        }
+
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const items = Array.from(panelActual.querySelectorAll('.opcion:not(.deshabilitada)'));
+            if (!items.length) return;
+            let idx = items.findIndex(function (i) { return i.classList.contains('resaltada'); });
+            if (idx === -1) idx = items.findIndex(function (i) { return i.classList.contains('seleccionada'); });
+            idx = e.key === 'ArrowDown' ? Math.min(items.length - 1, idx + 1) : Math.max(0, idx - 1);
+            items.forEach(function (i) { i.classList.remove('resaltada'); });
+            items[idx].classList.add('resaltada');
+            items[idx].scrollIntoView({ block: 'nearest' });
+        }
+    });
+
+    window.addEventListener('scroll', function () {
+        if (panelActual) cerrarPanelSelect();
+    }, true);
+
+    window.addEventListener('resize', function () {
+        if (panelActual) cerrarPanelSelect();
+    });
+
+})();

@@ -33,6 +33,7 @@ from flask_jwt_extended import (
 )
 
 from database import get_connection
+from utils.notificaciones import crear_notificacion
 
 
 traslados_bp = Blueprint(
@@ -1057,6 +1058,26 @@ def crear_traslado():
     finally:
 
         conn.close()
+
+    # ============================================================
+    # NOTIFICACIÓN A LA SEDE DESTINO
+    # ============================================================
+
+    try:
+        crear_notificacion(
+            tipo="traslado",
+            mensaje=(
+                f"Nuevo traslado desde {sede_origen['nombre']} "
+                f"— {numero_documento}"
+            ),
+            rol_destino="sede",
+            sede_id=sede_destino_id,
+            entidad_tipo="traslado",
+            entidad_id=traslado_id,
+            creado_por=usuario_id
+        )
+    except Exception as e:
+        print("ERROR AL CREAR NOTIFICACION DE TRASLADO:", repr(e))
 
     return jsonify({
         "mensaje":

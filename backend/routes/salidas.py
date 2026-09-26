@@ -29,6 +29,7 @@ from flask_jwt_extended import (
 
 from database import get_connection
 from utils.auditoria import registrar_auditoria
+from utils.notificaciones import crear_notificacion
 
 
 salidas_bp = Blueprint("salidas", __name__)
@@ -1346,6 +1347,28 @@ def crear_salida():
         print(
             "ADVERTENCIA AUDITORIA SALIDA:",
             e_auditoria
+        )
+
+    # ========================================================
+    # NOTIFICACIÓN A PORTERÍA DE ESA SEDE
+    # ========================================================
+
+    try:
+        crear_notificacion(
+            tipo="salida",
+            mensaje=(
+                f"Nueva salida {numero_documento} — hacia {destino}"
+            ),
+            rol_destino="porteria",
+            sede_id=sede_id,
+            entidad_tipo="salida",
+            entidad_id=salida_id,
+            creado_por=usuario_id
+        )
+    except Exception as e_notificacion:
+        print(
+            "ADVERTENCIA NOTIFICACION SALIDA:",
+            e_notificacion
         )
 
     return jsonify({

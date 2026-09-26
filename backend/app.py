@@ -21,6 +21,7 @@ from routes.pdf_consolidado import pdf_consolidado_bp
 from routes.perfil import perfil_bp
 from routes.pdf_stock_bajo import pdf_stock_bajo_bp
 from routes.auditoria import auditoria_bp
+from routes.notificaciones import notificaciones_bp
 from dotenv import load_dotenv
 
 import os
@@ -102,6 +103,12 @@ def restringir_rol_porteria():
     if request.path.startswith('/api/perfil'):
         return None
 
+    # Las notificaciones también son personales (cada quien
+    # revisa y marca como vistas las suyas) — portería necesita
+    # esto para enterarse de las salidas nuevas.
+    if request.path.startswith('/api/notificaciones'):
+        return None
+
     # Único permiso real de portería: CONSULTAR salidas
     # (listado y detalle) y ver/descargar su PDF.
     puede_ver_esto = (
@@ -141,6 +148,7 @@ app.register_blueprint(pdf_consolidado_bp, url_prefix='/api/pdf')
 app.register_blueprint(perfil_bp, url_prefix='/api/perfil')
 app.register_blueprint(pdf_stock_bajo_bp, url_prefix='/api/pdf')
 app.register_blueprint(auditoria_bp, url_prefix='/api/auditoria')
+app.register_blueprint(notificaciones_bp, url_prefix='/api/notificaciones')
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), '..', 'frontend')
 

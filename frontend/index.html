@@ -18,6 +18,24 @@
         href="img/LogoOcci.png"
     >
 
+    <!-- PWA: permite "Instalar app" desde Brave/Chrome para que
+         abra en su propia ventana, como una app de escritorio -->
+
+    <link
+        rel="manifest"
+        href="manifest.json"
+    >
+
+    <meta
+        name="theme-color"
+        content="#2f6fed"
+    >
+
+    <link
+        rel="apple-touch-icon"
+        href="img/icon-192.png"
+    >
+
     <link
         rel="stylesheet"
         href="css/style.css?v=15"
@@ -4977,6 +4995,26 @@
 
 
 <script src="js/app.js?v=35"></script>
+
+
+<!-- Registro del service worker de la PWA (ver service-worker.js
+     para la explicación de por qué no cachea nada) -->
+
+<script>
+
+    if ('serviceWorker' in navigator) {
+
+        window.addEventListener('load', () => {
+
+            navigator.serviceWorker
+                .register('service-worker.js')
+                .catch(() => {});
+
+        });
+
+    }
+
+</script>
 
 
 </body>

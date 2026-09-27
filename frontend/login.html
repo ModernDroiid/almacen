@@ -5,12 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Occidente — Iniciar sesión</title>
     <link rel="icon" type="image/png" href="img/LogoOcci.png">
+
+    <!-- PWA: mismo manifest que index.html, para que la app se
+         pueda instalar aunque el navegador arranque aqui (sesion
+         cerrada) -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2f6fed">
+    <link rel="apple-touch-icon" href="img/icon-192.png">
+
     <link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body class="pagina-login">
 
     <div class="login-panel-izq">
-        <img src="img/occidentelogin.png?v=2" class="login-logo-panel" alt="Occidente Seguridad Privada">
+        <img src="img/occidente.png?v=2" class="login-logo-panel" alt="Occidente Seguridad Privada">
 
         <div class="login-panel-contenido">
             <p class="login-titulo">Iniciar sesión</p>
@@ -142,6 +150,15 @@
                 '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path>' +
                 '<circle cx="12" cy="12" r="3"></circle>';
         }
+    }
+</script>
+
+<!-- Registro del service worker de la PWA (igual que en index.html) -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('service-worker.js').catch(() => {});
+        });
     }
 </script>
 </body>

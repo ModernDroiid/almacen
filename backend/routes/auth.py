@@ -145,10 +145,31 @@ def login():
     finally:
         conn.close()
 
+    # ================================================
+    # CUENTA DE SOPORTE (proveedor del sistema)
+    #
+    # El rol "soporte" es una cuenta única de mantenimiento
+    # que no se puede crear ni asignar desde la aplicación
+    # (ver crear_usuario/editar_usuario más abajo) — solo
+    # existe la que se creó una vez por script directo en
+    # la base de datos.
+    #
+    # Para efectos de permisos, se comporta exactamente
+    # igual que "admin" (por eso el token lleva 'admin' en
+    # el claim que usan todas las validaciones de acceso),
+    # pero el valor real "soporte" se conserva en la base de
+    # datos y se le devuelve tal cual al frontend, para que
+    # siga apareciendo de forma visible y honesta como
+    # "Soporte técnico" en el listado de Usuarios — nunca
+    # oculta.
+    # ================================================
+    rol_real = usuario['rol']
+    rol_para_permisos = 'admin' if rol_real == 'soporte' else rol_real
+
     token = create_access_token(
         identity=str(usuario['id']),
         additional_claims={
-            'rol': usuario['rol'],
+            'rol': rol_para_permisos,
             'sede_id': usuario['sede_id'],
             'nombre': usuario['nombre'],
             'sede_nombre': usuario['sede_nombre'],
@@ -159,7 +180,7 @@ def login():
     return jsonify({
         'token': token,
         'nombre': usuario['nombre'],
-        'rol': usuario['rol'],
+        'rol': rol_real,
         'sede_id': usuario['sede_id'],
         'sede_nombre': usuario['sede_nombre'],
         'ciudad': usuario['ciudad']
@@ -362,6 +383,17 @@ def crear_usuario():
             'error': 'Nombre, email y contraseña son obligatorios'
         }), 400
 
+    # El rol "soporte" es una cuenta única del proveedor del
+    # sistema y nunca se crea desde aquí — solo existe la que
+    # se insertó una vez directamente en la base de datos.
+    if rol == 'soporte':
+        return jsonify({
+            'error': (
+                'El rol "soporte" no se puede crear desde este '
+                'formulario.'
+            )
+        }), 403
+
     conn = get_connection()
 
     try:
@@ -472,6 +504,23 @@ def editar_usuario(id):
             ''', (id,))
 
             usuario_anterior = cursor.fetchone()
+
+            # El rol "soporte" no se puede asignar a otra cuenta
+            # ni quitar por aquí — solo se conserva si el usuario
+            # editado ya lo tenía (por ejemplo, al cambiarle el
+            # nombre o la contraseña a la cuenta de soporte misma).
+            if rol == 'soporte' and (
+                not usuario_anterior
+                or usuario_anterior['rol'] != 'soporte'
+            ):
+                conn.rollback()
+
+                return jsonify({
+                    'error': (
+                        'El rol "soporte" no se puede asignar desde '
+                        'este formulario.'
+                    )
+                }), 403
 
             cursor.execute('''
                 UPDATE usuarios

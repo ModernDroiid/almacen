@@ -59,6 +59,21 @@ function mostrarNotificacion(mensaje, tipo = 'exito') {
 const token   = localStorage.getItem('token');
 const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
 
+// La cuenta de "soporte" tiene acceso total, igual que un
+// administrador (así lo maneja el backend con el JWT), pero se
+// muestra con su propia etiqueta ("Soporte técnico") en vez de
+// aparecer como "Administrador". Para que TODOS los controles de
+// esta pantalla que verifican usuario.rol === 'admin' funcionen
+// igual para soporte sin tocarlos uno por uno, se guarda el rol
+// real aparte (usuario.rol_real) y usuario.rol se sobreescribe a
+// 'admin' solo para efectos de permisos. Los 2 lugares que sí deben
+// mostrar la etiqueta real (sidebar y "Mi perfil") usan
+// usuario.rol_real — ver los otros 2 cambios de este archivo.
+usuario.rol_real = usuario.rol;
+if (usuario.rol === 'soporte') {
+    usuario.rol = 'admin';
+}
+
 if (!token) {
     window.location.href = 'login.html';
 } else {
@@ -211,21 +226,25 @@ function abrirModalPerfil() {
     document.getElementById('perfil-modal-nombre').textContent =
         usuario.nombre || 'Usuario';
 
-    const rolTexto = usuario.rol === 'admin'
+    const rolTexto = usuario.rol_real === 'admin'
         ? 'Administrador'
-        : usuario.rol === 'sede'
+        : usuario.rol_real === 'sede'
             ? 'Almacenista'
-            : usuario.rol === 'porteria'
+            : usuario.rol_real === 'porteria'
                 ? 'Portería'
-                : 'Consulta';
+                : usuario.rol_real === 'soporte'
+                    ? 'Soporte técnico'
+                    : 'Consulta';
 
-    const claseRol = usuario.rol === 'admin'
+    const claseRol = usuario.rol_real === 'admin'
         ? 'chip-rol--admin'
-        : usuario.rol === 'sede'
+        : usuario.rol_real === 'sede'
             ? 'chip-rol--sede'
-            : usuario.rol === 'porteria'
+            : usuario.rol_real === 'porteria'
                 ? 'chip-rol--porteria'
-                : 'chip-rol--consulta';
+                : usuario.rol_real === 'soporte'
+                    ? 'chip-rol--soporte'
+                    : 'chip-rol--consulta';
 
     const chipRol = document.getElementById('perfil-modal-rol');
     chipRol.textContent = rolTexto;
@@ -6056,14 +6075,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    const nom = usuario.nombre || 'Usuario';
-    const rolTexto = usuario.rol === 'admin'
-    ? 'Administrador'
-    : usuario.rol === 'sede'
-        ? 'Almacenista'
-        : usuario.rol === 'porteria'
-            ? 'Portería'
-            : 'Consulta';
+        const nom = usuario.nombre || 'Usuario';
+        const rolTexto = usuario.rol_real === 'admin'
+        ? 'Administrador'
+        : usuario.rol_real === 'sede'
+            ? 'Almacenista'
+            : usuario.rol_real === 'porteria'
+                ? 'Portería'
+                : usuario.rol_real === 'soporte'
+                    ? 'Soporte técnico'
+                    : 'Consulta';
 
     document.getElementById('nombre-usuario').textContent = nom;
     document.getElementById('rol-usuario').textContent    = rolTexto;
@@ -6122,9 +6143,9 @@ async function cargarUsuarios() {
     }
 
     usuarios.forEach(u => {
-        const rolTexto  = u.rol === 'admin' ? 'Administrador' : u.rol === 'sede' ? 'Almacenista' : u.rol === 'porteria' ? 'Portería' : 'Consulta';
-        const rolColor  = u.rol === 'admin' ? '#1a6fc4' : u.rol === 'sede' ? '#1a7a4a' : u.rol === 'porteria' ? '#a5680c' : '#6b8aab';
-        const rolBg     = u.rol === 'admin' ? '#e8f0fb' : u.rol === 'sede' ? '#e6f4ec' : u.rol === 'porteria' ? '#fbf1e0' : '#f0f4f8';
+        const rolTexto  = u.rol === 'admin' ? 'Administrador' : u.rol === 'sede' ? 'Almacenista' : u.rol === 'porteria' ? 'Portería' : u.rol === 'soporte' ? 'Soporte técnico' : 'Consulta';
+        const rolColor  = u.rol === 'admin' ? '#1a6fc4' : u.rol === 'sede' ? '#1a7a4a' : u.rol === 'porteria' ? '#a5680c' : u.rol === 'soporte' ? '#7a3ba0' : '#6b8aab';
+        const rolBg     = u.rol === 'admin' ? '#e8f0fb' : u.rol === 'sede' ? '#e6f4ec' : u.rol === 'porteria' ? '#fbf1e0' : u.rol === 'soporte' ? '#f3ecf9' : '#f0f4f8';
         const estadoBadge = u.activo
             ? '<span class="badge badge-ok">Activo</span>'
             : '<span class="badge badge-agotado">Inactivo</span>';

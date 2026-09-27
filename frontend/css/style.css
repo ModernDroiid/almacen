@@ -990,6 +990,7 @@ nav {
 .perfil-modal-chip-rol.chip-rol--sede     { background: #e6f4ec; color: #1a7a4a; }
 .perfil-modal-chip-rol.chip-rol--porteria { background: #fbf1e0; color: #a5680c; }
 .perfil-modal-chip-rol.chip-rol--consulta { background: #f0f4f8; color: #6b8aab; }
+.perfil-modal-chip-rol.chip-rol--soporte  { background: #f3ecf9; color: #7a3ba0; }
 
 .perfil-modal-quitar-foto {
     display: block;

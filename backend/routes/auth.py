@@ -170,6 +170,11 @@ def login():
         identity=str(usuario['id']),
         additional_claims={
             'rol': rol_para_permisos,
+            # Se usa en los pocos lugares donde soporte, aunque
+            # tiene permisos de admin, debe quedar excluido a
+            # propósito (por ejemplo, aprobar/rechazar solicitudes
+            # de compra — ver routes/solicitudes.py).
+            'es_soporte': rol_real == 'soporte',
             'sede_id': usuario['sede_id'],
             'nombre': usuario['nombre'],
             'sede_nombre': usuario['sede_nombre'],

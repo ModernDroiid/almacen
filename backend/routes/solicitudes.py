@@ -530,6 +530,17 @@ def aprobar_solicitud(id):
             'error': 'Solo el admin puede aprobar solicitudes'
         }), 403
 
+    # La cuenta de soporte tiene permisos de admin, pero a
+    # propósito NO puede aprobar solicitudes de compra — solo
+    # consultarlas. Ver auth.py (claim "es_soporte").
+    if claims.get('es_soporte'):
+        return jsonify({
+            'error': (
+                'La cuenta de soporte puede consultar las '
+                'solicitudes, pero no puede aprobarlas'
+            )
+        }), 403
+
     datos = request.get_json(silent=True) or {}
     firma_aprobador = datos.get('firma_aprobador_base64') or None
 
@@ -618,6 +629,15 @@ def rechazar_solicitud(id):
     if claims.get('rol') != 'admin':
         return jsonify({
             'error': 'Solo el admin puede rechazar solicitudes'
+        }), 403
+
+    # Igual que al aprobar: soporte puede ver, no puede rechazar.
+    if claims.get('es_soporte'):
+        return jsonify({
+            'error': (
+                'La cuenta de soporte puede consultar las '
+                'solicitudes, pero no puede rechazarlas'
+            )
         }), 403
 
     datos = request.get_json(silent=True) or {}

@@ -9339,7 +9339,11 @@ async function verSolicitud(id) {
     }
 
     const zonaAprobacion = document.getElementById('revisar-sol-zona-aprobacion');
-    const puedeResolver = usuario.rol === 'admin' && sol.estado === 'PENDIENTE';
+    // La cuenta de soporte ve las solicitudes igual que un admin,
+    // pero a propósito no puede aprobarlas ni rechazarlas — por
+    // eso se excluye aquí con usuario.rol_real (ver el backend,
+    // routes/solicitudes.py, que también lo bloquea de verdad).
+    const puedeResolver = usuario.rol === 'admin' && usuario.rol_real !== 'soporte' && sol.estado === 'PENDIENTE';
 
     zonaAprobacion.style.display = puedeResolver ? 'block' : 'none';
     document.getElementById('btn-aprobar-solicitud').style.display = puedeResolver ? 'inline-block' : 'none';

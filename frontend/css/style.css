@@ -156,19 +156,25 @@ select.select-abierto {
 
 .sidebar {
     width: 222px;
-    background: #ffffff;
-    border-right: 1px solid #e5e7eb;
+    background: #0d2137;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
 }
 
 .sidebar-logo {
-    padding: 24px 12px 20px;
+    padding: 22px 16px 18px;
     border-bottom: none;
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.sidebar-logo img {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 10px 10px;
 }
 
 .logo-icon {
@@ -196,7 +202,6 @@ select.select-abierto {
     margin-top: 1px;
 }
 
-
 /* ============================================================
    NAVEGACIÓN
    ============================================================ */
@@ -220,7 +225,7 @@ nav {
     border: none;
     border-left: 2px solid transparent;
     background: none;
-    color: #64748b;
+    color: #9aa6c0;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
@@ -231,19 +236,19 @@ nav {
 
 .nav-btn:hover,
 .notif-boton:hover {
-    background: rgba(15, 23, 42, 0.04);
-    color: #0f172a;
+    background: rgba(255, 255, 255, 0.06);
+    color: #e8edf7;
 }
 
 .nav-btn.active {
-    background: #f2f6ff;
-    border-left: 2px solid #2f6fed;
-    color: #2f6fed;
+    background: rgba(47, 111, 237, 0.2);
+    border-left: 2px solid #4f8ff7;
+    color: #ffffff;
     font-weight: 600;
 }
 
 .nav-btn.active span.icono {
-    color: #2f6fed;
+    color: #6fa8f8;
 }
 
 .nav-btn span.icono,
@@ -264,7 +269,7 @@ nav {
 
 .nav-divisor {
     height: 1px;
-    background: #eef0f4;
+    background: rgba(255, 255, 255, 0.08);
     margin: 10px 8px;
     flex-shrink: 0;
 }
@@ -295,14 +300,13 @@ nav {
     display: inline-block;
 }
 
-
 /* ============================================================
    FOOTER DEL SIDEBAR
    ============================================================ */
 
 .sidebar-footer {
     padding: 14px 16px 6px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     margin: 6px 4px 0;
     display: flex;
     align-items: center;
@@ -313,27 +317,31 @@ nav {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #eef2f7;
+    background: rgba(47, 111, 237, 0.22);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 12px;
     font-weight: 700;
-    color: #2f6fed;
+    color: #9fc4fb;
     flex-shrink: 0;
 }
 
-/* Avatar grande, usado en el modal "Mi perfil" */
+/* Avatar grande, usado en el modal "Mi perfil" — ese modal es
+   sobre fondo blanco (no el sidebar oscuro), así que recupera los
+   colores claros en vez de heredar los de .avatar para el sidebar. */
 .avatar-grande {
     width: 96px;
     height: 96px;
     font-size: 28px;
+    background: #eef2f7;
+    color: #2f6fed;
     box-shadow: 0 0 0 4px white, 0 6px 16px rgba(13, 27, 46, 0.18);
 }
 
 .sidebar-footer .info-usuario .nombre {
     font-size: 11px;
-    color: #0f172a;
+    color: #f1f5f9;
     font-weight: 500;
 }
 
@@ -2274,6 +2282,11 @@ body.rol-consulta .admin-only {
    esas otras pantallas sin que se pidiera. Por eso cada regla
    que reutiliza un nombre compartido va precedida de
    "body.pagina-login " — así solo aplica en esta página.
+
+   Diseño "Oscuro total": ya no hay panel dividido — toda la
+   pantalla es oscura (igual que el sidebar) y el formulario
+   queda en una tarjeta centrada tipo "vidrio esmerilado". El
+   panel derecho (.login-panel-der) se oculta.
    ============================================================ */
 
 body.pagina-login {
@@ -2282,42 +2295,76 @@ body.pagina-login {
     min-height: 100vh;
     height: auto;
     overflow: hidden;
-    background: #ffffff;
+    background: #0d2137;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+body.pagina-login::before {
+    content: '';
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.03);
+    top: -160px;
+    right: -120px;
+}
+
+body.pagina-login::after {
+    content: '';
+    position: absolute;
+    width: 360px;
+    height: 360px;
+    border-radius: 50%;
+    background: rgba(47, 111, 237, 0.14);
+    bottom: -140px;
+    left: -100px;
 }
 
 /* ------------------------------------------------------------
-   Panel izquierdo — formulario
+   Tarjeta del formulario, centrada
    ------------------------------------------------------------ */
 
 .login-panel-izq {
-    width: 42%;
-    min-width: 360px;
-    max-width: 560px;
+    width: 400px;
+    max-width: 92vw;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 48px 64px;
+    padding: 44px 40px;
     position: relative;
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    backdrop-filter: blur(6px);
+    z-index: 1;
 }
 
 .login-panel-contenido {
     width: 100%;
-    max-width: 340px;
 }
 
 .login-logo-panel {
-    width: 230px;
+    width: 220px;
     max-width: 100%;
     display: block;
     align-self: center;
-    margin-bottom: 2.25rem;
+    margin: 0 auto 28px;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 10px 16px;
+    box-sizing: border-box;
 }
 
 body.pagina-login .login-titulo {
-    font-size: 23px;
+    font-size: 21px;
     font-weight: 700;
-    color: #0d2137;
-    text-align: left;
+    color: #ffffff;
+    text-align: center;
     margin-bottom: 1.75rem;
 }
 
@@ -2328,22 +2375,27 @@ body.pagina-login .campo {
 body.pagina-login .campo label {
     font-size: 12px;
     font-weight: 600;
-    color: #4a6080;
+    color: #9aa6c0;
 }
 
 body.pagina-login .campo input {
     width: 100%;
-    background: #eef3f8;
-    border: 1px solid #eef3f8;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #f1f5f9;
     border-radius: 8px;
     padding: 11px 12px;
     font-size: 13.5px;
     transition: border 0.15s, background 0.15s;
 }
 
+body.pagina-login .campo input::placeholder {
+    color: #6b7fa0;
+}
+
 body.pagina-login .campo input:focus {
-    background: #ffffff;
-    border-color: #1a6fc4;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #4f8ff7;
 }
 
 .campo-password-wrapper {
@@ -2374,7 +2426,7 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
     background: none;
     border: none;
     cursor: pointer;
-    color: #93aac4;
+    color: #7e8caa;
     padding: 4px;
     display: flex;
     align-items: center;
@@ -2382,15 +2434,15 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
 }
 
 .btn-toggle-pass:hover {
-    color: #1a6fc4;
+    color: #6fa8f8;
 }
 
 body.pagina-login .btn-login {
     width: 100%;
-    background: #1a6fc4;
+    background: #2f6fed;
     color: white;
     border: none;
-    padding: 12px;
+    padding: 13px;
     border-radius: 8px;
     font-size: 14px;
     font-weight: 600;
@@ -2404,7 +2456,7 @@ body.pagina-login .btn-login {
 }
 
 body.pagina-login .btn-login:hover {
-    background: #155fa8;
+    background: #255dc9;
 }
 
 body.pagina-login .btn-login:disabled {
@@ -2449,105 +2501,32 @@ body.pagina-login .btn-login:disabled {
 }
 
 .login-footer-panel {
-    position: absolute;
-    left: 64px;
-    bottom: 28px;
+    text-align: center;
     font-size: 11px;
-    color: #93aac4;
+    color: #6b7fa0;
+    margin-top: 1.75rem;
 }
 
 /* ------------------------------------------------------------
-   Panel derecho — color de marca + ilustración
+   Panel derecho — ya no se usa en el diseño oscuro total
    ------------------------------------------------------------ */
 
 .login-panel-der {
-    flex: 1;
-    background: linear-gradient(160deg, #123a5e 0%, #0d2137 55%, #081522 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-}
-
-.login-panel-der::before,
-.login-panel-der::after {
-    content: '';
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
-}
-
-.login-panel-der::before {
-    width: 420px;
-    height: 420px;
-    top: -120px;
-    right: -120px;
-}
-
-.login-panel-der::after {
-    width: 300px;
-    height: 300px;
-    bottom: -100px;
-    left: -80px;
-    background: rgba(26, 111, 196, 0.25);
-}
-
-.login-ilustracion {
-    position: relative;
-    z-index: 1;
-    text-align: center;
-    color: #ffffff;
-    padding: 0 40px;
-}
-
-.login-ilustracion svg {
-    width: 130px;
-    height: 130px;
-    margin-bottom: 1.5rem;
-}
-
-.login-ilustracion h2 {
-    font-size: 20px;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.login-ilustracion p {
-    font-size: 13px;
-    color: #b7cbe0;
-    max-width: 300px;
-    margin: 0 auto;
-    line-height: 1.5;
+    display: none;
 }
 
 /* ------------------------------------------------------------
-   Responsive — el panel derecho se oculta en pantallas chicas
+   Responsive
    ------------------------------------------------------------ */
 
 @media (max-width: 900px) {
 
-    .login-panel-der {
-        display: none;
-    }
-
     .login-panel-izq {
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-        align-items: center;
-        padding: 32px 24px;
-    }
-
-    .login-footer-panel {
-        position: static;
-        text-align: center;
-        margin-top: 2rem;
-        left: auto;
-        bottom: auto;
+        width: 90vw;
+        max-width: 380px;
+        padding: 36px 28px;
     }
 }
-
 
 /* ============================================================
    "CHIPS" DE LA TABLA DE PRODUCTOS
